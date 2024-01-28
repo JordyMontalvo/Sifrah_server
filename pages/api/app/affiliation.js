@@ -108,7 +108,6 @@ export default async (req, res) => {
 
     pay_basic    = 0
     pay_standard = 0
-    pay_business = 0
     pay_master   = 0
 
 
@@ -120,8 +119,7 @@ export default async (req, res) => {
 
     plans[0].pay = pay_basic
     plans[1].pay = pay_standard
-    plans[2].pay = pay_business
-    plans[3].pay = pay_master
+    plans[2].pay = pay_master
 
   }
 
