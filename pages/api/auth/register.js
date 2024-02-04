@@ -2,7 +2,6 @@ import bcrypt from 'bcrypt'
 import db     from "../../../components/db"
 import lib    from "../../../components/lib"
 
-// const { User, Session, Token, Tree } = db
 const { User, Session, Token, Tree } = db
 const { rand, error, success, midd } = lib
 
@@ -28,14 +27,6 @@ const Register = async (req, res) => {
 
   const      id  = rand()
   const session  = rand() + rand() + rand()
-  const coverage = parent.coverage
-
-  const token  = await Token.findOne({ free: true })
-
-  if(!token) return res.json(error('token not available'))
-
-  await Token.update({ value: token.value }, { free: false })
-
 
   await User.insert({
     id,
@@ -51,15 +42,10 @@ const Register = async (req, res) => {
     parentId:   parent.id,
     affiliated: false,
     activated:  false,
-    _activated:  false,
     plan:      'default',
     photo:     'https://ik.imagekit.io/asu/impulse/avatar_cWVgh_GNP.png',
     points: 0,
-    tree: true,
-    coverage: {
-      id,
-    },
-    token: token.value,
+    tree: false,
   })
   
   // save new session
@@ -67,15 +53,6 @@ const Register = async (req, res) => {
     id: id,
     value: session,
   })
-
-
-  let _id  = coverage.id
-  let node = await Tree.findOne({ id: _id })
-
-  node.childs.push(id)
-
-  await Tree.update({ id: _id }, { childs: node.childs })
-  await Tree.insert({ id:  id, childs: [], parent: _id })
 
   // response
   return res.json(success({ session }))

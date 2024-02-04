@@ -4,8 +4,6 @@ import lib from "../../../components/lib"
 const { Affiliation, User, Tree, Token, Transaction, Office } = db
 const { error, success, midd, ids, parent_ids, map, model, rand } = lib
 
-// valid filters
-// const q = { all: {}, pending: { status: 'pending'} }
 
 const A = ['id',   'date',     'plan', 'voucher', 'status', 'office', 'delivered', 'remaining', 'pay_method', 'bank', 'voucher_date', 'voucher_number', 'amounts', 'price', 'products']
 const U = ['name', 'lastName', 'dni', 'phone']
@@ -33,9 +31,9 @@ async function pay_bonus(id, arr, i, aff_id, amount, migration, plan, _id) {
 
   const name = migration ? 'migration bonus' : 'affiliation bonus'
 
-  if(user.plan != 'default' && i <= (user.n - 1)) {
+  if(i <= (user.n - 1)) {
 
-    let p = plan != 'basic' ? pay[user.plan][i] : 0.1
+    let p = pay[user.plan][i]
 
     const id = rand()
 
@@ -54,83 +52,35 @@ async function pay_bonus(id, arr, i, aff_id, amount, migration, plan, _id) {
     pays.push(id)
   }
 
-  if (i == 4 || !node.parent || plan == 'basic') return
+  if (i == 9 || !node.parent) return
 
   pay_bonus(node.parent, arr, i + 1, aff_id, amount, migration, plan, _id)
 }
 
 
-// async function pay_bonus_2(id, arr, i, aff, amount, plan, _id) {
-
-//   if(!id) return
-
-//   const user = users.find(e => e.id == id)
-//   const node =  tree.find(e => e.id == id)
-
-//   if(user.id == _id) {
-
-//     if(i <= (aff.plan.n - 1)) {
-
-//       let p = plan != 'basic' ? pay[user.plan][i] : 0.1
-
-//       aff.pays.push(p * amount)
-//     }
-//   }
-
-//   if (i == 4 || !node.parent || plan == 'basic') return
-
-//   pay_bonus_2(node.parent, arr, i + 1, aff, amount, plan, _id)
-// }
-
-function pay_bonus_2(id, arr, i, aff, plan, _id) {
-
-  if(!id) return
-
-  const user = users.find(e => e.id == id)
-  const node =  tree.find(e => e.id == id)
-  const _aff = _affs.find(e => e.userId == id)
-
-  if(user.id == _id) {
-
-    if(i <= (aff.plan.n - 1)) {
-
-      let p = plan != 'basic' ? pay[user.plan][i] : 0.1
-
-      aff.pays.push(p * _aff.plan.amount)
-    }
-  }
-
-  if (i == 4 || !node.parent || plan == 'basic') return
-
-  pay_bonus_2(node.parent, arr, i + 1, aff, amount, plan, _id)
-}
 
 const handler = async (req, res) => {
 
   if(req.method == 'GET') {
-    console.log('GET ...')
-    // validate filter
-    const { filter }    = req.query
+
+    const { filter } = req.query
 
     const q = { all: {}, pending: { status: 'pending'} }
 
     if (!(filter in q)) return res.json(error('invalid filter'))
 
-    const { account }   = req.query
+    const { account } = req.query
 
-    // get AFFILIATIONS
     let qq = q[filter]
 
     if( account != 'admin') qq.office = account
 
+
     let affiliations = await Affiliation.find(qq)
-    console.log('affiliations ...')
 
-    // get USERS for affiliations
     let users = await User.find({ id: { $in: ids(affiliations) } })
-    console.log('users ...')
 
-        users = map(users)
+    users = map(users)
 
     // enrich affiliations
     affiliations = affiliations.map(a => {
@@ -142,11 +92,6 @@ const handler = async (req, res) => {
 
       return { ...a, ...u }
     })
-
-    let parents = await User.find({ id: { $in: parent_ids(affiliations) } })
-    console.log('parents ...')
-    console.log(':) ...')
-
 
     return res.json(success({ affiliations }))
   }
