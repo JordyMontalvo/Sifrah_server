@@ -86,20 +86,23 @@ export default async (req, res) => {
 
   if(req.method == 'POST') {
 
-    let { products, price, plan, voucher, office, check, pay_method, bank, date, voucher_number } = req.body
+    let { products, plan, voucher, office, check, pay_method, bank, date, voucher_number } = req.body
 
-    plan = plans.find(e => e.id == plan); console.log({ plan })
+    plan = plans.find(e => e.id == plan.id); console.log({ plan })
 
     let transactions = []
     let amounts
 
     if(!check) {
 
+      const price = plan.amount
+
       const a = _balance < price ? _balance : price
       const r = (price - _balance) > 0 ? price - _balance : 0
       const b = balance < r ? balance : r
       const c = price - a - b
       console.log({ a, b, c })
+
       const id1 = rand()
       const id2 = rand()
 
@@ -108,52 +111,51 @@ export default async (req, res) => {
       if(a) {
         transactions.push(id1)
 
-        // await Transaction.insert({
-        //   id:      id1,
-        //   date:    new Date(),
-        //   user_id:  user.id,
-        //   type:   'out',
-        //   value:   a,
-        //   name:   'affiliation',
-        //   virtual: true,
-        // })
+        await Transaction.insert({
+          id:      id1,
+          date:    new Date(),
+          user_id:  user.id,
+          type:   'out',
+          value:   a,
+          name:   'affiliation',
+          virtual: true,
+        })
       }
 
       if(b) {
         transactions.push(id2)
 
-        // await Transaction.insert({
-        //   id:      id2,
-        //   date:    new Date(),
-        //   user_id:  user.id,
-        //   type:   'out',
-        //   value:   b,
-        //   name:   'affiliation',
-        //   virtual: false,
-        // })
+        await Transaction.insert({
+          id:      id2,
+          date:    new Date(),
+          user_id:  user.id,
+          type:   'out',
+          value:   b,
+          name:   'affiliation',
+          virtual: false,
+        })
       }
     }
 
-    // await Affiliation.insert({
-    //   id:     rand(),
-    //   date:   new Date(),
-    //   userId: user.id,
-    //   products,
-    //   price,
-    //   plan,
-    //   voucher,
-    //   office,
-    //   status: 'pending',
-    //   delivered: false,
+    await Affiliation.insert({
+      id:     rand(),
+      date:   new Date(),
+      userId: user.id,
+      products,
+      plan,
+      voucher,
+      office,
+      status: 'pending',
+      delivered: false,
 
-    //   transactions,
-    //   amounts,
+      transactions,
+      amounts,
 
-    //   pay_method,
-    //   bank,
-    //   voucher_date: date,
-    //   voucher_number,
-    // })
+      pay_method,
+      bank,
+      voucher_date: date,
+      voucher_number,
+    })
 
     return res.json(success())
   }

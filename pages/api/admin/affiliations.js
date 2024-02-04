@@ -5,7 +5,7 @@ const { Affiliation, User, Tree, Token, Transaction, Office } = db
 const { error, success, midd, ids, parent_ids, map, model, rand } = lib
 
 
-const A = ['id',   'date',     'plan', 'voucher', 'status', 'office', 'delivered', 'remaining', 'pay_method', 'bank', 'voucher_date', 'voucher_number', 'amounts', 'price', 'products']
+const A = ['id',   'date',     'plan', 'voucher', 'status', 'office', 'delivered', 'pay_method', 'bank', 'voucher_date', 'voucher_number', 'amounts', 'products']
 const U = ['name', 'lastName', 'dni', 'phone']
 
 
@@ -20,9 +20,8 @@ const pay = {
 
 let pays = []
 
-let _affs
 
-async function pay_bonus(id, arr, i, aff_id, amount, migration, plan, _id) {
+async function pay_bonus(id, i, aff_id, amount, migration, plan, _id) {
 
   const user = users.find(e => e.id == id)
   const node =  tree.find(e => e.id == id)
@@ -54,7 +53,7 @@ async function pay_bonus(id, arr, i, aff_id, amount, migration, plan, _id) {
 
   if (i == 9 || !node.parent) return
 
-  pay_bonus(node.parent, arr, i + 1, aff_id, amount, migration, plan, _id)
+  pay_bonus(node.parent, i + 1, aff_id, amount, migration, plan, _id)
 }
 
 
@@ -119,7 +118,7 @@ const handler = async (req, res) => {
 
 
       // update USER
-      let user = await User.findOne({ id: affiliation.userId })
+      const user   = await User.findOne({ id: affiliation.userId })
 
       await User.update({ id: user.id }, {
         affiliated:         true,
@@ -130,131 +129,54 @@ const handler = async (req, res) => {
         affiliation_points: affiliation.plan.affiliation_points,
       })
 
-      const parent = await User.findOne({ id: user.parentId })
 
-      // pay BONUS
+      if(!user.tree) {
+
+        // reserve Token
+        const token = await Token.findOne({ free: true })
+        if(!token) return res.json(error('token not available'))
+        await Token.update({ value: token.value }, { free: false })
+
+
+        // insert to tree
+        const parent = await User.findOne({ id: user.parentId })
+        const coverage = parent.coverage
+
+        let _id  = coverage.id
+        let node = await Tree.findOne({ id: _id })
+
+        node.childs.push(user.id)
+
+        await Tree.update({ id: _id }, { childs: node.childs })
+        await Tree.insert({ id:  user.id, childs: [], parent: _id })
+
+
+        // update USER
+        await User.update({ id: user.id }, {
+          tree: true,
+          coverage: { id : user.id },
+          token: token.value,
+        })
+      }
+
+
+      // PAY AFFILIATION BONUS
       tree  = await Tree.find({})
       users = await User.find({})
       pays  = []
 
+      const plan   = affiliation.plan.id
+      const amount = affiliation.plan.amount
+
+
       if(user.plan == 'default') {
-
-        // PAY AFFILIATION BONUS
-
-        const plan   = affiliation.plan.id
-        const amount = affiliation.plan.amount
-
-        pay_bonus(user.parentId, pay, 0, affiliation.id, amount, false, plan, user.id)
-
-        // .................................................................
-
-        tree.forEach(node => {
-
-          const _user = users.find(e => e.id == node.id)
-
-          node.affiliated = _user.affiliated
-        })
-
-
-        _affs = await Affiliation.find({})
-
-        affiliation.pays = []
-
-        for(let node of tree) {
-          if(node.affiliated) {
-
-            const _user = users.find(e => e.id == node.id)
-            console.log('user: ', _user.name)
-            // pay_bonus_2(_user.parentId, pay, 0, affiliation, amount, _user.plan, user.id)
-            pay_bonus_2(_user.parentId, pay, 0, affiliation, _user.plan, user.id)
-          }
-        }
-
-        affiliation.plan.pay = affiliation.pays.reduce((a, b) => a + b, 0)
-
-        // .................................................................
-
-
-        const _pay = affiliation.plan.pay - (affiliation.amounts ? affiliation.amounts[1] : 0)
-        console.log({ _pay })
-
-        if(_pay > 0) {
-
-          let _id = rand()
-
-          await Transaction.insert({
-            id:     _id,
-            date:    new Date(),
-            user_id: user.id,
-            type:   'in',
-            value:   affiliation.plan.pay,
-            name:   'remaining',
-            virtual: false,
-          })
-
-          pays.push(_id)
-
-          _id = rand()
-
-          await Transaction.insert({
-            id:     _id,
-            date:    new Date(),
-            user_id: user.id,
-            type:   'out',
-            value:  (affiliation.amounts ? affiliation.amounts[1] : 0),
-            name:   'remaining',
-            virtual: false,
-          })
-
-          pays.push(_id)
-        }
-
-        if(_pay < 0 || _pay == 0) {
-
-          let _id = rand()
-
-          await Transaction.insert({
-            id:     _id,
-            date:    new Date(),
-            user_id: user.id,
-            type:   'in',
-            value:   affiliation.plan.pay,
-            name:   'remaining',
-            virtual: false,
-          })
-
-          pays.push(_id)
-
-          _id = rand()
-
-          await Transaction.insert({
-            id:     _id,
-            date:    new Date(),
-            user_id: user.id,
-            type:   'out',
-            value:   affiliation.plan.pay,
-            name:   'remaining',
-            virtual: false,
-          })
-
-          pays.push(_id)
-        }
-
+        pay_bonus(user.parentId, 0, affiliation.id, amount, false, plan, user.id)
       } else {
-
-        // PAY AFFILIATION BONUS
-
-        const plan   = affiliation.plan.id
-        const amount = affiliation.plan.amount
-
-        pay_bonus(user.parentId, pay, 0, affiliation.id, amount, true, plan, user.id)
+        pay_bonus(user.parentId, 0, affiliation.id, amount,  true, plan, user.id)
       }
-
-      await Affiliation.update({ id }, { transactions: pays })
 
 
       // UPDATE STOCK
-      console.log('UPDATE STOCK ...')
       const office_id = affiliation.office
       const products  = affiliation.products
 
@@ -322,7 +244,7 @@ const handler = async (req, res) => {
         await User.update({ id: user.id }, {
           // affiliated: false,
           activated: false,
-         _activated: false,
+         // _activated: false,
           plan: affiliation.plan.id,
           affiliation_date: affiliation.date,
           affiliation_points: affiliation.plan.affiliation_points,
@@ -334,7 +256,7 @@ const handler = async (req, res) => {
         await User.update({ id: user.id }, {
           affiliated: false,
           activated: false,
-         _activated: false,
+         // _activated: false,
           plan: 'default',
           affiliation_date: null,
           affiliation_points: 0,

@@ -22,7 +22,7 @@ export default async (req, res) => {
 
     let { coverage } = req.body
 
-    console.log({ coverage })
+    // console.log({ coverage })
 
     await User.update({ id: user.id }, { coverage })
 

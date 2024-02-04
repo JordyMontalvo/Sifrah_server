@@ -25,46 +25,25 @@ const directs = async (req, res) => {
   // find directs
   let directs = await User.find({ parentId: user.id })
 
-  // const ids = _ids(directs)
-
-  // let affiliations = await Affiliation.find({ status: 'approved', userId: { $in: ids } })
-
-  // affiliations = _map(affiliations)
-
   directs = directs.map(direct => {
-
-    // const affiliation = affiliations.get(direct.id)
     const d = model(direct, D)
-
-    // if(affiliation) return { ...d, plan: affiliation.plan.name }
-    // else            return { ...d, plan: null }
-
     return { ...d }
   })
-
-
-  // const node = await Tree.findOne({ id: user.id })
-  // let childs = node.childs
-  // console.log({ childs })
-
-  // let users = await User.find({ id: { $in: childs } })
-
-  // let names = users.map(u => u.name)
-  // console.log({ names })
 
   const node = await Tree.findOne({ id: user.id })
   console.log({ node })
+
   const childs = node.childs
   console.log({ childs })
 
-  let frontals = await User.find({ id: {$in: childs}})
-  frontals = frontals.filter(e => e.parentId != user.id)
+  let frontals = await User.find({ id: { $in: childs } })
+  // frontals = frontals.filter(e => e.parentId != user.id)
   console.log({ frontals })
 
-  frontals = frontals.map(frontal => {
-    const d = model(frontal, D)
-    return { ...d }
-  })
+  // frontals = frontals.map(frontal => {
+  //   const d = model(frontal, D)
+  //   return { ...d }
+  // })
 
   // response
   return res.json(success({
