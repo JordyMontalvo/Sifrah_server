@@ -166,7 +166,7 @@ const handler = async (req, res) => {
       pays  = []
 
       const plan   = affiliation.plan.id
-      const amount = affiliation.plan.amount
+      const amount = affiliation.plan.amount - 50
 
 
       if(user.plan == 'default') {
