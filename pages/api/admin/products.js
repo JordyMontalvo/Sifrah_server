@@ -1,85 +1,68 @@
-import db from "../../../components/db"
-import lib from "../../../components/lib"
+import db from '../../../components/db'
+import lib from '../../../components/lib'
 
-const { Product } = db
+const { Product, Plan } = db
 const { midd, success, rand } = lib
-
 
 export default async (req, res) => {
   await midd(req, res)
 
-  if(req.method == 'GET') {
-
+  if (req.method == 'GET') {
     let products = await Product.find({})
 
     // response
-    return res.json(success({
-      products
-    }))
+    return res.json(
+      success({
+        products,
+      })
+    )
   }
 
-  if(req.method == 'POST') { ; console.log('POST ...')
+  if (req.method == 'POST') {
+    // console.log('POST ...')
 
     const { action } = req.body
 
-    if (action == 'edit') { ; console.log('edit ...')
+    if (action == 'edit') {
+      // console.log('edit ...')
 
       const { id } = req.body
-      const { _name, _type, _price, aff_price_check, val_check } = req.body.data
+      const { _name, _type, _price, _points, _img, _code } = req.body.data
 
-      await Product.update({ id }, {
-        name: _name,
-        type: _type,
-        price: _price,
-      })
-
-      if(aff_price_check) {
-        const { _aff_price } = req.body.data
-
-        await Product.update({ id }, {
-          aff_price: _aff_price,
-        })
-      } else {
-
-        await Product.un_update({ id }, {
-          aff_price: '',
-        })
-      }
-
-      if(val_check) {
-        const { _val } = req.body.data
-
-        await Product.update({ id }, {
-          val: _val,
-        })
-      } else {
-
-        await Product.un_update({ id }, {
-          val: '',
-        })
-      }
+      // const beforeProductData = (await Product.find({ id }))[0]
+      // console.log('beforeProductData', beforeProductData)
+      await Product.update(
+        { id },
+        {
+          id: _code,
+          name: _name,
+          type: _type,
+          price: _price,
+          points: _points,
+          img: _img,
+        }
+      )
+      await Plan.updateMany(
+        { 'products.id': id },
+        {
+          'products.$.id': _code,
+        }
+      )
     }
 
-    if (action == 'add') { ; console.log('add ...')
+    if (action == 'add') {
+      // console.log('add ...')
 
-      const { name, type, price, aff_price_check, aff_price } = req.body.data
+      const { code, name, type, price, points, img } = req.body.data
 
-      if(aff_price_check) {
-        await Product.insert({
-          id: rand(),
-          name: name,
-          type: type,
-          price,
-          aff_price,
-        })
-      } else {
-        await Product.insert({
-          id: rand(),
-          name: name,
-          type: type,
-          price
-        })
-      }
+      await Product.insert({
+        id: rand(),
+        code,
+        name,
+        type,
+        price,
+        points,
+      })
     }
 
     // response
