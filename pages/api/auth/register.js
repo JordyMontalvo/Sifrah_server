@@ -28,6 +28,13 @@ const Register = async (req, res) => {
   const      id  = rand()
   const session  = rand() + rand() + rand()
 
+
+  // reserve Token
+  const token = await Token.findOne({ free: true })
+  if(!token) return res.json(error('token not available'))
+  await Token.update({ value: token.value }, { free: false })
+
+
   await User.insert({
     id,
     date: new Date(),
@@ -45,7 +52,10 @@ const Register = async (req, res) => {
     plan:      'default',
     photo:     'https://ik.imagekit.io/asu/impulse/avatar_cWVgh_GNP.png',
     points: 0,
-    tree: false,
+    // tree: false,
+    tree: true,
+    coverage: { id : user.id },
+    token: token.value,
   })
   
   // save new session
@@ -53,6 +63,20 @@ const Register = async (req, res) => {
     id: id,
     value: session,
   })
+
+
+  // insert to tree
+  const parent = await User.findOne({ id: user.parentId })
+  const coverage = parent.coverage
+
+  let _id  = coverage.id
+  let node = await Tree.findOne({ id: _id })
+
+  node.childs.push(user.id)
+
+  await Tree.update({ id: _id }, { childs: node.childs })
+  await Tree.insert({ id:  user.id, childs: [], parent: _id })
+
 
   // response
   return res.json(success({ session }))
