@@ -66,7 +66,7 @@ const Register = async (req, res) => {
 
 
   // insert to tree
-  const parent = await User.findOne({ id: user.parentId })
+  // const parent = await User.findOne({ id: user.parentId })
   const coverage = parent.coverage
 
   let _id  = coverage.id
