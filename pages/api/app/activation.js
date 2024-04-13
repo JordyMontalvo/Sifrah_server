@@ -88,8 +88,8 @@ export default async (req, res) => {
     // let { products, voucher, office } = req.body
 
     // console.log({ products })
-    // const points = products.reduce((a, b) => a + b.points * b.total, 0)
-    const points = products.reduce((a, b) => a + (b.val ? b.val : b.price) * b.total, 0)
+    const points = products.reduce((a, b) => a + b.points * b.total, 0)
+    // const points = products.reduce((a, b) => a + (b.val ? b.val : b.price) * b.total, 0)
 
     const total  = products.reduce((a, b) => a + b.total, 0)
     // const _total = products.reduce((a, b) => a + (b.desc ? b.total : 0), 0)
