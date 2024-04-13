@@ -21,22 +21,22 @@ export default async (req, res) => {
   // get plans
   let _products = await Product.find({})
 
-  let i
+  // let i
 
-  if(user.plan == 'basic')    i = 0
-  if(user.plan == 'standard') i = 1
-  if(user.plan == 'business') i = 2
-  if(user.plan == 'master')   i = 3
-  console.log({i})
+  // if(user.plan == 'basic')    i = 0
+  // if(user.plan == 'standard') i = 1
+  // if(user.plan == 'business') i = 2
+  // if(user.plan == 'master')   i = 3
+  // console.log({i})
 
-  _products.forEach(p => {
-    const price = p.price
-    console.log(p.name)
-    console.log(p.price)
-    console.log('')
+  // _products.forEach(p => {
+  //   const price = p.price
+  //   console.log(p.name)
+  //   console.log(p.price)
+  //   console.log('')
 
-    p.price = p.price[i]
-  })
+  //   p.price = p.price[i]
+  // })
 
   const profit = user.profit ? user.profit : 0
 
