@@ -100,15 +100,15 @@ export default async (req, res) => {
       const points_total  = user.points + activation.points
       console.log({ points_total })
 
-      const _activated = user._activated ? true : (points_total >= 60)
-      console.log({ _activated })
+      // const _activated = user._activated ? true : (points_total >= 60)
+      // console.log({ _activated })
 
-      const activated = user.activated ? true : (points_total >= 100)
+      const activated = user.activated ? true : (points_total >= 120)
       console.log({ activated })
 
       await User.update({ id: user.id }, {
         activated,
-        _activated,
+        // _activated,
         points: points_total,
       })
 
@@ -211,12 +211,12 @@ export default async (req, res) => {
 
       await User.update({ id: user.id }, { points: user.points })
 
-      const _activated = user._activated ? true : (user.points >= 60)
-      const activated  = user.activated ? true : (user.points >= 100)
+      // const _activated = user._activated ? true : (user.points >= 60)
+      const activated  = user.activated ? true : (user.points >= 120)
 
       await User.update({ id: user.id }, {
         activated,
-       _activated,
+       // _activated,
       })
 
       const transactions = activation.transactions ; console.log(transactions)
