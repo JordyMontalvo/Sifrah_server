@@ -54,7 +54,7 @@ const Register = async (req, res) => {
     points: 0,
     // tree: false,
     tree: true,
-    coverage: { id : user.id },
+    coverage: { id },
     token: token.value,
   })
   
@@ -72,10 +72,10 @@ const Register = async (req, res) => {
   let _id  = coverage.id
   let node = await Tree.findOne({ id: _id })
 
-  node.childs.push(user.id)
+  node.childs.push(id)
 
   await Tree.update({ id: _id }, { childs: node.childs })
-  await Tree.insert({ id:  user.id, childs: [], parent: _id })
+  await Tree.insert({ id:  id, childs: [], parent: _id })
 
 
   // response
