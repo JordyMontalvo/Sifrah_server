@@ -133,31 +133,31 @@ const handler = async (req, res) => {
 
       if(!user.tree) {
 
-        // // reserve Token
-        // const token = await Token.findOne({ free: true })
-        // if(!token) return res.json(error('token not available'))
-        // await Token.update({ value: token.value }, { free: false })
+        // reserve Token
+        const token = await Token.findOne({ free: true })
+        if(!token) return res.json(error('token not available'))
+        await Token.update({ value: token.value }, { free: false })
 
 
-        // // insert to tree
-        // const parent = await User.findOne({ id: user.parentId })
-        // const coverage = parent.coverage
+        // insert to tree
+        const parent = await User.findOne({ id: user.parentId })
+        const coverage = parent.coverage
 
-        // let _id  = coverage.id
-        // let node = await Tree.findOne({ id: _id })
+        let _id  = coverage.id
+        let node = await Tree.findOne({ id: _id })
 
-        // node.childs.push(user.id)
+        node.childs.push(user.id)
 
-        // await Tree.update({ id: _id }, { childs: node.childs })
-        // await Tree.insert({ id:  user.id, childs: [], parent: _id })
+        await Tree.update({ id: _id }, { childs: node.childs })
+        await Tree.insert({ id:  user.id, childs: [], parent: _id })
 
 
-        // // update USER
-        // await User.update({ id: user.id }, {
-        //   tree: true,
-        //   coverage: { id : user.id },
-        //   token: token.value,
-        // })
+        // update USER
+        await User.update({ id: user.id }, {
+          tree: true,
+          coverage: { id : user.id },
+          token: token.value,
+        })
       }
 
 
