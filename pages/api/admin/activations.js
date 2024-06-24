@@ -2,7 +2,7 @@ import db  from "../../../components/db"
 import lib from "../../../components/lib"
 
 const { Activation, User, Tree, Token, Office, Transaction } = db
-const { error, success, midd, ids, map, model } = lib
+const { error, success, midd, ids, map, model, rand } = lib
 
 // valid filters
 // const q = { all: {}, pending: { status: 'pending'} }
@@ -12,16 +12,14 @@ const A = ['id', 'date', 'products', 'price', 'points', 'voucher', 'status', 'am
 const U = ['name', 'lastName', 'dni', 'phone']
 
 
-let tree = null
-
+/*
 function find(id, i) { // i: branch
   const node = tree.find(e => e.id == id)
 
   if(node.childs[i] == null) return id
 
   return find(node.childs[i], i)
-}
-
+} */
 
 
 export default async (req, res) => {
@@ -164,6 +162,43 @@ export default async (req, res) => {
       //   profit: office_profit_total,
       // })
 
+
+      // PAY BONUS
+      console.log('PAY BONUS ...')
+
+      if (user.parentId) {
+
+        const amount = products.filter((p) => p.type == 'Promoción')
+                               .reduce((a, p) => (a + p.total * 10 ), 0)
+        console.log('amunt: ', amount)
+
+        if(amount) {
+
+          const parent  = await User.findOne({ id: user.parentId })
+          const id      = rand()
+          const virtual = parent.activated ? false : true
+          console.log('parent: ', parent)
+
+          await Transaction.insert({
+            id,
+            date:           new Date(),
+            user_id:        parent.id,
+            type:          'in',
+            value:          amount,
+            name:          'activation bonnus promo',
+            activation_id:  activation.d,
+            virtual,
+           _user_id:        user.id,
+          })
+
+          activation.transactions.push(id)
+
+          await Activation.update({ id: activation.id }, {
+            transactions: activation.transactions,
+          })
+
+        }
+      }
 
       // response
       return res.json(success())
