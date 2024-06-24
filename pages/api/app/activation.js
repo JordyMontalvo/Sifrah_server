@@ -21,6 +21,13 @@ export default async (req, res) => {
   // get plans
   let _products = await Product.find({})
 
+  if(!user.activated) {
+    console.log('1 ...')
+    _products = _products.filter((p) => p.type != 'Promoción')
+  }
+
+
+
   // let i
 
   // if(user.plan == 'basic')    i = 0
