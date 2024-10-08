@@ -50,7 +50,7 @@ const handler = async (req, res) => {
 
   if(req.method == 'POST') {
 
-    const { cash, bank, account, account_type, amount, office } = req.body
+    const { cash, bank, account, account_type, amount, desc, office } = req.body
 
     // validate ammount
     if(amount > balance) return res.json(error('amount exceeds the balance'))
@@ -68,6 +68,7 @@ const handler = async (req, res) => {
       account,
       account_type,
       amount,
+      desc,
       office,
       status: 'pending',
     })
@@ -79,6 +80,7 @@ const handler = async (req, res) => {
       type:  'out',
       value:  amount,
       name:  'collect',
+      desc,
       collectId: id,
     })
 
