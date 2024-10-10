@@ -1,4 +1,4 @@
-import db  from "../../../components/db"
+import db from "../../../components/db"
 import lib from "../../../components/lib"
 
 const { Activation, User, Tree, Token, Office, Transaction } = db
@@ -25,30 +25,30 @@ function find(id, i) { // i: branch
 export default async (req, res) => {
   await midd(req, res)
 
-  if(req.method == 'GET') {
+  if (req.method == 'GET') {
 
     const { filter } = req.query
 
-    const q = { all: {}, pending: { status: 'pending'} }
+    const q = { all: {}, pending: { status: 'pending' } }
 
     // validate filter
-    if(!(filter in q)) return res.json(error('invalid filter'))
+    if (!(filter in q)) return res.json(error('invalid filter'))
 
-    const { account }   = req.query
+    const { account } = req.query
     console.log({ account })
 
     // get activations
     let qq = q[filter]
     console.log({ qq })
 
-    if( account != 'admin') qq.office = account
+    if (account != 'admin') qq.office = account
     console.log({ qq })
 
     let activations = await Activation.find(qq)
 
     // get users for activations
     let users = await User.find({ id: { $in: ids(activations) } })
-        users = map(users)
+    users = map(users)
 
     // enrich activations
     activations = activations.map(a => {
@@ -65,7 +65,7 @@ export default async (req, res) => {
     return res.json(success({ activations }))
   }
 
-  if(req.method == 'POST') {
+  if (req.method == 'POST') {
 
     const { action, id } = req.body
 
@@ -73,17 +73,17 @@ export default async (req, res) => {
     const activation = await Activation.findOne({ id })
 
     // validate activation
-    if(!activation) return res.json(error('activation not exist'))
+    if (!activation) return res.json(error('activation not exist'))
 
     // validate status
-    if(action == 'approve' || action == 'reject') {
+    if (action == 'approve' || action == 'reject') {
 
-      if(activation.status == 'approved') return res.json(error('already approved'))
-      if(activation.status == 'rejected') return res.json(error('already rejected'))
+      if (activation.status == 'approved') return res.json(error('already approved'))
+      if (activation.status == 'rejected') return res.json(error('already rejected'))
 
     }
 
-    if(action == 'approve') {
+    if (action == 'approve') {
       console.log('1')
       // approve activation
       await Activation.update({ id }, { status: 'approved' })
@@ -94,19 +94,19 @@ export default async (req, res) => {
 
       // const points_total  = user.points.total  + activation.points
       // const points_period = user.points.period + activation.points
-      
-      const points_total  = user.points + activation.points
+
+      const points_total = user.points + activation.points
       console.log({ points_total })
 
-      // const _activated = user._activated ? true : (points_total >= 60)
-      // console.log({ _activated })
+      const _activated = user._activated ? true : (points_total >= 40)
+      console.log({ _activated })
 
       const activated = user.activated ? true : (points_total >= 120)
       console.log({ activated })
 
       await User.update({ id: user.id }, {
         activated,
-        // _activated,
+        _activated,
         points: points_total,
       })
 
@@ -115,7 +115,7 @@ export default async (req, res) => {
         // migrar transaccinoes virtuales
         const transactions = await Transaction.find({ user_id: user.id, virtual: true })
 
-        for(let transaction of transactions) {
+        for (let transaction of transactions) {
           console.log({ transaction })
           await Transaction.update({ id: transaction.id }, { virtual: false })
         }
@@ -125,7 +125,7 @@ export default async (req, res) => {
       // UPDATE STOCK
       console.log('UPDATE STOCK ...')
       const office_id = activation.office
-      const products  = activation.products
+      const products = activation.products
 
       // console.log({ office_id, products })
 
@@ -136,7 +136,7 @@ export default async (req, res) => {
 
 
       products.forEach((p, i) => {
-        if(office.products[i]) office.products[i].total -= products[i].total
+        if (office.products[i]) office.products[i].total -= products[i].total
       })
 
 
@@ -169,26 +169,26 @@ export default async (req, res) => {
       if (user.parentId) {
 
         const amount = products.filter((p) => p.type == 'Promoción')
-                               .reduce((a, p) => (a + p.total * 10 ), 0)
+          .reduce((a, p) => (a + p.total * 10), 0)
         console.log('amunt: ', amount)
 
-        if(amount) {
+        if (amount) {
 
-          const parent  = await User.findOne({ id: user.parentId })
-          const id      = rand()
+          const parent = await User.findOne({ id: user.parentId })
+          const id = rand()
           const virtual = parent.activated ? false : true
           console.log('parent: ', parent)
 
           await Transaction.insert({
             id,
-            date:           new Date(),
-            user_id:        parent.id,
-            type:          'in',
-            value:          amount,
-            name:          'activation bonnus promo',
-            activation_id:  activation.d,
+            date: new Date(),
+            user_id: parent.id,
+            type: 'in',
+            value: amount,
+            name: 'activation bonnus promo',
+            activation_id: activation.d,
             virtual,
-           _user_id:        user.id,
+            _user_id: user.id,
           })
 
           activation.transactions.push(id)
@@ -205,15 +205,15 @@ export default async (req, res) => {
     }
 
 
-    if(action == 'reject') {
+    if (action == 'reject') {
 
       // reject activation
       await Activation.update({ id }, { status: 'rejected' })
 
       // revert transactions
-      if(activation.transactions) {
+      if (activation.transactions) {
 
-        for(let transactionId of activation.transactions) {
+        for (let transactionId of activation.transactions) {
           await Transaction.delete({ id: transactionId })
         }
       }
@@ -224,18 +224,18 @@ export default async (req, res) => {
 
 
 
-    if(action == 'check') {
+    if (action == 'check') {
       console.log('check')
       await Activation.update({ id }, { delivered: true })
     }
 
-    if(action == 'uncheck') {
+    if (action == 'uncheck') {
       console.log('uncheck')
       await Activation.update({ id }, { delivered: false })
 
     }
 
-    if(action == 'revert') {
+    if (action == 'revert') {
       console.log('revert')
 
       const user = await User.findOne({ id: activation.userId })
@@ -246,29 +246,29 @@ export default async (req, res) => {
 
       await User.update({ id: user.id }, { points: user.points })
 
-      // const _activated = user._activated ? true : (user.points >= 60)
-      const activated  = user.activated ? true : (user.points >= 120)
+      const _activated = user._activated ? true : (user.points >= 40)
+      const activated = user.activated ? true : (user.points >= 120)
 
       await User.update({ id: user.id }, {
         activated,
-       // _activated,
+        _activated,
       })
 
-      const transactions = activation.transactions ; console.log(transactions)
+      const transactions = activation.transactions; console.log(transactions)
 
-      for(let id of transactions) {
+      for (let id of transactions) {
         await Transaction.delete({ id })
       }
 
       // UPDATE STOCK
       console.log('UPDATE STOCK ...')
       const office_id = activation.office
-      const products  = activation.products
+      const products = activation.products
 
       const office = await Office.findOne({ id: office_id })
 
       products.forEach((p, i) => {
-        if(office.products[i]) office.products[i].total += products[i].total
+        if (office.products[i]) office.products[i].total += products[i].total
       })
 
       await Office.update({ id: office_id }, {
@@ -276,10 +276,10 @@ export default async (req, res) => {
       })
     }
 
-    if(action == 'change') {
+    if (action == 'change') {
       console.log('change')
 
-      const { points } = req.body ; console.log({ points })
+      const { points } = req.body; console.log({ points })
 
       await Activation.update({ id }, { points })
     }
