@@ -27,7 +27,7 @@ async function pay_bonus(id, i, aff_id, amount, migration, plan, _id) {
   const user = users.find(e => e.id == id)
   const node = tree.find(e => e.id == id)
 
-  const virtual = user.activated ? false : true
+  const virtual = user._activated ? false : true
 
   const name = migration ? 'migration bonus' : 'affiliation bonus'
 
@@ -123,6 +123,7 @@ const handler = async (req, res) => {
 
       await User.update({ id: user.id }, {
         affiliated: true,
+        _activated: true,
         activated: true,
         affiliation_date: new Date(),
         plan: affiliation.plan.id,
