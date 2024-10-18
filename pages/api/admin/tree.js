@@ -60,10 +60,12 @@ export default async (req, res) => {
 
     find('5f0e0b67af92089b5866bcd0', 0)
 
-    console.log(tree[0])
+    const node = tree.find(e => e.id == '5f0e0b67af92089b5866bcd0')
+    console.log(node)
+
     // response
     return res.json(success({
-      node: tree[0]
+      node
     }))
   }
 
