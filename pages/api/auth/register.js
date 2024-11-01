@@ -48,6 +48,7 @@ const Register = async (req, res) => {
     phone,
     parentId:   parent.id,
     affiliated: false,
+    _activated:  false,
     activated:  false,
     plan:      'default',
     photo:     'https://ik.imagekit.io/asu/impulse/avatar_cWVgh_GNP.png',
