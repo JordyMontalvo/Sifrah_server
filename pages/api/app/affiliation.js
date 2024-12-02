@@ -31,10 +31,15 @@ export default async (req, res) => {
 
 
   if(affiliation && affiliation.status == 'approved') {
+    if(affiliation.plan.id == 'early') {
+      plans.shift()
+    }
     if(affiliation.plan.id == 'basic') {
+      plans.shift()
       plans.shift()
     }
     if(affiliation.plan.id == 'standard') {
+      plans.shift()
       plans.shift()
       plans.shift()
     }
