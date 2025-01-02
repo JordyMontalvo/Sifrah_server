@@ -37,7 +37,7 @@ export default async (req, res) => {
       date:    new Date(),
       user_id: user.id,
       type:   'in',
-      value:   parseInt(amount),
+      value:   parseFloat(amount),
       desc,
       virtual: false,
       name: 'pay',
