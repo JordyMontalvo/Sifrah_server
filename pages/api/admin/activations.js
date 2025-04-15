@@ -1,5 +1,9 @@
-import db from "../../../components/db"
-import lib from "../../../components/lib"
+import db from "../../../components/db";
+import lib from "../../../components/lib";
+import { MongoClient } from "mongodb";
+
+const URL = process.env.DB_URL; // Asegúrate de que esta variable esté definida correctamente
+const name = process.env.DB_NAME;
 
 const { Activation, User, Tree, Token, Office, Transaction } = db
 const { error, success, midd, ids, map, model, rand } = lib
@@ -22,48 +26,99 @@ function find(id, i) { // i: branch
 } */
 
 
-export default async (req, res) => {
-  await midd(req, res)
-
-  if (req.method == 'GET') {
-
-    const { filter } = req.query
-
-    const q = { all: {}, pending: { status: 'pending' } }
-
-    // validate filter
-    if (!(filter in q)) return res.json(error('invalid filter'))
-
-    const { account } = req.query
-    console.log({ account })
-
-    // get activations
-    let qq = q[filter]
-    console.log({ qq })
-
-    if (account != 'admin') qq.office = account
-    console.log({ qq })
-
-    let activations = await Activation.find(qq)
-
-    // get users for activations
-    let users = await User.find({ id: { $in: ids(activations) } })
-    users = map(users)
-
-    // enrich activations
-    activations = activations.map(a => {
-
-      let u = users.get(a.userId)
-
-      a = model(a, A)
-      u = model(u, U)
-
-      return { ...a, ...u }
-    })
-
-    // response
-    return res.json(success({ activations }))
-  }
+  export default async (req, res) => {
+    await midd(req, res);
+  
+    if (req.method === "GET") {
+      const { filter, page = 1, limit = 20, search } = req.query;
+      console.log("Received request with page:", page, "and limit:", limit);
+      const q = { all: {}, pending: { status: "pending" } };
+      const pageNum = parseInt(page, 10);
+      const limitNum = parseInt(limit, 10);
+  
+      if (!(filter in q)) return res.json(lib.error("invalid filter"));
+  
+      // Construir un objeto de búsqueda
+      let userSearchQuery = {};
+      if (search) {
+        const searchLower = search.toLowerCase();
+        userSearchQuery = {
+          $or: [
+            { name: { $regex: searchLower, $options: "i" } },
+            { lastName: { $regex: searchLower, $options: "i" } },
+            { dni: { $regex: searchLower, $options: "i" } },
+            { phone: { $regex: searchLower, $options: "i" } },
+          ],
+        };
+      }
+  
+      const skip = (pageNum - 1) * limitNum;
+      console.log(
+        "Calculated skip:",
+        skip,
+        "using pageNum:",
+        pageNum,
+        "and limitNum:",
+        limitNum
+      );
+  
+      try {
+        const client = new MongoClient(URL);
+        await client.connect();
+        const db = client.db(name);
+  
+        // Buscar usuarios que coincidan con el query de búsqueda
+        let userIds = [];
+        if (search) {
+          const users = await db
+            .collection("users")
+            .find(userSearchQuery)
+            .toArray();
+          userIds = users.map((user) => user.id); // Obtener los IDs de los usuarios que coinciden
+        }
+  
+        // Filtrar activaciones según el userIds encontrados
+        const activationsCursor = db
+          .collection("activations")
+          .find(userIds.length > 0 ? { userId: { $in: userIds } } : {}) // Si hay userIds, filtrar por ellos
+          .sort({ date: -1 })
+          .skip(skip)
+          .limit(limitNum);
+  
+        const activations = await activationsCursor.toArray();
+  
+        const totalActivations = await db
+          .collection("activations")
+          .countDocuments(userIds.length > 0 ? { userId: { $in: userIds } } : {}); // Contar documentos que coinciden
+  
+        console.log("Type of page:", typeof page, "Value:", page);
+        console.log("Type of limit:", typeof limit, "Value:", limit);
+        client.close();
+  
+        // Obtener usuarios relacionados con las activaciones
+        let relatedUsers = await User.find({ id: { $in: lib.ids(activations) } });
+        relatedUsers = lib.map(relatedUsers);
+  
+        const enrichedActivations = activations.map((a) => {
+          let u = relatedUsers.get(a.userId);
+          a = lib.model(a, A);
+          u = lib.model(u, U);
+          return { ...a, ...u };
+        });
+  
+        return res.json(
+          lib.success({
+            activations: enrichedActivations,
+            total: totalActivations,
+            totalPages: Math.ceil(totalActivations / limitNum),
+            currentPage: pageNum,
+          })
+        );
+      } catch (error) {
+        console.error("Database connection error:", error);
+        return res.status(500).json(lib.error("Database connection error"));
+      }
+    }
 
   if (req.method == 'POST') {
 
