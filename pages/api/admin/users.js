@@ -13,107 +13,162 @@ const U = ['id', 'date', 'name', 'lastName', 'dni', 'email', 'phone', 'departmen
 
 
 const handler = async (req, res) => {
+  if (req.method == "GET") {
+    console.log("GET ...");
 
-  if(req.method == 'GET') {
-    console.log('GET ...')
-    
-    const { filter } = req.query
+    const { filter, page = 1, limit = 20, search, showAvailable } = req.query;
+    console.log(
+      "Received request with page:",
+      page,
+      "and limit:",
+      limit,
+      "search:",
+      search
+    );
 
-    const q = { all: {}, affiliated: { affiliated: true }, activated: { activated: true } }
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+
+    const q = {
+      all: {},
+      affiliated: { affiliated: true },
+      activated: { activated: true },
+    };
 
     // validate filter
-    if(!(filter in q)) return res.json(error('invalid filter'))
+    if (!(filter in q)) return res.json(error("invalid filter"));
 
     // get users
-    let users = await User.find(q[filter])
-    console.log('users ...')
+    let allUsers = await User.find(q[filter]);
 
-    const parentIds = users
-                      .filter(i => i.parentId)
-                      .map(i => i.parentId)
+    const transaction = await Transaction.find({
+      virtual: { $in: [null, false] },
+    }); // Asegúrate de que esta línea esté antes de usar 'transactions'
 
-    const parents = await User.find({ id: { $in: parentIds } })
-    console.log('parents ...')
+    // Filtrar usuarios con saldo disponible
+    if (showAvailable === "true") {
+      allUsers = allUsers.filter((user) => {
+        const ins = transaction
+          .filter((i) => i.user_id == user.id && i.type == "in")
+          .reduce((a, b) => a + parseFloat(b.value), 0);
+        const outs = transaction
+          .filter((i) => i.user_id == user.id && i.type == "out")
+          .reduce((a, b) => a + parseFloat(b.value), 0);
+        return ins - outs > 0; // Solo usuarios con saldo disponible
+      });
+    }
 
-    const transactions = await Transaction.find({ virtual: {$in: [null, false]} })
-    console.log('transactions ...')
-    
-    const virtualTransactions = await Transaction.find({ virtual: true })
-    console.log('virtualTransactions ...')
+    // Apply search if search parameter exists
+    if (search) {
+      const searchLower = search.toLowerCase();
+      allUsers = allUsers.filter(
+        (user) =>
+          user.name?.toLowerCase().includes(searchLower) ||
+          user.lastName?.toLowerCase().includes(searchLower) ||
+          user.dni?.toLowerCase().includes(searchLower) ||
+          user.country?.toLowerCase().includes(searchLower) ||
+          user.phone?.toLowerCase().includes(searchLower)
+      );
 
+      console.log({ allUsers });
+    }
+
+    // Ordenar usuarios por fecha (más reciente primero)
+    allUsers.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    const totalUsers = allUsers.length;
+
+    // Aplicar paginación
+    const skip = (pageNum - 1) * limitNum;
+    let users = allUsers.slice(skip, skip + limitNum);
+
+    // Obtener los padres antes de usarlos
+    const parentIds = users.filter((i) => i.parentId).map((i) => i.parentId);
+    const parents = await User.find({ id: { $in: parentIds } });
+
+    // Asegúrate de que los padres se obtengan antes de usarlos
+    users = users.map((user) => {
+      if (user.parentId) {
+        const i = parents.findIndex((el) => el.id == user.parentId);
+        if (i !== -1) {
+          user.parent = parents[i]; // Asigna el objeto padre al usuario
+        }
+      }
+      return user; // Asegúrate de devolver el usuario modificado
+    });
+
+    const transactions = await Transaction.find({
+      virtual: { $in: [null, false] },
+    });
+    console.log("transactions ...");
+
+    const virtualTransactions = await Transaction.find({ virtual: true });
+    console.log("virtualTransactions ...");
 
     // parse user
-    users = users
-            .map(user => {
+    const totalBalance = allUsers.reduce((total, user) => {
+      const ins = transactions
+        .filter((i) => i.user_id == user.id && i.type == "in")
+        .reduce((a, b) => a + parseFloat(b.value), 0);
+      const outs = transactions
+        .filter((i) => i.user_id == user.id && i.type == "out")
+        .reduce((a, b) => a + parseFloat(b.value), 0);
+      return total + (ins - outs); // Sumar el saldo de cada usuario
+    }, 0);
 
-              // console.log('name: ', user.name)
+    // Calcular el saldo no disponible
+    const totalVirtualBalance = allUsers.reduce((total, user) => {
+      const virtualIns = virtualTransactions
+        .filter((i) => i.user_id == user.id && i.type == "in")
+        .reduce((a, b) => a + parseFloat(b.value), 0);
+      const virtualOuts = virtualTransactions
+        .filter((i) => i.user_id == user.id && i.type == "out")
+        .reduce((a, b) => a + parseFloat(b.value), 0);
+      return total + (virtualIns - virtualOuts); // Sumar el saldo virtual de cada usuario
+    }, 0);
 
-              const ins  = transactions
-                          .filter(i => (i.user_id == user.id && i.type == 'in'))
-                          .reduce((a, b) => a + b.value, 0)
-              const outs = transactions
-                          .filter(i => (i.user_id == user.id && i.type == 'out'))
-                          .reduce((a, b) => a + b.value, 0)
-              const balance = ins - outs
+    // Calcular el saldo para los usuarios que se están enviando
+    users = users.map((user) => {
+      const ins = transactions
+        .filter((i) => i.user_id == user.id && i.type == "in")
+        .reduce((a, b) => a + parseFloat(b.value), 0);
+      const outs = transactions
+        .filter((i) => i.user_id == user.id && i.type == "out")
+        .reduce((a, b) => a + parseFloat(b.value), 0);
+      user.balance = ins - outs;
 
-              user.balance = balance
-              
-              user.holi = "boli!"
+      const virtualIns = virtualTransactions
+        .filter((i) => i.user_id == user.id && i.type == "in")
+        .reduce((a, b) => a + parseFloat(b.value), 0);
+      const virtualOuts = virtualTransactions
+        .filter((i) => i.user_id == user.id && i.type == "out")
+        .reduce((a, b) => a + parseFloat(b.value), 0);
+      user.virtualbalance = virtualIns - virtualOuts;
 
-
-              
-              const virtualIns = virtualTransactions
-                                  .filter(i => (i.user_id == user.id && i.type == 'in'))
-                                  .reduce((a, b) => a + b.value, 0)
-
-              const virtualOuts = virtualTransactions
-                                  .filter(i => (i.user_id == user.id && i.type == 'out'))
-                                  .reduce((a, b) => a + b.value, 0)
-
-
-              if (user.id == '5f0e0b67af92089b5866bcd0') {
-                // console.log('name: ', user.name)
-                // console.log({ balance })
-                // console.log({ virtualIns })
-              }
-              
-              user.virtualbalance = virtualIns - virtualOuts
-
-
-
-              if(user.parentId) {
-                // console.log(user.name)
-                const i = parents.findIndex(el => el.id == user.parentId)
-                // console.log(i)
-                const parent = parents[i]
-
-                // console.log({ user })
-
-                return {
-                  ...user,
-                  parent: {
-                    name: parent.name,
-                    lastName: parent.lastName,
-                    dni: parent.dni,
-                    phone: parent.phone,
-                  }
-                }
-              } else {
-                return { ...user }
-              }
-            })
+      return user; // Asegúrate de devolver el usuario modificado
+    });
     // console.log({ users })
 
-
     // parse user
-    users = users.map(user => {
-      const u = model(user, U)
-      return { ...u }
-    })
+    users = users.map((user) => {
+      const u = model(user, U);
+      return { ...u };
+    });
+    // Cambia esto para obtener todos los usuarios
 
+    // Calcular el saldo total de todos los usuarios
 
-    // response
-    return res.json(success({ users }))
+    // response con información de paginación
+    return res.json(
+      success({
+        users,
+        total: totalUsers,
+        totalPages: Math.ceil(totalUsers / limitNum),
+        currentPage: pageNum,
+        totalBalance,
+        totalVirtualBalance,
+      })
+    );
   }
 
 
