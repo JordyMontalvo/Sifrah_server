@@ -9,7 +9,7 @@ const { error, success, midd, model } = lib
 // const q = { all: {}, affiliated: { affiliated: true }, activated: { activated: true } }
 
 // models
-const U = ['id', 'date', 'name', 'lastName', 'dni', 'email', 'phone', 'department', 'affiliated', 'activated', 'token', 'points', 'balance', 'parent', 'virtualbalance', 'country', 'rank']
+const U = ['id', 'date', 'name', 'lastName', 'dni', 'email', 'phone', 'department', 'affiliated', 'activated', 'token', 'points', 'balance', 'parent', 'virtualbalance', 'country', 'rank','birthdate']
 
 
 const handler = async (req, res) => {

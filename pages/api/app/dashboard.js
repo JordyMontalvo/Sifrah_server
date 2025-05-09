@@ -38,8 +38,10 @@ export default async (req, res) => {
     activated:  user.activated,
     plan:       user.plan,
     country:    user.country,
-    photo:      user.photo,
+    photo:      user.photo, 
     tree:       user.tree,
+    email:      user.email,
+    token:      user.token,
 
     banner,
     ins,
