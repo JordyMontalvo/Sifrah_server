@@ -16,6 +16,7 @@
     "imagekit": "^3.0.5",
     "micro-cors": "^0.1.1",
     "mongodb": "^3.5.9",
+    "mongoose": "^8.14.2",
     "next": "9.4.4",
     "react": "16.13.1",
     "react-dom": "16.13.1"
