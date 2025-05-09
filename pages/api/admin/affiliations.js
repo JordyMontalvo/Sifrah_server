@@ -67,123 +67,82 @@ async function pay_bonus(id, i, aff_id, amount, migration, plan, _id) {
 }
 
 const handler = async (req, res) => {
-  if (req.method == "GET") {
-    // Obtener parámetros de paginación
-    const { filter, page = 1, limit = 20, search, timeRange } = req.query;
-    console.log(
-      "Received request with page:",
-      page,
-      "and limit:",
-      limit,
-      "search:",
-      search
-    );
 
+  if(req.method == 'GET') {
+    // Obtener parámetros de paginación
+    const { filter, page = 1, limit = 20, search } = req.query
+    console.log('Received request with page:', page, 'and limit:', limit, 'search:', search);
+    
     // Convertir a números
     const pageNum = parseInt(page, 10);
     const limitNum = parseInt(limit, 10);
+    
+    const q = { all: {}, pending: { status: 'pending'} }
 
-    const q = { all: {}, pending: { status: "pending" } };
+    if (!(filter in q)) return res.json(error('invalid filter'))
 
-    if (!(filter in q)) return res.json(error("invalid filter"));
-
-    const { account } = req.query;
-
-    let dateFilter = {};
-
-    if (timeRange) {
-      const now = new Date();
-      switch (timeRange) {
-        case "week":
-          dateFilter = {
-            date: {
-              $gte: new Date(now.setDate(now.getDate() - 7)),
-            },
-          };
-          break;
-        case "month":
-          dateFilter = {
-            date: {
-              $gte: new Date(now.setMonth(now.getMonth() - 1)),
-            },
-          };
-          break;
-        case "year":
-          dateFilter = {
-            date: {
-              $gte: new Date(now.setFullYear(now.getFullYear() - 1)),
-            },
-          };
-          break;
-      }
-    }
+    const { account } = req.query
 
     // get AFFILIATIONS
-    let qq = q[filter];
+    let qq = q[filter]
 
-    if (account != "admin") qq.office = account;
+    if(account != 'admin') qq.office = account
 
     try {
       // Primero obtener todas las afiliaciones que coinciden con el filtro
       let allAffiliations = await Affiliation.find(qq);
-
+      
       // get USERS for affiliations
-      let users = await User.find({});
-      users = map(users);
+      let users = await User.find({})
+      users = map(users)
 
       // Apply search if search parameter exists
       if (search) {
         const searchLower = search.toLowerCase();
-        allAffiliations = allAffiliations.filter((aff) => {
+        allAffiliations = allAffiliations.filter(aff => {
           const user = users.get(aff.userId);
-          return (
-            user &&
-            (user.name?.toLowerCase().includes(searchLower) ||
-              user.lastName?.toLowerCase().includes(searchLower) ||
-              user.dni?.toLowerCase().includes(searchLower) ||
-              user.phone?.toLowerCase().includes(searchLower))
+          return user && (
+            user.name?.toLowerCase().includes(searchLower) ||
+            user.lastName?.toLowerCase().includes(searchLower) ||
+            user.dni?.toLowerCase().includes(searchLower) ||
+            user.phone?.toLowerCase().includes(searchLower)
           );
         });
       }
-
+      
       // Ordenar manualmente por fecha (del más reciente al más antiguo)
       allAffiliations.sort((a, b) => new Date(b.date) - new Date(a.date));
-
+      
       // Obtener el total antes de paginar
       const totalAffiliations = allAffiliations.length;
-
+      
       // Aplicar paginación manualmente
-      let affiliations = allAffiliations.slice(
-        (pageNum - 1) * limitNum,
-        pageNum * limitNum
-      );
-
+      let affiliations = allAffiliations.slice((pageNum - 1) * limitNum, pageNum * limitNum);
+      
       // Obtener solo los usuarios necesarios para las afiliaciones paginadas
-      users = await User.find({ id: { $in: ids(affiliations) } });
-      users = map(users);
+      users = await User.find({ id: { $in: ids(affiliations) } })
+      users = map(users)
 
       // enrich affiliations
-      affiliations = affiliations.map((a) => {
-        let u = users.get(a.userId);
-        a = model(a, A);
-        u = model(u, U);
-        return { ...a, ...u };
-      });
+      affiliations = affiliations.map(a => {
+        let u = users.get(a.userId)
+        a = model(a, A)
+        u = model(u, U)
+        return { ...a, ...u }
+      })
 
-      let parents = await User.find({ id: { $in: parent_ids(affiliations) } });
+      let parents = await User.find({ id: { $in: parent_ids(affiliations) } })
 
       // Devolver los resultados con información de paginación
-      return res.json(
-        success({
-          affiliations,
-          total: totalAffiliations,
-          totalPages: Math.ceil(totalAffiliations / limitNum),
-          currentPage: pageNum,
-        })
-      );
+      return res.json(success({
+        affiliations,
+        total: totalAffiliations,
+        totalPages: Math.ceil(totalAffiliations / limitNum),
+        currentPage: pageNum,
+      }));
     } catch (err) {
-      console.error("Database error:", err);
-      return res.status(500).json(error("Database error"));
+      console.error('Database error:', err);
+      return res.status(500).json(error('Database error'));
     }
   }
 
