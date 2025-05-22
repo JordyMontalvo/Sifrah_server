@@ -19,7 +19,6 @@ export default async (req, res) => {
   }
 
   if (req.method == 'POST') {
-    // console.log('POST ...')
 
     const { action } = req.body
 
@@ -27,7 +26,7 @@ export default async (req, res) => {
       // console.log('edit ...')
 
       const { id } = req.body
-      const { _name, _type, _price, _points, _img, _code } = req.body.data
+      const { _name, _type, _price, _points, _img, _code, _description } = req.body.data
 
       // const beforeProductData = (await Product.find({ id }))[0]
       // console.log('beforeProductData', beforeProductData)
@@ -40,20 +39,21 @@ export default async (req, res) => {
           price: _price,
           points: _points,
           img: _img,
+          description: _description,
         }
       )
-      await Plan.updateMany(
-        { 'products.id': id },
-        {
-          'products.$.id': _code,
-        }
-      )
+      // await Plan.updateMany(
+      //   { 'products.id': id },
+      //   {
+      //     'products.$.id': _code,
+      //   }
+      // )
     }
 
     if (action == 'add') {
       // console.log('add ...')
 
-      const { code, name, type, price, points, img } = req.body.data
+      const { code, name, type, price, points, img, description } = req.body.data
 
       await Product.insert({
         id: rand(),
@@ -62,7 +62,14 @@ export default async (req, res) => {
         type,
         price,
         points,
+        img,
+        description,
       })
+    }
+
+    if (action == 'delete') {
+      const { id } = req.body
+      await Product.delete({ id })
     }
 
     // response
