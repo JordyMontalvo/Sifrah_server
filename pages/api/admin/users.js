@@ -196,7 +196,7 @@ const handler = async (req, res) => {
       // console.log('edit name ...')
 
       const { _name, _lastName, _dni, _password, _parent_dni, _points } = req.body.data
-      console.log({ _name, _lastName, _dni, _password, _parent_dni, _points })
+      console.log({ _name, _lastName, _dni, _password, _parent_dni, _points, _rank })
 
       const user = await User.findOne({ id })
 
@@ -208,7 +208,7 @@ const handler = async (req, res) => {
         if(user2) return res.json(error('invalid dni'))
       }
 
-      await User.update({ id }, { name: _name, lastName: _lastName, dni: _dni, points: _points })
+      await User.update({ id }, { name: _name, lastName: _lastName, dni: _dni, points: _points, rank: _rank })
 
       if(_password) {
 
