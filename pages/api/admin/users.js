@@ -195,8 +195,8 @@ const handler = async (req, res) => {
     if (action == 'name') {
       // console.log('edit name ...')
 
-      const { _name, _lastName, _dni, _password, _parent_dni, _points } = req.body.data
-      console.log({ _name, _lastName, _dni, _password, _parent_dni, _points, _rank })
+      const { _name, _lastName, _dni, _password, _parent_dni, _points, _rank } = req.body.data
+      console.log({ _name, _lastName, _dni, _password, _parent_dni, _points,_rank })
 
       const user = await User.findOne({ id })
 
