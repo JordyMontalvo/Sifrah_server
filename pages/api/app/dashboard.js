@@ -2,9 +2,9 @@ import db  from "../../../components/db"
 import lib from "../../../components/lib"
 
 const { User, Session, Transaction, Tree, Banner } = db
-const { error, success, acum, midd } = lib
+const { error, success, acum, midd,model } = lib
 
-
+const D = ['id', 'name', 'lastName', 'affiliated', 'activated', 'tree', 'email', 'phone']
 export default async (req, res) => {
   await midd(req, res)
 
@@ -16,6 +16,23 @@ export default async (req, res) => {
 
   // get USER
   const user = await User.findOne({ id: session.id })
+
+  let directs = await User.find({ parentId: user.id })
+
+  directs = directs.map(direct => {
+    const d = model(direct, D)
+    return { ...d }
+  })
+
+  const node = await Tree.findOne({ id: user.id })
+  console.log({ node })
+
+  const childs = node.childs
+  console.log({ childs })
+
+  let frontals = await User.find({ id: { $in: childs } })
+  // frontals = frontals.filter(e => e.parentId != user.id)
+  console.log({ frontals })
 
   // get transactions
   const transactions        = await Transaction.find({ user_id: user.id, virtual: {$in: [null, false]} })
@@ -42,6 +59,8 @@ export default async (req, res) => {
     tree:       user.tree,
     email:      user.email,
     token:      user.token,
+    directs,
+    frontals,
 
     banner,
     ins,
