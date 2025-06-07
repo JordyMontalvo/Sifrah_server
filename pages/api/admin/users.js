@@ -1,16 +1,35 @@
-import bcrypt from 'bcrypt'
-import db     from "../../../components/db"
-import lib    from "../../../components/lib"
+import bcrypt from "bcrypt";
+import db from "../../../components/db";
+import lib from "../../../components/lib";
 
-const { User, Transaction } = db
-const { error, success, midd, model } = lib
+const { User, Transaction } = db;
+const { error, success, midd, model } = lib;
 
 // valid filters
 // const q = { all: {}, affiliated: { affiliated: true }, activated: { activated: true } }
 
 // models
-const U = ['id', 'date', 'name', 'lastName', 'dni', 'email', 'phone', 'department', 'affiliated', 'activated', 'token', 'points', 'balance', 'parent', 'virtualbalance', 'country', 'rank','birthdate']
-
+const U = [
+  "id",
+  "date",
+  "name",
+  "lastName",
+  "dni",
+  "email",
+  "phone",
+  "department",
+  "affiliated",
+  "activated",
+  "token",
+  "points",
+  "balance",
+  "parent",
+  "virtualbalance",
+  "country",
+  "rank",
+  "birthdate",
+  "address",
+];
 
 const handler = async (req, res) => {
   if (req.method == "GET") {
@@ -59,19 +78,24 @@ const handler = async (req, res) => {
     }
 
     // Apply search if search parameter exists
-    if (search) {
-      const searchLower = search.toLowerCase();
-      allUsers = allUsers.filter(
-        (user) =>
-          user.name?.toLowerCase().includes(searchLower) ||
-          user.lastName?.toLowerCase().includes(searchLower) ||
-          user.dni?.toLowerCase().includes(searchLower) ||
-          user.country?.toLowerCase().includes(searchLower) ||
-          user.phone?.toLowerCase().includes(searchLower)
+    const normalize = (str) =>
+      (str || '')
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+    
+    const searchNormalized = normalize(search);
+    
+    allUsers = allUsers.filter((user) => {
+      return (
+        normalize(user.name).includes(searchNormalized) ||
+        normalize(user.lastName).includes(searchNormalized) ||
+        normalize(user.dni).includes(searchNormalized) ||
+        normalize(user.country).includes(searchNormalized) ||
+        normalize(user.phone).includes(searchNormalized)
       );
-
+    });
       console.log({ allUsers });
-    }
 
     // Ordenar usuarios por fecha (más reciente primero)
     allUsers.sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -171,66 +195,86 @@ const handler = async (req, res) => {
     );
   }
 
+  if (req.method == "POST") {
+    console.log("POST ...");
 
-  if(req.method == 'POST') {
-    console.log("POST ...")
-    
-    const { action, id } = req.body
-    console.log({ action, id })
+    const { action, id } = req.body;
+    console.log({ action, id });
 
-    if (action == 'migrate') {
-      console.log('migrate ...')
+    if (action == "migrate") {
+      console.log("migrate ...");
 
       // migrar transaccinoes virtuales
-      const transactions = await Transaction.find({ user_id: id, virtual: true })
+      const transactions = await Transaction.find({
+        user_id: id,
+        virtual: true,
+      });
       // console.log({ transactions })
 
-      for(let transaction of transactions) {
-        console.log({ transaction })
+      for (let transaction of transactions) {
+        console.log({ transaction });
 
-        await Transaction.update({ id: transaction.id }, { virtual: false })
+        await Transaction.update({ id: transaction.id }, { virtual: false });
       }
     }
 
-    if (action == 'name') {
+    if (action == "name") {
       // console.log('edit name ...')
 
-      const { _name, _lastName, _dni, _password, _parent_dni, _points, _rank } = req.body.data
-      console.log({ _name, _lastName, _dni, _password, _parent_dni, _points,_rank })
+      const { _name, _lastName, _dni, _password, _parent_dni, _points, _rank } =
+        req.body.data;
+      console.log({
+        _name,
+        _lastName,
+        _dni,
+        _password,
+        _parent_dni,
+        _points,
+        _rank,
+      });
 
-      const user = await User.findOne({ id })
+      const user = await User.findOne({ id });
 
-      if(_dni != user.dni) {
-
+      if (_dni != user.dni) {
         // error dni
-        const user2 = await User.findOne({ dni: _dni })
+        const user2 = await User.findOne({ dni: _dni });
 
-        if(user2) return res.json(error('invalid dni'))
+        if (user2) return res.json(error("invalid dni"));
       }
 
-      await User.update({ id }, { name: _name, lastName: _lastName, dni: _dni, points: _points, rank: _rank })
+      await User.update(
+        { id },
+        {
+          name: _name,
+          lastName: _lastName,
+          dni: _dni,
+          points: _points,
+          rank: _rank,
+        }
+      );
 
-      if(_password) {
+      if (_password) {
+        const password = await bcrypt.hash(_password, 12);
 
-        const password = await bcrypt.hash(_password, 12)
-
-        await User.update({ id }, { password })
+        await User.update({ id }, { password });
       }
 
-      if(_parent_dni) {
+      if (_parent_dni) {
+        const parent = await User.findOne({ dni: _parent_dni });
 
-        const parent = await User.findOne({ dni: _parent_dni })
+        if (!parent) return res.json(error("invalid parent dni"));
+        if (parent.id == user.id) return res.json(error("invalid parent dni"));
 
-        if(!parent)              return res.json(error('invalid parent dni'))
-        if(parent.id == user.id) return res.json(error('invalid parent dni'))
-
-        await User.update({ id }, { parentId: parent.id })
+        await User.update({ id }, { parentId: parent.id });
       }
     }
 
     // response
-    return res.json(success({}))
+    return res.json(success({}));
   }
-}
+};
 
-export default async (req, res) => { await midd(req, res); return handler(req, res) }
+export default async (req, res) => {
+  await midd(req, res);
+  return handler(req, res);
+};

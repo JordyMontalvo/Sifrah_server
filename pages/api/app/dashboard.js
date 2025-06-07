@@ -4,7 +4,7 @@ import lib from "../../../components/lib"
 const { User, Session, Transaction, Tree, Banner } = db
 const { error, success, acum, midd,model } = lib
 
-const D = ['id', 'name', 'lastName', 'affiliated', 'activated', 'tree', 'email', 'phone']
+const D = ['id', 'name', 'lastName', 'affiliated', 'activated', 'tree', 'email', 'phone', 'address', 'rank', 'points', 'parentId']
 export default async (req, res) => {
   await midd(req, res)
 
@@ -59,6 +59,7 @@ export default async (req, res) => {
     tree:       user.tree,
     email:      user.email,
     token:      user.token,
+    address:   user.address,
     directs,
     frontals,
 
