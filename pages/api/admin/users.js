@@ -29,6 +29,7 @@ const U = [
   "rank",
   "birthdate",
   "address",
+  "city",
 ];
 
 const handler = async (req, res) => {
@@ -92,7 +93,8 @@ const handler = async (req, res) => {
         normalize(user.lastName).includes(searchNormalized) ||
         normalize(user.dni).includes(searchNormalized) ||
         normalize(user.country).includes(searchNormalized) ||
-        normalize(user.phone).includes(searchNormalized)
+        normalize(user.phone).includes(searchNormalized)  ||
+        normalize(user.city).includes(searchNormalized)
       );
     });
       console.log({ allUsers });
@@ -221,7 +223,7 @@ const handler = async (req, res) => {
     if (action == "name") {
       // console.log('edit name ...')
 
-      const { _name, _lastName, _dni, _password, _parent_dni, _points, _rank } =
+      const { _name, _lastName, _dni, _password, _parent_dni, _points, _rank, city } =
         req.body.data;
       console.log({
         _name,
@@ -231,6 +233,7 @@ const handler = async (req, res) => {
         _parent_dni,
         _points,
         _rank,
+        city
       });
 
       const user = await User.findOne({ id });

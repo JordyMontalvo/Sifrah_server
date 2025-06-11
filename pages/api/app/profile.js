@@ -44,6 +44,7 @@ export default async (req, res) => {
       birthdate:    user.birthdate,
       address:      user.address,
       token:        user.token,
+      city:         user.city,
 
       bank,
       account_type,
@@ -54,12 +55,12 @@ export default async (req, res) => {
 
   if(req.method == 'POST') {
 
-    let { email, phone, age, address, bank, account_type, account, ibk } = req.body
+    let { email, phone, age, address, bank, account_type, account, ibk, city, country } = req.body
 
     email = email ? email.toLowerCase().replace(/ /g,'') : ''
 
     // update user
-    await User.update({ id: user.id }, { email, phone, age, address, bank, account_type, account, ibk })
+    await User.update({ id: user.id }, { email, phone, age, address, bank, account_type, account, ibk, city, country })
 
     // response
     return res.json(success())
