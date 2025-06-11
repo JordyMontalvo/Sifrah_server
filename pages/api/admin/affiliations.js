@@ -18,6 +18,7 @@ const A = [
   "voucher_number",
   "amounts",
   "products",
+  "transactions", // Asegúrate de que este campo esté en tu modelo
 ];
 const U = ["name", "lastName", "dni", "phone"];
 
@@ -44,10 +45,10 @@ async function pay_bonus(id, i, aff_id, amount, migration, plan, _id) {
   if (i <= user.n - 1) {
     let p = pay[user.plan][i];
 
-    const id = rand();
+    const transactionId = rand(); // Cambié el nombre de la variable a transactionId
 
     await Transaction.insert({
-      id,
+      id: transactionId,
       date: new Date(),
       user_id: user.id,
       type: "in",
@@ -58,48 +59,47 @@ async function pay_bonus(id, i, aff_id, amount, migration, plan, _id) {
       _user_id: _id,
     });
 
-    pays.push(id);
+    pays.push(transactionId); // Almacena el ID de la transacción en el array de pays
   }
 
   if (i == 9 || !node.parent) return;
 
-  pay_bonus(node.parent, i + 1, aff_id, amount, migration, plan, _id);
+  await pay_bonus(node.parent, i + 1, aff_id, amount, migration, plan, _id); // Asegúrate de que sea await
 }
 
 const handler = async (req, res) => {
-
-  if(req.method == 'GET') {
+  if (req.method == "GET") {
     // Obtener parámetros de paginación
-    const { filter, page = 1, limit = 20, search } = req.query
-    console.log('Received request with page:', page, 'and limit:', limit, 'search:', search);
-    
+    const { filter, page = 1, limit = 20, search } = req.query;
+    console.log("Received request with page:", page, "and limit:", limit, "search:", search);
+
     // Convertir a números
     const pageNum = parseInt(page, 10);
     const limitNum = parseInt(limit, 10);
-    
-    const q = { all: {}, pending: { status: 'pending'} }
 
-    if (!(filter in q)) return res.json(error('invalid filter'))
+    const q = { all: {}, pending: { status: "pending" } };
 
-    const { account } = req.query
+    if (!(filter in q)) return res.json(error("invalid filter"));
+
+    const { account } = req.query;
 
     // get AFFILIATIONS
-    let qq = q[filter]
+    let qq = q[filter];
 
-    if(account != 'admin') qq.office = account
+    if (account != "admin") qq.office = account;
 
     try {
       // Primero obtener todas las afiliaciones que coinciden con el filtro
       let allAffiliations = await Affiliation.find(qq);
-      
+
       // get USERS for affiliations
-      let users = await User.find({})
-      users = map(users)
+      users = await User.find({});
+      users = map(users);
 
       // Apply search if search parameter exists
       if (search) {
         const searchLower = search.toLowerCase();
-        allAffiliations = allAffiliations.filter(aff => {
+        allAffiliations = allAffiliations.filter((aff) => {
           const user = users.get(aff.userId);
           return user && (
             user.name?.toLowerCase().includes(searchLower) ||
@@ -109,29 +109,29 @@ const handler = async (req, res) => {
           );
         });
       }
-      
+
       // Ordenar manualmente por fecha (del más reciente al más antiguo)
       allAffiliations.sort((a, b) => new Date(b.date) - new Date(a.date));
-      
+
       // Obtener el total antes de paginar
       const totalAffiliations = allAffiliations.length;
-      
+
       // Aplicar paginación manualmente
       let affiliations = allAffiliations.slice((pageNum - 1) * limitNum, pageNum * limitNum);
-      
+
       // Obtener solo los usuarios necesarios para las afiliaciones paginadas
-      users = await User.find({ id: { $in: ids(affiliations) } })
-      users = map(users)
+      users = await User.find({ id: { $in: ids(affiliations) } });
+      users = map(users);
 
       // enrich affiliations
-      affiliations = affiliations.map(a => {
-        let u = users.get(a.userId)
-        a = model(a, A)
-        u = model(u, U)
-        return { ...a, ...u }
-      })
+      affiliations = affiliations.map((a) => {
+        let u = users.get(a.userId);
+        a = model(a, A);
+        u = model(u, U);
+        return { ...a, ...u };
+      });
 
-      let parents = await User.find({ id: { $in: parent_ids(affiliations) } })
+      let parents = await User.find({ id: { $in: parent_ids(affiliations) } });
 
       // Devolver los resultados con información de paginación
       return res.json(success({
@@ -141,8 +141,8 @@ const handler = async (req, res) => {
         currentPage: pageNum,
       }));
     } catch (err) {
-      console.error('Database error:', err);
-      return res.status(500).json(error('Database error'));
+      console.error("Database error:", err);
+      return res.status(500).json(error("Database error"));
     }
   }
 
@@ -156,10 +156,8 @@ const handler = async (req, res) => {
     if (!affiliation) return res.json(error("affiliation not exist"));
 
     if (action == "approve" || action == "reject") {
-      if (affiliation.status == "approved")
-        return res.json(error("already approved"));
-      if (affiliation.status == "rejected")
-        return res.json(error("already rejected"));
+      if (affiliation.status == "approved") return res.json(error("already approved"));
+      if (affiliation.status == "rejected") return res.json(error("already rejected"));
     }
 
     if (action == "approve") {
@@ -220,7 +218,7 @@ const handler = async (req, res) => {
       const amount = affiliation.plan.amount - 50;
 
       if (user.plan == "default") {
-        pay_bonus(
+        await pay_bonus(
           user.parentId,
           0,
           affiliation.id,
@@ -230,7 +228,7 @@ const handler = async (req, res) => {
           user.id
         );
       } else {
-        pay_bonus(
+        await pay_bonus(
           user.parentId,
           0,
           affiliation.id,
@@ -240,6 +238,9 @@ const handler = async (req, res) => {
           user.id
         );
       }
+
+      // Actualizar la afiliación con las transacciones
+      await Affiliation.update({ id }, { transactions: pays }); // Aquí se agregan las IDs de las transacciones
 
       // UPDATE STOCK
       const office_id = affiliation.office;
@@ -258,7 +259,7 @@ const handler = async (req, res) => {
         }
       );
 
-      // migrar transaccinoes virtuales
+      // migrar transacciones virtuales
       const transactions = await Transaction.find({
         user_id: user.id,
         virtual: true,
