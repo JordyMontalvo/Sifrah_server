@@ -25,53 +25,79 @@ const U = ["name", "lastName", "dni", "phone"];
 let users = null;
 let tree = null;
 
+// Definición de pagos fijos por plan y nivel. Cada array tiene 9 valores (uno por cada nivel de profundidad).
+
 const pay = {
-  early: [0.3],
-  basic: [0.3, 0.05, 0.02, 0.01, 0.01, 0.005, 0.005, 0.005, 0.005],
-  standard: [0.35, 0.05, 0.02, 0.01, 0.01, 0.005, 0.005, 0.005, 0.005],
-  master: [0.4, 0.05, 0.02, 0.01, 0.01, 0.005, 0.005, 0.005, 0.005],
+  basic: [90, 20, 5, 3, 3, 1.5, 1.5, 1.5, 1.5], // Solo absorbe 3 niveles
+  standard: [300, 50, 20, 10, 10, 5, 5, 5, 5], // Solo absorbe 6 niveles
+  master: [500, 100, 60, 40, 20, 10, 10, 10, 10], // Absorbe los 9 niveles
+};
+
+// Define cuántos niveles puede absorber cada plan
+const absorb_levels = {
+  basic: 3, // Solo recibe pagos de los primeros 3 niveles
+  standard: 6, // Solo recibe pagos de los primeros 6 niveles
+  master: 9, // Recibe pagos de los 9 niveles
 };
 
 let pays = [];
 
-async function pay_bonus(id, i, aff_id, amount, migration, plan, _id) {
+// Función para repartir bonos de afiliación hasta 9 niveles hacia arriba,
+async function pay_bonus(id, i, aff_id, amount, migration, plan_afiliado, _id) {
   const user = users.find((e) => e.id == id);
   const node = tree.find((e) => e.id == id);
 
-  const virtual = user._activated || user.activated ? false : true;
+  // Si el usuario no existe, termina la recursión
+  if (!user) return;
 
+  const virtual = user._activated || user.activated ? false : true;
   const name = migration ? "migration bonus" : "affiliation bonus";
 
-  if (i <= user.n - 1) {
-    let p = pay[user.plan][i];
+  // El monto a repartir es el del plan del afiliado que entra
+  let fixed_payment = pay[plan_afiliado][i];
 
-    const transactionId = rand(); // Cambié el nombre de la variable a transactionId
-
+  // Solo paga si el usuario puede absorber este nivel según su plan
+  if (i < absorb_levels[user.plan] && fixed_payment) {
+    const transactionId = rand();
     await Transaction.insert({
       id: transactionId,
       date: new Date(),
       user_id: user.id,
       type: "in",
-      value: p * amount,
+      value: fixed_payment, // Pago fijo
       name,
       affiliation_id: aff_id,
       virtual,
       _user_id: _id,
     });
-
-    pays.push(transactionId); // Almacena el ID de la transacción en el array de pays
+    pays.push(transactionId);
   }
 
-  if (i == 9 || !node.parent) return;
-
-  await pay_bonus(node.parent, i + 1, aff_id, amount, migration, plan, _id); // Asegúrate de que sea await
+  // Siempre reparte hasta 9 niveles hacia arriba (i = 0 a 8)
+  if (i == 8 || !node.parent) return;
+  await pay_bonus(
+    node.parent,
+    i + 1,
+    aff_id,
+    amount,
+    migration,
+    plan_afiliado,
+    _id
+  );
 }
 
 const handler = async (req, res) => {
   if (req.method == "GET") {
     // Obtener parámetros de paginación
     const { filter, page = 1, limit = 20, search } = req.query;
-    console.log("Received request with page:", page, "and limit:", limit, "search:", search);
+    console.log(
+      "Received request with page:",
+      page,
+      "and limit:",
+      limit,
+      "search:",
+      search
+    );
 
     // Convertir a números
     const pageNum = parseInt(page, 10);
@@ -101,11 +127,12 @@ const handler = async (req, res) => {
         const searchLower = search.toLowerCase();
         allAffiliations = allAffiliations.filter((aff) => {
           const user = users.get(aff.userId);
-          return user && (
-            user.name?.toLowerCase().includes(searchLower) ||
-            user.lastName?.toLowerCase().includes(searchLower) ||
-            user.dni?.toLowerCase().includes(searchLower) ||
-            user.phone?.toLowerCase().includes(searchLower)
+          return (
+            user &&
+            (user.name?.toLowerCase().includes(searchLower) ||
+              user.lastName?.toLowerCase().includes(searchLower) ||
+              user.dni?.toLowerCase().includes(searchLower) ||
+              user.phone?.toLowerCase().includes(searchLower))
           );
         });
       }
@@ -117,7 +144,10 @@ const handler = async (req, res) => {
       const totalAffiliations = allAffiliations.length;
 
       // Aplicar paginación manualmente
-      let affiliations = allAffiliations.slice((pageNum - 1) * limitNum, pageNum * limitNum);
+      let affiliations = allAffiliations.slice(
+        (pageNum - 1) * limitNum,
+        pageNum * limitNum
+      );
 
       // Obtener solo los usuarios necesarios para las afiliaciones paginadas
       users = await User.find({ id: { $in: ids(affiliations) } });
@@ -134,12 +164,14 @@ const handler = async (req, res) => {
       let parents = await User.find({ id: { $in: parent_ids(affiliations) } });
 
       // Devolver los resultados con información de paginación
-      return res.json(success({
-        affiliations,
-        total: totalAffiliations,
-        totalPages: Math.ceil(totalAffiliations / limitNum),
-        currentPage: pageNum,
-      }));
+      return res.json(
+        success({
+          affiliations,
+          total: totalAffiliations,
+          totalPages: Math.ceil(totalAffiliations / limitNum),
+          currentPage: pageNum,
+        })
+      );
     } catch (err) {
       console.error("Database error:", err);
       return res.status(500).json(error("Database error"));
@@ -156,8 +188,10 @@ const handler = async (req, res) => {
     if (!affiliation) return res.json(error("affiliation not exist"));
 
     if (action == "approve" || action == "reject") {
-      if (affiliation.status == "approved") return res.json(error("already approved"));
-      if (affiliation.status == "rejected") return res.json(error("already rejected"));
+      if (affiliation.status == "approved")
+        return res.json(error("already approved"));
+      if (affiliation.status == "rejected")
+        return res.json(error("already rejected"));
     }
 
     if (action == "approve") {
