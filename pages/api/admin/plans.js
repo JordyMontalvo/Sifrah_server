@@ -17,4 +17,34 @@ export default async (req, res) => {
       })
     );
   }
+  if (req.method == "POST") {
+    let plan = await Plan.insert(req.body);
+
+    // response
+    return res.json(
+      success({
+        plan,
+      })
+    );
+  }
+  if (req.method == "PUT") {
+    let plan = await Plan.update(req.body);
+
+    // response
+    return res.json(
+      success({
+        plan,
+      })
+    );
+  }
+  if (req.method == "DELETE") {
+    let plan = await Plan.delete(req.body);
+
+    // response
+    return res.json(
+      success({
+        plan,
+      })
+    );
+  }
 };
