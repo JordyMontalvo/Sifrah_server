@@ -32,6 +32,7 @@ export default async (req, res) => {
         _code,
         _description,
         _plans,
+        _weight,
       } = req.body.data;
 
       // Get all plans from database
@@ -54,13 +55,23 @@ export default async (req, res) => {
           img: _img,
           description: _description,
           plans: plansObject,
+          weight: _weight,
         }
       );
     }
 
     if (action == "add") {
-      const { code, name, type, price, points, img, description, plans } =
-        req.body.data;
+      const {
+        code,
+        name,
+        type,
+        price,
+        points,
+        img,
+        description,
+        plans,
+        weight,
+      } = req.body.data;
 
       // Get all plans from database
       const allPlans = await Plan.find({});
@@ -81,6 +92,7 @@ export default async (req, res) => {
         img,
         description,
         plans: plansObject,
+        weight,
       });
     }
 

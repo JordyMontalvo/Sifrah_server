@@ -75,6 +75,7 @@ const handler = async (req, res) => {
 
     //
     await Transaction.insert({
+      id:     rand(),
       date:   new Date(),
       user_id: user.id,
       type:  'out',
