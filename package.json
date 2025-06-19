@@ -19,7 +19,8 @@
     "mongoose": "^8.14.2",
     "next": "9.4.4",
     "react": "16.13.1",
-    "react-dom": "16.13.1"
+    "react-dom": "16.13.1",
+    "sweetalert2": "^11.22.0"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

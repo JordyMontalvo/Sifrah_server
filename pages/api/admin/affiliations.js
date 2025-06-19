@@ -103,7 +103,11 @@ const handler = async (req, res) => {
     const pageNum = parseInt(page, 10);
     const limitNum = parseInt(limit, 10);
 
-    const q = { all: {}, pending: { status: "pending" } };
+    const q = {
+      all: {},
+      pending: { status: "pending" },
+      approved: { status: "approved" },
+    };
 
     if (!(filter in q)) return res.json(error("invalid filter"));
 

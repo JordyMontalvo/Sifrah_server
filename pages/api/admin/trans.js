@@ -14,6 +14,7 @@ export default async (req, res) => {
   if (req.method === "GET") {
     const { filter, page = 1, limit = 20, search, timeRange } = req.query;
     console.log("Received request with page:", page, "and limit:", limit);
+    console.log("Full query params:", req.query);
     const q = { all: {}, pending: { status: "pending" } };
     const pageNum = parseInt(page, 10);
     const limitNum = parseInt(limit, 10);
@@ -26,18 +27,24 @@ export default async (req, res) => {
       const db = client.db(name);
 
       // Obtener todas las transacciones
-      let transactions = await Transaction.find(q[filter]);
+      let transactions = await db
+        .collection("transactions")
+        .find(q[filter])
+        .toArray();
+      console.log("Found transactions:", transactions.length);
 
       // Obtener todos los IDs de usuarios únicos
       const userIds = [
         ...new Set(transactions.map((t) => [t.user_id, t._user_id]).flat()),
       ];
+      console.log("Unique user IDs:", userIds.length);
 
       // Obtener información de usuarios
       const users = await db
         .collection("users")
         .find({ id: { $in: userIds } })
         .toArray();
+      console.log("Found users:", users.length);
       const userMap = new Map(users.map((u) => [u.id, u]));
 
       // Enriquecer transacciones con información de usuarios
@@ -153,6 +160,10 @@ export default async (req, res) => {
         updateData.affiliation_id = _affiliation_id;
       if (_virtual !== undefined) updateData.virtual = _virtual;
       if (_status !== undefined) updateData.status = _status;
+
+      // LOGS DE DEPURACIÓN
+      console.log("EDIT REQUEST:", { id, data: req.body.data });
+      console.log("UPDATE DATA:", updateData);
 
       // Actualizar solo si hay campos para actualizar
       if (Object.keys(updateData).length > 0) {
