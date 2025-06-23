@@ -47,7 +47,6 @@ export default async (req, res) => {
       await Product.update(
         { id },
         {
-          id: _code,
           name: _name,
           type: _type,
           price: _price,
