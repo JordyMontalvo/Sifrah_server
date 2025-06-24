@@ -526,6 +526,28 @@ class Collect {
     client.close();
     return collects;
   }
+  async findPaginated(query, skip, limit) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    const collects = await db
+      .collection("collects")
+      .find(query)
+      .sort({ date: -1 })
+      .skip(skip)
+      .limit(limit)
+      .toArray();
+    client.close();
+    return collects;
+  }
+  async count(query) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    const total = await db.collection("collects").countDocuments(query);
+    client.close();
+    return total;
+  }
   async insert(collect) {
     const client = new Client(URL, { useUnifiedTopology: true });
     const conn = await client.connect();

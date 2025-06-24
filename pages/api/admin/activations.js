@@ -55,14 +55,19 @@ export default async (req, res) => {
     // Construir un objeto de búsqueda
     let userSearchQuery = {};
     if (search) {
-      const searchLower = search.toLowerCase();
+      const searchWords = search
+        .trim()
+        .split(/\s+/)
+        .map((w) => w.toLowerCase());
       userSearchQuery = {
-        $or: [
-          { name: { $regex: searchLower, $options: "i" } },
-          { lastName: { $regex: searchLower, $options: "i" } },
-          { dni: { $regex: searchLower, $options: "i" } },
-          { phone: { $regex: searchLower, $options: "i" } },
-        ],
+        $and: searchWords.map((word) => ({
+          $or: [
+            { name: { $regex: word, $options: "i" } },
+            { lastName: { $regex: word, $options: "i" } },
+            { dni: { $regex: word, $options: "i" } },
+            { phone: { $regex: word, $options: "i" } },
+          ],
+        })),
       };
     }
 
@@ -110,20 +115,37 @@ export default async (req, res) => {
       await client.connect();
       const db = client.db(name);
 
-      // Buscar usuarios que coincidan con el query de búsqueda
-      let userIds = [];
+      // --- NUEVO FILTRO COMBINADO ---
+      // Construir el filtro base (estado)
+      let baseFilter = {};
+      if (filter && filter !== "all") {
+        baseFilter.status = filter;
+      }
+      // Agregar filtro de fecha si aplica
+      if (Object.keys(dateFilter).length > 0) {
+        baseFilter = { ...baseFilter, ...dateFilter };
+      }
+      // Si hay búsqueda, busca los usuarios y filtra por userId
       if (search) {
         const users = await db
           .collection("users")
           .find(userSearchQuery)
           .toArray();
-        userIds = users.map((user) => user.id); // Obtener los IDs de los usuarios que coinciden
+        const userIds = users.map((user) => String(user.id));
+        console.log("Filtrando activaciones por userIds:", userIds);
+        if (userIds.length > 0) {
+          baseFilter.userId = { $in: userIds };
+        } else {
+          // Si no hay usuarios que coincidan, no devolver nada
+          baseFilter.userId = "__NO_MATCH__";
+        }
       }
+      // --- FIN NUEVO FILTRO ---
 
-      // Filtrar activaciones según el userIds encontrados
+      // Filtrar activaciones según el filtro combinado
       const activationsCursor = db
         .collection("activations")
-        .find(userIds.length > 0 ? { userId: { $in: userIds } } : {})
+        .find(baseFilter)
         .sort({ date: -1 })
         .skip(skip)
         .limit(limitNum);
@@ -132,7 +154,7 @@ export default async (req, res) => {
 
       const totalActivations = await db
         .collection("activations")
-        .countDocuments(userIds.length > 0 ? { userId: { $in: userIds } } : {}); // Contar documentos que coinciden
+        .countDocuments(baseFilter); // Contar documentos que coinciden
 
       console.log("Type of page:", typeof page, "Value:", page);
       console.log("Type of limit:", typeof limit, "Value:", limit);

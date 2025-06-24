@@ -1,82 +1,92 @@
-import db  from "../../../components/db"
-import lib from "../../../components/lib"
+import db from "../../../components/db";
+import lib from "../../../components/lib";
 
-const { Collect, User } = db
-const { error, success, midd, ids, map, model } = lib
+const { Collect, User } = db;
+const { error, success, midd, ids, map, model } = lib;
 
 // valid filters
 // const q = { all: {}, pending: { status: 'pending'} }
 
 // models
-const A = ['id', 'date', 'cash', 'bank', 'account', 'account_type', 'amount', 'office', 'status']
-const U = ['name', 'lastName', 'username', 'phone']
-
+const A = [
+  "id",
+  "date",
+  "cash",
+  "bank",
+  "account",
+  "account_type",
+  "amount",
+  "office",
+  "status",
+];
+const U = ["name", "lastName", "username", "phone"];
 
 const handler = async (req, res) => {
+  if (req.method == "GET") {
+    const { filter, page = 1, limit = 20 } = req.query;
 
-  if(req.method == 'GET') {
-
-    const { filter } = req.query
-
-    const q = { all: {}, pending: { status: 'pending'} }
+    const q = { all: {}, pending: { status: "pending" } };
 
     // validate filter
-    if(!(filter in q)) return res.json(error('invalid filter'))
+    if (!(filter in q)) return res.json(error("invalid filter"));
 
-    const { account }   = req.query
-    console.log({ account })
+    const { account } = req.query;
+    console.log({ account });
 
     // get collects
-    let qq = q[filter]
-    console.log({ qq })
+    let qq = q[filter];
+    console.log({ qq });
 
-    if( account != 'admin') qq.office = account
-    console.log({ qq })
+    if (account != "admin") qq.office = account;
+    console.log({ qq });
 
-    let collects = await Collect.find(qq)
+    // PAGINACION
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const total = await Collect.count(qq);
+    let collects = await Collect.findPaginated(qq, skip, parseInt(limit));
 
     // get users for collects
-    let users = await User.find({ id: { $in: ids(collects) } })
-        users = map(users)
+    let users = await User.find({ id: { $in: ids(collects) } });
+    users = map(users);
 
     // enrich collects
-    collects = collects.map(a => {
+    collects = collects.map((a) => {
+      let u = users.get(a.userId);
 
-      let u = users.get(a.userId)
+      a = model(a, A);
+      u = model(u, U);
 
-      a = model(a, A)
-      u = model(u, U)
-
-      return { ...a, ...u }
-    })
+      return { ...a, ...u };
+    });
 
     // response
-    return res.json(success({ collects }))
+    return res.json(success({ collects, total }));
   }
 
-  if(req.method == 'POST') {
-
-    const { action, id } = req.body
+  if (req.method == "POST") {
+    const { action, id } = req.body;
 
     // get collect
-    const collect = await Collect.findOne({ id })
+    const collect = await Collect.findOne({ id });
 
     // validate collect
-    if(!collect) return res.json(error('collect not exist'))
+    if (!collect) return res.json(error("collect not exist"));
 
     // validate status
-    if(collect.status == 'approved') return res.json(error('already approved'))
+    if (collect.status == "approved")
+      return res.json(error("already approved"));
 
-
-    if(action == 'approve') {
-
+    if (action == "approve") {
       // approve collect
-      await Collect.update({ id }, { status: 'approved' })
+      await Collect.update({ id }, { status: "approved" });
 
       // response
-      return res.json(success())
+      return res.json(success());
     }
   }
-}
+};
 
-export default async (req, res) => { await midd(req, res); return handler(req, res) }
+export default async (req, res) => {
+  await midd(req, res);
+  return handler(req, res);
+};
