@@ -56,7 +56,23 @@ const handler = async (req, res) => {
       a = model(a, A);
       u = model(u, U);
 
-      return { ...a, ...u };
+      return {
+        ...a,
+        ...u,
+        name: (u && u.name) || "",
+        lastName: (u && u.lastName) || "",
+        username: (u && u.username) || "",
+        phone: (u && u.phone) || "",
+        id: a.id || "",
+        date: a.date || "",
+        cash: a.cash || false,
+        bank: a.bank || "",
+        account: a.account || "",
+        account_type: a.account_type || "",
+        amount: a.amount || 0,
+        office: a.office || "",
+        status: a.status || "",
+      };
     });
 
     // response
@@ -80,8 +96,10 @@ const handler = async (req, res) => {
       // approve collect
       await Collect.update({ id }, { status: "approved" });
 
+      // obtener collect actualizado
+      const updated = await Collect.findOne({ id });
       // response
-      return res.json(success());
+      return res.json(success({ collect: updated }));
     }
   }
 };
