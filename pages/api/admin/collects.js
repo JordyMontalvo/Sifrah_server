@@ -1,5 +1,7 @@
 import db from "../../../components/db";
 import lib from "../../../components/lib";
+import Joi from "joi";
+import { validateBody, validateQuery } from "../../../components/validate";
 
 const { Collect, User } = db;
 const { error, success, midd, ids, map, model } = lib;
@@ -23,6 +25,15 @@ const U = ["name", "lastName", "username", "phone"];
 
 const handler = async (req, res) => {
   if (req.method == "GET") {
+    // Validar query
+    const querySchema = Joi.object({
+      filter: Joi.string().valid("all", "pending").required(),
+      page: Joi.number().integer().min(1).default(1),
+      limit: Joi.number().integer().min(1).max(100).default(20),
+      account: Joi.string().required(),
+    });
+    if (!validateQuery(querySchema, req, res)) return;
+
     const { filter, page = 1, limit = 20 } = req.query;
 
     const q = { all: {}, pending: { status: "pending" } };
@@ -80,6 +91,13 @@ const handler = async (req, res) => {
   }
 
   if (req.method == "POST") {
+    // Validar body
+    const bodySchema = Joi.object({
+      action: Joi.string().valid("approve").required(),
+      id: Joi.string().required(),
+    });
+    if (!validateBody(bodySchema, req, res)) return;
+
     const { action, id } = req.body;
 
     // get collect
