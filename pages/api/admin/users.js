@@ -30,6 +30,8 @@ const U = [
   "birthdate",
   "address",
   "city",
+  "plan",
+  "affiliation_points",
 ];
 
 const handler = async (req, res) => {
@@ -80,24 +82,24 @@ const handler = async (req, res) => {
 
     // Apply search if search parameter exists
     const normalize = (str) =>
-      (str || '')
+      (str || "")
         .toLowerCase()
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "");
-    
+
     const searchNormalized = normalize(search);
-    
+
     allUsers = allUsers.filter((user) => {
       return (
         normalize(user.name).includes(searchNormalized) ||
         normalize(user.lastName).includes(searchNormalized) ||
         normalize(user.dni).includes(searchNormalized) ||
         normalize(user.country).includes(searchNormalized) ||
-        normalize(user.phone).includes(searchNormalized)  ||
+        normalize(user.phone).includes(searchNormalized) ||
         normalize(user.city).includes(searchNormalized)
       );
     });
-      console.log({ allUsers });
+    console.log({ allUsers });
 
     // Ordenar usuarios por fecha (más reciente primero)
     allUsers.sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -223,8 +225,18 @@ const handler = async (req, res) => {
     if (action == "name") {
       // console.log('edit name ...')
 
-      const { _name, _lastName, _dni, _password, _parent_dni, _points, _rank, city } =
-        req.body.data;
+      const {
+        _name,
+        _lastName,
+        _dni,
+        _password,
+        _parent_dni,
+        _points,
+        _rank,
+        city,
+        plan,
+        affiliation_points,
+      } = req.body.data;
       console.log({
         _name,
         _lastName,
@@ -233,7 +245,9 @@ const handler = async (req, res) => {
         _parent_dni,
         _points,
         _rank,
-        city
+        city,
+        plan,
+        affiliation_points,
       });
 
       const user = await User.findOne({ id });
@@ -253,6 +267,9 @@ const handler = async (req, res) => {
           dni: _dni,
           points: _points,
           rank: _rank,
+          city,
+          plan,
+          affiliation_points,
         }
       );
 
