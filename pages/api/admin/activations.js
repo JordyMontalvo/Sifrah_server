@@ -406,6 +406,33 @@ export default async (req, res) => {
       await Activation.update({ id }, { points });
     }
 
+    if (action == "delete") {
+      // Eliminar transacciones asociadas
+      if (activation.transactions) {
+        for (let transactionId of activation.transactions) {
+          await Transaction.delete({ id: transactionId });
+        }
+      }
+      // Actualizar stock (sumar productos de vuelta)
+      const office_id = activation.office;
+      const products = activation.products;
+      const office = await Office.findOne({ id: office_id });
+      if (office && Array.isArray(products)) {
+        products.forEach((p, i) => {
+          if (office.products[i]) office.products[i].total += products[i].total;
+        });
+        await Office.update(
+          { id: office_id },
+          {
+            products: office.products,
+          }
+        );
+      }
+      // Eliminar la activación
+      await Activation.delete({ id });
+      return res.json(success());
+    }
+
     return res.json(success());
   }
 };
