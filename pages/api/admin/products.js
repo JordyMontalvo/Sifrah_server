@@ -33,6 +33,7 @@ export default async (req, res) => {
         _description,
         _plans,
         _weight,
+        _prices,
       } = req.body.data;
 
       // Get all plans from database
@@ -56,6 +57,7 @@ export default async (req, res) => {
           description: _description,
           plans: plansObject,
           weight: _weight,
+          prices: _prices,
         }
       );
     }
@@ -71,6 +73,7 @@ export default async (req, res) => {
         description,
         plans,
         weight,
+        prices,
       } = req.body.data;
 
       // Get all plans from database
@@ -93,6 +96,7 @@ export default async (req, res) => {
         description,
         plans: plansObject,
         weight,
+        prices,
       });
     }
 
