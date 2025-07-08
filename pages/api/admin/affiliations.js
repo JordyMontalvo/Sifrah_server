@@ -19,6 +19,9 @@ const A = [
   "amounts",
   "products",
   "transactions", // Asegúrate de que este campo esté en tu modelo
+  "type", // NUEVO: mostrar tipo de afiliación
+  "previousPlan", // NUEVO: mostrar plan anterior si es upgrade
+  "difference", // NUEVO: mostrar diferencia si es upgrade
 ];
 const U = ["name", "lastName", "dni", "phone"];
 
@@ -43,7 +46,16 @@ const absorb_levels = {
 let pays = [];
 
 // Función para repartir bonos de afiliación hasta 9 niveles hacia arriba,
-async function pay_bonus(id, i, aff_id, amount, migration, plan_afiliado, _id) {
+async function pay_bonus(
+  id,
+  i,
+  aff_id,
+  amount,
+  migration,
+  plan_afiliado,
+  _id,
+  previousPlan = null
+) {
   const user = users.find((e) => e.id == id);
   const node = tree.find((e) => e.id == id);
 
@@ -53,18 +65,25 @@ async function pay_bonus(id, i, aff_id, amount, migration, plan_afiliado, _id) {
   const virtual = user._activated || user.activated ? false : true;
   const name = migration ? "migration bonus" : "affiliation bonus";
 
-  // El monto a repartir es el del plan del afiliado que entra
-  let fixed_payment = pay[plan_afiliado][i];
+  // Si es upgrade (previousPlan existe), pagar solo la diferencia por nivel
+  let fixed_payment;
+  if (previousPlan) {
+    const nuevo = pay[plan_afiliado][i] || 0;
+    const anterior = pay[previousPlan][i] || 0;
+    fixed_payment = nuevo - anterior;
+  } else {
+    fixed_payment = pay[plan_afiliado][i];
+  }
 
-  // Solo paga si el usuario puede absorber este nivel según su plan
-  if (i < absorb_levels[user.plan] && fixed_payment) {
+  // Solo paga si el usuario puede absorber este nivel según su plan y la diferencia es positiva
+  if (i < absorb_levels[user.plan] && fixed_payment && fixed_payment > 0) {
     const transactionId = rand();
     await Transaction.insert({
       id: transactionId,
       date: new Date(),
       user_id: user.id,
       type: "in",
-      value: fixed_payment, // Pago fijo
+      value: fixed_payment, // Pago fijo o diferencia
       name,
       affiliation_id: aff_id,
       virtual,
@@ -82,7 +101,8 @@ async function pay_bonus(id, i, aff_id, amount, migration, plan_afiliado, _id) {
     amount,
     migration,
     plan_afiliado,
-    _id
+    _id,
+    previousPlan
   );
 }
 
@@ -204,6 +224,64 @@ const handler = async (req, res) => {
 
       // update USER
       const user = await User.findOne({ id: affiliation.userId });
+
+      // Si es upgrade, solo actualizar lo necesario
+      if (affiliation.type === "upgrade") {
+        // Actualizar plan y puntos
+        await User.update(
+          { id: user.id },
+          {
+            plan: affiliation.plan.id,
+            n: affiliation.plan.n,
+            affiliation_points: affiliation.plan.affiliation_points,
+            affiliation_date: new Date(),
+          }
+        );
+        // PAGAR BONOS SOLO SOBRE LA DIFERENCIA
+        tree = await Tree.find({});
+        users = await User.find({});
+        pays = [];
+        const plan = affiliation.plan.id;
+        const previousPlan = affiliation.previousPlan?.id; // <-- Tomar solo el id del plan anterior
+        const amount = affiliation.difference?.amount || 0;
+        // Solo repartir bonos si hay diferencia positiva
+        if (amount > 0) {
+          await pay_bonus(
+            user.parentId,
+            0,
+            affiliation.id,
+            amount,
+            false,
+            plan,
+            user.id,
+            previousPlan // <-- Pasar el plan anterior
+          );
+        }
+        // Actualizar la afiliación con las transacciones
+        await Affiliation.update({ id }, { transactions: pays });
+        // UPDATE STOCK SOLO DE PRODUCTOS ADICIONALES
+        const office_id = affiliation.office;
+        const diffProducts = affiliation.difference?.products || [];
+        const office = await Office.findOne({ id: office_id });
+        diffProducts.forEach((p, i) => {
+          if (office.products[i]) office.products[i].total -= p.total;
+        });
+        await Office.update(
+          { id: office_id },
+          {
+            products: office.products,
+          }
+        );
+        // migrar transacciones virtuales
+        const transactions = await Transaction.find({
+          user_id: user.id,
+          virtual: true,
+        });
+        for (let transaction of transactions) {
+          await Transaction.update({ id: transaction.id }, { virtual: false });
+        }
+        return res.json(success());
+      }
 
       await User.update(
         { id: user.id },

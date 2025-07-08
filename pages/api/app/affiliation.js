@@ -1,167 +1,219 @@
-import db  from "../../../components/db"
-import lib from "../../../components/lib"
+import db from "../../../components/db";
+import lib from "../../../components/lib";
 
-const { User, Session, Plan, Product, Affiliation, Office, Tree, Transaction } = db
-const { error, success, midd, rand, acum } = lib
+const { User, Session, Plan, Product, Affiliation, Office, Tree, Transaction } =
+  db;
+const { error, success, midd, rand, acum } = lib;
 
-let tree
-
+let tree;
 
 export default async (req, res) => {
-  await midd(req, res)
+  await midd(req, res);
 
   // valid session
-  let { session } = req.query
-        session   = await Session.findOne({ value: session })
-  if  (!session)    return res.json(error('invalid session'))
+  let { session } = req.query;
+  session = await Session.findOne({ value: session });
+  if (!session) return res.json(error("invalid session"));
 
   // get USER
-  const user = await User.findOne({ id: session.id })
+  const user = await User.findOne({ id: session.id });
 
   // get PLANS
-  let plans = await Plan.find({})
+  let plans = await Plan.find({});
 
   // get PRODUCTS
-  const products = await Product.find({})
-
+  const products = await Product.find({});
 
   // get last AFFILIATION pending or approved
-  const affiliation  = await Affiliation.findOneLast({ userId: user.id, status: { $in: ['pending', 'approved'] } })
-  const affiliations = await Affiliation.find({ userId: user.id, status: 'approved' })
+  const affiliation = await Affiliation.findOneLast({
+    userId: user.id,
+    status: { $in: ["pending", "approved"] },
+  });
+  const affiliations = await Affiliation.find({
+    userId: user.id,
+    status: "approved",
+  });
 
-
-  if(affiliation && affiliation.status == 'approved') {
-   // if(affiliation.plan.id == 'early') {
+  if (affiliation && affiliation.status == "approved") {
+    // if(affiliation.plan.id == 'early') {
     //  plans.shift()
-   // }
-    if(affiliation.plan.id == 'basic') {
-      plans.shift()
-    //  plans.shift()
+    // }
+    if (affiliation.plan.id == "basic") {
+      plans.shift();
+      //  plans.shift()
     }
-    if(affiliation.plan.id == 'standard') {
-      plans.shift()
-      plans.shift()
-     // plans.shift()
+    if (affiliation.plan.id == "standard") {
+      plans.shift();
+      plans.shift();
+      // plans.shift()
     }
-    if(affiliation.plan.id == 'master') {
-      plans = []
+    if (affiliation.plan.id == "master") {
+      plans = [];
     }
   }
-
 
   // get transactions
-  const  transactions = await Transaction.find({ user_id: user.id, virtual: {$in: [null, false]} })
-  const _transactions = await Transaction.find({ user_id: user.id, virtual:              true    })
+  const transactions = await Transaction.find({
+    user_id: user.id,
+    virtual: { $in: [null, false] },
+  });
+  const _transactions = await Transaction.find({
+    user_id: user.id,
+    virtual: true,
+  });
 
-  const  ins  = acum( transactions, {type: 'in' }, 'value')
-  const  outs = acum( transactions, {type: 'out'}, 'value')
-  const _ins  = acum(_transactions, {type: 'in' }, 'value')
-  const _outs = acum(_transactions, {type: 'out'}, 'value')
+  const ins = acum(transactions, { type: "in" }, "value");
+  const outs = acum(transactions, { type: "out" }, "value");
+  const _ins = acum(_transactions, { type: "in" }, "value");
+  const _outs = acum(_transactions, { type: "out" }, "value");
 
-  const  balance =  ins -  outs
-  const _balance = _ins - _outs
+  const balance = ins - outs;
+  const _balance = _ins - _outs;
 
+  if (req.method == "GET") {
+    const offices = await Office.find({});
 
-  if(req.method == 'GET') {
+    return res.json(
+      success({
+        name: user.name,
+        lastName: user.lastName,
+        affiliated: user.affiliated,
+        _activated: user._activated,
+        activated: user.activated,
+        plan: user.plan,
+        country: user.country,
+        photo: user.photo,
+        tree: user.tree,
 
-    const offices = await Office.find({})
+        plans,
+        products,
+        affiliation,
+        affiliations,
+        offices,
 
-    return res.json(success({
-      name:       user.name,
-      lastName:   user.lastName,
-      affiliated: user.affiliated,
-     _activated:  user._activated,
-      activated:  user.activated,
-      plan:       user.plan,
-      country:    user.country,
-      photo:      user.photo,
-      tree:       user.tree,
-
-      plans,
-      products,
-      affiliation,
-      affiliations,
-      offices,
-
-      balance,
-     _balance,
-    }))
+        balance,
+        _balance,
+      })
+    );
   }
 
+  if (req.method == "POST") {
+    let {
+      products,
+      plan,
+      voucher,
+      office,
+      check,
+      pay_method,
+      bank,
+      date,
+      voucher_number,
+    } = req.body;
 
-  if(req.method == 'POST') {
+    // Buscar el plan seleccionado
+    plan = plans.find((e) => e.id == plan.id);
+    console.log({ plan });
 
-    let { products, plan, voucher, office, check, pay_method, bank, date, voucher_number } = req.body
+    let transactions = [];
+    let amounts;
+    let type = "affiliation";
+    let previousPlan = null;
+    let difference = null;
 
-    plan = plans.find(e => e.id == plan.id); console.log({ plan })
+    // Detectar si es upgrade
+    // Buscar la afiliación aprobada de mayor plan (más alto ya pagado)
+    let highestAffiliation = null;
+    if (affiliations && affiliations.length > 0) {
+      highestAffiliation = affiliations.reduce((prev, curr) => {
+        // Compara por monto del plan
+        return curr.plan.amount > prev.plan.amount ? curr : prev;
+      }, affiliations[0]);
+    }
+    if (
+      highestAffiliation &&
+      plan &&
+      plan.amount > highestAffiliation.plan.amount
+    ) {
+      type = "upgrade";
+      previousPlan = highestAffiliation.plan;
+      // Calcular diferencia
+      difference = {
+        amount: plan.amount - highestAffiliation.plan.amount,
+        points:
+          (plan.affiliation_points || 0) -
+          (highestAffiliation.plan.affiliation_points || 0),
+        products: products.map((p, i) => ({
+          ...p,
+          total: p.total - (highestAffiliation.products[i]?.total || 0),
+        })),
+      };
+      // Para upgrades, solo registrar la diferencia de productos
+      products = difference.products;
+    }
 
-    let transactions = []
-    let amounts
+    if (!check) {
+      // Si es upgrade, solo cobrar la diferencia
+      const price = type === "upgrade" ? difference.amount : plan.amount;
 
-    if(!check) {
+      const a = _balance < price ? _balance : price;
+      const r = price - _balance > 0 ? price - _balance : 0;
+      const b = balance < r ? balance : r;
+      const c = price - a - b;
+      console.log({ a, b, c });
 
-      const price = plan.amount
+      const id1 = rand();
+      const id2 = rand();
 
-      const a = _balance < price ? _balance : price
-      const r = (price - _balance) > 0 ? price - _balance : 0
-      const b = balance < r ? balance : r
-      const c = price - a - b
-      console.log({ a, b, c })
+      amounts = [a, b, c];
 
-      const id1 = rand()
-      const id2 = rand()
-
-      amounts = [a, b, c]
-
-      if(a) {
-        transactions.push(id1)
-
+      if (a) {
+        transactions.push(id1);
         await Transaction.insert({
-          id:      id1,
-          date:    new Date(),
-          user_id:  user.id,
-          type:   'out',
-          value:   a,
-          name:   'affiliation',
+          id: id1,
+          date: new Date(),
+          user_id: user.id,
+          type: "out",
+          value: a,
+          name: type,
           virtual: true,
-        })
+        });
       }
 
-      if(b) {
-        transactions.push(id2)
-
+      if (b) {
+        transactions.push(id2);
         await Transaction.insert({
-          id:      id2,
-          date:    new Date(),
-          user_id:  user.id,
-          type:   'out',
-          value:   b,
-          name:   'affiliation',
+          id: id2,
+          date: new Date(),
+          user_id: user.id,
+          type: "out",
+          value: b,
+          name: type,
           virtual: false,
-        })
+        });
       }
     }
 
     await Affiliation.insert({
-      id:     rand(),
-      date:   new Date(),
+      id: rand(),
+      date: new Date(),
       userId: user.id,
       products,
       plan,
       voucher,
       office,
-      status: 'pending',
+      status: "pending",
       delivered: false,
-
       transactions,
       amounts,
-
       pay_method,
       bank,
       voucher_date: date,
       voucher_number,
-    })
+      type,
+      previousPlan,
+      difference,
+    });
 
-    return res.json(success())
+    return res.json(success());
   }
-}
+};
