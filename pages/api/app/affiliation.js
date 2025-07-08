@@ -29,20 +29,41 @@ export default async (req, res) => {
   const affiliation  = await Affiliation.findOneLast({ userId: user.id, status: { $in: ['pending', 'approved'] } })
   const affiliations = await Affiliation.find({ userId: user.id, status: 'approved' })
 
+  // tabla de pago
+  plans[0].table_pay = [90, 20, 5, 3, 3, 1.5, 1.5, 1.5, 1.5]
+  plans[1].table_pay = [300, 50, 20, 10, 10, 5, 5, 5, 5]
+  plans[2].table_pay = [500, 100, 60, 40, 20, 10, 10, 10, 10]
 
   if(affiliation && affiliation.status == 'approved') {
-   // if(affiliation.plan.id == 'early') {
-    //  plans.shift()
-   // }
+
     if(affiliation.plan.id == 'basic') {
+
       plans.shift()
-    //  plans.shift()
+
+      plans[0].amount =  // basic -> standard
+      plans[1].amount =  // basic -> master
+
+      plans[0].affiliation_points =  // basic -> standard
+      plans[1].affiliation_points =  // basic -> master
+
+      // resta peso
+
+      // calcula tabla de pago
+      plans[0].table_pay = [210, 30, 15, 7, 7, 3.5, 3.5, 3.5, 3.5] // basic -> standard
+      plans[1].table_pay = [410, 80, 55, 37, 17, 8.5, 8.5, 8.5, 8.5] // basic -> master
     }
+
     if(affiliation.plan.id == 'standard') {
       plans.shift()
       plans.shift()
-     // plans.shift()
+
+      plans[0].amount =  // standard -> master
+      plans[0].affiliation_points =  // standard -> master
+
+      // calcula tabla de pago
+      plans[0].table_pay = [200, 50, 40, 30, 10, 5, 5, 5, 5] // standard -> master
     }
+
     if(affiliation.plan.id == 'master') {
       plans = []
     }
@@ -91,7 +112,7 @@ export default async (req, res) => {
 
   if(req.method == 'POST') {
 
-    let { products, plan, voucher, office, check, pay_method, bank, date, voucher_number } = req.body
+    let { products, plan, voucher, office, check, pay_method, bank, date, voucher_number, table_pay } = req.body
 
     plan = plans.find(e => e.id == plan.id); console.log({ plan })
 
@@ -160,6 +181,7 @@ export default async (req, res) => {
       bank,
       voucher_date: date,
       voucher_number,
+      table_pay,
     })
 
     return res.json(success())

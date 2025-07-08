@@ -27,11 +27,11 @@ let tree = null;
 
 // Definición de pagos fijos por plan y nivel. Cada array tiene 9 valores (uno por cada nivel de profundidad).
 
-const pay = {
-  basic: [90, 20, 5, 3, 3, 1.5, 1.5, 1.5, 1.5], // Solo absorbe 3 niveles
-  standard: [300, 50, 20, 10, 10, 5, 5, 5, 5], // Solo absorbe 6 niveles
-  master: [500, 100, 60, 40, 20, 10, 10, 10, 10], // Absorbe los 9 niveles
-};
+// const pay = {
+//   basic: [90, 20, 5, 3, 3, 1.5, 1.5, 1.5, 1.5], // Solo absorbe 3 niveles
+//   standard: [300, 50, 20, 10, 10, 5, 5, 5, 5], // Solo absorbe 6 niveles
+//   master: [500, 100, 60, 40, 20, 10, 10, 10, 10], // Absorbe los 9 niveles
+// };
 
 // Define cuántos niveles puede absorber cada plan
 const absorb_levels = {
@@ -43,7 +43,7 @@ const absorb_levels = {
 let pays = [];
 
 // Función para repartir bonos de afiliación hasta 9 niveles hacia arriba,
-async function pay_bonus(id, i, aff_id, amount, migration, plan_afiliado, _id) {
+async function pay_bonus(id, i, aff_id, amount, migration, plan_afiliado, _id, table_pay) {
   const user = users.find((e) => e.id == id);
   const node = tree.find((e) => e.id == id);
 
@@ -54,7 +54,8 @@ async function pay_bonus(id, i, aff_id, amount, migration, plan_afiliado, _id) {
   const name = migration ? "migration bonus" : "affiliation bonus";
 
   // El monto a repartir es el del plan del afiliado que entra
-  let fixed_payment = pay[plan_afiliado][i];
+  // let fixed_payment = pay[plan_afiliado][i];
+  let fixed_payment = table_pay[i];
 
   // Solo paga si el usuario puede absorber este nivel según su plan
   if (i < absorb_levels[user.plan] && fixed_payment) {
@@ -82,7 +83,8 @@ async function pay_bonus(id, i, aff_id, amount, migration, plan_afiliado, _id) {
     amount,
     migration,
     plan_afiliado,
-    _id
+    _id,
+    table_pay
   );
 }
 
@@ -254,6 +256,7 @@ const handler = async (req, res) => {
 
       const plan = affiliation.plan.id;
       const amount = affiliation.plan.amount - 50;
+      const table_pay = affiliation.table_pay;
 
       if (user.plan == "default") {
         await pay_bonus(
@@ -263,7 +266,8 @@ const handler = async (req, res) => {
           amount,
           false,
           plan,
-          user.id
+          user.id,
+          table_pay
         );
       } else {
         await pay_bonus(
@@ -273,7 +277,8 @@ const handler = async (req, res) => {
           amount,
           true,
           plan,
-          user.id
+          user.id,
+          table_pay
         );
       }
 
