@@ -1,7 +1,7 @@
 import db  from "../../../components/db"
 import lib from "../../../components/lib"
 
-const { User, Session, Transaction, Tree, Banner } = db
+const { User, Session, Transaction, Tree, Banner, Plan } = db
 const { error, success, acum, midd,model } = lib
 
 const D = ['id', 'name', 'lastName', 'affiliated', 'activated', 'tree', 'email', 'phone', 'address', 'rank', 'points', 'parentId']
@@ -10,10 +10,17 @@ export default async (req, res) => {
 
   let { session } = req.query
 
+  
+  
+  
   // valid session
-      session = await Session.findOne({ value: session })
+  session = await Session.findOne({ value: session })
   if(!session)  return res.json(error('invalid session'))
-
+    
+  // GET plans
+  const plans = await Plan.find({}); // Traer todos los planes
+  
+  
   // get USER
   const user = await User.findOne({ id: session.id })
 
@@ -71,5 +78,6 @@ export default async (req, res) => {
    _balance: (insVirtual - outsVirtual),
     rank:    user.rank,
     points:  user.points,
+    plans, // <-- Agregar todos los planes a la respuesta
   }))
 }
