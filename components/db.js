@@ -701,7 +701,7 @@ class Closed {
   }
 }
 
-export default new DB({
+module.exports = new DB({
   User: new User(),
   Session: new Session(),
   Affiliation: new Affiliation(),

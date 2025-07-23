@@ -1,4 +1,4 @@
-import Cors from "cors";
+const Cors = require("cors");
 
 class Lib {
   constructor() {
@@ -67,4 +67,4 @@ class Lib {
   }
 }
 
-export default new Lib();
+module.exports = new Lib();
