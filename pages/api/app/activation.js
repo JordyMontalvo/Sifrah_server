@@ -93,14 +93,24 @@ export default async (req, res) => {
     let { products, office, check, voucher, pay_method, bank, date, voucher_number } = req.body
     // let { products, voucher, office } = req.body
 
-    // console.log({ products })
+    // Obtener el plan del usuario
+    const planId = user.plan && user.plan.id ? user.plan.id : user.plan;
+
+    // Recalcular el precio de cada producto según el plan del usuario
+    products = products.map((p) => {
+      let price = p.price;
+      if (p.prices && planId && p.prices[planId] != null && p.prices[planId] !== "") {
+        price = p.prices[planId];
+      }
+      return { ...p, price };
+    });
+
     const points = products.reduce((a, b) => a + b.points * b.total, 0)
     // const points = products.reduce((a, b) => a + (b.val ? b.val : b.price) * b.total, 0)
 
     const total  = products.reduce((a, b) => a + b.total, 0)
     // const _total = products.reduce((a, b) => a + (b.desc ? b.total : 0), 0)
     // console.log({ _total })
-
 
     let price = products.reduce((a, b) => a + b.price * b.total, 0)
 
