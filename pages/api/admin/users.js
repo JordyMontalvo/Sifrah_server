@@ -2,7 +2,7 @@ import bcrypt from "bcrypt";
 import db from "../../../components/db";
 import lib from "../../../components/lib";
 
-const { User, Transaction } = db;
+const { User, Transaction, Closed } = db;
 const { error, success, midd, model } = lib;
 
 // valid filters
@@ -208,14 +208,81 @@ const handler = async (req, res) => {
     if (action == "migrate") {
       console.log("migrate ...");
 
-      // migrar transaccinoes virtuales
-      const transactions = await Transaction.find({
+      // migrar transacciones virtuales solo las que fueron creadas después del último cierre
+      // y que NO sean transacciones "closed reset" (compensaciones de cierre)
+      // y que NO sean transacciones que ya fueron compensadas por "closed reset"
+      // Primero obtener la fecha del último cierre
+      const lastClosed = await Closed.findOne({}, { sort: { date: -1 } });
+      
+      // Obtener todas las transacciones "closed reset" del usuario
+      const closedResetTransactions = await Transaction.find({
+        user_id: id,
+        name: "closed reset",
+        virtual: true
+      });
+      
+      // Para cada "closed reset", identificar las transacciones que realmente compensó
+      const compensatedTransactionIds = [];
+      
+      for (const resetTransaction of closedResetTransactions) {
+        // Obtener todas las transacciones que existían ANTES del "closed reset"
+        const transactionsBeforeReset = await Transaction.find({
+          user_id: id,
+          virtual: true,
+          name: { $ne: "closed reset" },
+          date: { $lt: resetTransaction.date } // Solo transacciones ANTES del reset
+        });
+        
+        // Ordenar por fecha (más antiguas primero) para compensar en orden cronológico
+        transactionsBeforeReset.sort((a, b) => new Date(a.date) - new Date(b.date));
+        
+        // Simular la compensación: sumar transacciones hasta alcanzar el valor del reset
+        let remainingToCompensate = resetTransaction.value;
+        const transactionsToCompensate = [];
+        
+        for (const transaction of transactionsBeforeReset) {
+          if (remainingToCompensate <= 0) break;
+          
+          if (transaction.value <= remainingToCompensate) {
+            // Esta transacción fue completamente compensada
+            transactionsToCompensate.push(transaction.id);
+            remainingToCompensate -= transaction.value;
+          } else {
+            // Esta transacción fue parcialmente compensada
+            // Por ahora, la consideramos compensada completamente
+            // En el futuro se podría manejar compensaciones parciales
+            transactionsToCompensate.push(transaction.id);
+            remainingToCompensate = 0;
+            break;
+          }
+        }
+        
+        // Agregar los IDs de las transacciones que fueron compensadas
+        compensatedTransactionIds.push(...transactionsToCompensate);
+      }
+      
+      let virtualTransactionsQuery = {
         user_id: id,
         virtual: true,
+        name: { $ne: "closed reset" } // Excluir transacciones de compensación de cierre
+      };
+      
+      // Si hay un cierre anterior, solo migrar transacciones creadas después de ese cierre
+      if (lastClosed) {
+        virtualTransactionsQuery.date = { $gte: lastClosed.date };
+      }
+      
+      const transactions = await Transaction.find(virtualTransactionsQuery);
+      
+      // Filtrar transacciones que NO fueron compensadas por "closed reset"
+      const validTransactions = transactions.filter(transaction => {
+        // Si esta transacción está en la lista de compensadas, no migrarla
+        return !compensatedTransactionIds.includes(transaction.id);
       });
+      
       // console.log({ transactions })
 
-      for (let transaction of transactions) {
+      for (let transaction of validTransactions) {
         console.log({ transaction });
 
         await Transaction.update({ id: transaction.id }, { virtual: false });

@@ -5,7 +5,7 @@ import { MongoClient } from "mongodb";
 const URL = process.env.DB_URL; // Asegúrate de que esta variable esté definida correctamente
 const name = process.env.DB_NAME;
 
-const { Activation, User, Tree, Token, Office, Transaction } = db;
+const { Activation, User, Tree, Token, Office, Transaction, Closed } = db;
 const { error, success, midd, ids, map, model, rand } = lib;
 
 // valid filters
@@ -232,13 +232,79 @@ export default async (req, res) => {
       );
 
       if (activated) {
-        // migrar transaccinoes virtuales
-        const transactions = await Transaction.find({
+        // migrar transacciones virtuales solo las que fueron creadas después del último cierre
+        // y que NO sean transacciones "closed reset" (compensaciones de cierre)
+        // y que NO sean transacciones que ya fueron compensadas por "closed reset"
+        // Primero obtener la fecha del último cierre
+        const lastClosed = await Closed.findOne({}, { sort: { date: -1 } });
+        
+        // Obtener todas las transacciones "closed reset" del usuario
+        const closedResetTransactions = await Transaction.find({
+          user_id: user.id,
+          name: "closed reset",
+          virtual: true
+        });
+        
+        // Para cada "closed reset", identificar las transacciones que realmente compensó
+        const compensatedTransactionIds = [];
+        
+        for (const resetTransaction of closedResetTransactions) {
+          // Obtener todas las transacciones que existían ANTES del "closed reset"
+          const transactionsBeforeReset = await Transaction.find({
+            user_id: user.id,
+            virtual: true,
+            name: { $ne: "closed reset" },
+            date: { $lt: resetTransaction.date } // Solo transacciones ANTES del reset
+          });
+          
+          // Ordenar por fecha (más antiguas primero) para compensar en orden cronológico
+          transactionsBeforeReset.sort((a, b) => new Date(a.date) - new Date(b.date));
+          
+          // Simular la compensación: sumar transacciones hasta alcanzar el valor del reset
+          let remainingToCompensate = resetTransaction.value;
+          const transactionsToCompensate = [];
+          
+          for (const transaction of transactionsBeforeReset) {
+            if (remainingToCompensate <= 0) break;
+            
+            if (transaction.value <= remainingToCompensate) {
+              // Esta transacción fue completamente compensada
+              transactionsToCompensate.push(transaction.id);
+              remainingToCompensate -= transaction.value;
+            } else {
+              // Esta transacción fue parcialmente compensada
+              // Por ahora, la consideramos compensada completamente
+              // En el futuro se podría manejar compensaciones parciales
+              transactionsToCompensate.push(transaction.id);
+              remainingToCompensate = 0;
+              break;
+            }
+          }
+          
+          // Agregar los IDs de las transacciones que fueron compensadas
+          compensatedTransactionIds.push(...transactionsToCompensate);
+        }
+        
+        let virtualTransactionsQuery = {
           user_id: user.id,
           virtual: true,
+          name: { $ne: "closed reset" } // Excluir transacciones de compensación de cierre
+        };
+        
+        // Si hay un cierre anterior, solo migrar transacciones creadas después de ese cierre
+        if (lastClosed) {
+          virtualTransactionsQuery.date = { $gte: lastClosed.date };
+        }
+        
+        const transactions = await Transaction.find(virtualTransactionsQuery);
+        
+        // Filtrar transacciones que NO fueron compensadas por "closed reset"
+        const validTransactions = transactions.filter(transaction => {
+          // Si esta transacción está en la lista de compensadas, no migrarla
+          return !compensatedTransactionIds.includes(transaction.id);
         });
 
-        for (let transaction of transactions) {
+        for (let transaction of validTransactions) {
           console.log({ transaction });
           await Transaction.update({ id: transaction.id }, { virtual: false });
         }
