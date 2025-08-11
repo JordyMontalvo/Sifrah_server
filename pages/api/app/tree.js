@@ -152,7 +152,8 @@ function total_points(id) {
 
   const node = tree.find(e => e.id == id)
 
-  node.total_points = node.points + node.affiliation_points
+  // Sumar puntos de activaciones Y afiliaciones
+  node.total_points = node.points + (node.affiliation_points || 0)
 
   node.childs.forEach(_id => {
     node.total_points += total_points(_id)
@@ -191,98 +192,79 @@ export default async (req, res) => {
   session = await Session.findOne({ value: session })
   if(!session) return res.json(error('invalid session'))
 
+  // get USER
+  const user = await User.findOne({ id: session.id })
 
-  // get USER, USERS, TREE
-  const user  = await User.findOne({ id: session.id })
+  // Si no se pasa id, usar el nodo raíz
+  if (!id || id === 'null') id = user.id
 
-  const users = await User.find({ tree: true })
-        tree  = await Tree.find({})
+  // Buscar el nodo solicitado
+  const node = await Tree.findOne({ id })
+  if (!node) return res.json(error('node not found'))
 
-  const activations = await Activation.find({})
+  // Traer datos de usuario para el nodo
+  const nodeUser = await User.findOne({ id: node.id })
 
-  tree.forEach(node => {
-    const user = users.find(e => e.id == node.id)
-    const last_activations = activations.filter(a => a.userId == user.id)
-                                        .slice(0, 5)
+  // Leer el total_points ya almacenado
+  const total_points = nodeUser.total_points || 0
 
-    node.name               = user.name
-    node.lastName           = user.lastName
-    node.affiliated         = user.affiliated
-    node.activated          = user.activated
-    node.points             = Number(user.points)
-    node.affiliation_points = user.affiliation_points ? user.affiliation_points : 0
-
-    node.photo = user.photo
-    node.country = user.country
-    node.dni = user.dni
-    node.phone = user.phone
-    node.email = user.email
-    node._rank = user.rank
-    node.last_activations = last_activations
-
-  })
-
-  total_points('5f0e0b67af92089b5866bcd0')
-
-  tree.forEach(node => {
-    node.closed_points = 0
-    node.closed_points_arr = []
-
-    node.childs.forEach(_id => {
-      const _node = tree.find(e => e.id == _id)
-
-      node.closed_points += _node.total_points
-      node.closed_points_arr.push(_node.total_points)
+  // Traer los hijos inmediatos
+  let children = []
+  let children_points = []
+  if (node.childs && node.childs.length > 0) {
+    // Buscar los nodos hijos
+    const childNodes = await Tree.find({ id: { $in: node.childs } })
+    // Traer los usuarios de los hijos
+    const childUsers = await User.find({ id: { $in: node.childs } })
+    // Ordenar childNodes y childUsers según el orden de node.childs
+    const childNodesOrdered = node.childs.map(cid => childNodes.find(n => n.id === cid))
+    const childUsersOrdered = node.childs.map(cid => childUsers.find(u => u.id === cid))
+    // Mapear hijos con datos de usuario
+    children = childNodesOrdered.map((childNode, idx) => {
+      const childUser = childUsersOrdered[idx] || {}
+      return {
+        id: childNode.id,
+        childs: childNode.childs,
+        name: childUser.name,
+        lastName: childUser.lastName,
+        affiliated: childUser.affiliated,
+        activated: childUser.activated,
+        points: Number(childUser.points) || 0,
+        affiliation_points: childUser.affiliation_points || 0,
+        photo: childUser.photo,
+        country: childUser.country,
+        dni: childUser.dni,
+        phone: childUser.phone,
+        email: childUser.email,
+        _rank: childUser.rank,
+      }
     })
-  })
+    // Calcular los puntos grupales de cada hijo directo en el mismo orden
+    children_points = childUsersOrdered.map(childUser => childUser && childUser.total_points || 0)
+  }
 
-
-  tree.forEach(node => {
-    node.total = []
-
-    node.childs.forEach(_id => {
-      const _node = tree.find(e => e.id == _id)
-
-      node.total.push(_node.total_points)
-    })
-
-    node.total.sort((a, b) => b - a)
-  })
-
-
-  tree.forEach(node => {
-    rank(node)
-
-    // if(is_rank(node, 'RUBI'))              node.rank = 'RUBI'
-    if(is_rank(node, 'DIAMANTE'))          node.rank = 'DIAMANTE'
-    if(is_rank(node, 'DOBLE DIAMANTE'))    node.rank = 'DOBLE DIAMANTE'
-    if(is_rank(node, 'TRIPLE DIAMANTE'))   node.rank = 'TRIPLE DIAMANTE'
-    if(is_rank(node, 'DIAMANTE ESTRELLA')) node.rank = 'DIAMANTE ESTRELLA'
-
-    next_rank(node)
-  })
-
-
-  find('5f0e0b67af92089b5866bcd0', 0)
-
-  if(id == 'null') id = user.id
-
-  const node = tree.find(e => e.id == id)
-
+  // Nodo principal con datos de usuario
+  const mainNode = {
+    id: node.id,
+    childs: node.childs,
+    name: nodeUser.name,
+    lastName: nodeUser.lastName,
+    affiliated: nodeUser.affiliated,
+    activated: nodeUser.activated,
+    points: Number(nodeUser.points) || 0,
+    affiliation_points: nodeUser.affiliation_points || 0,
+    photo: nodeUser.photo,
+    country: nodeUser.country,
+    dni: nodeUser.dni,
+    phone: nodeUser.phone,
+    email: nodeUser.email,
+    _rank: nodeUser.rank,
+    total_points,
+  }
 
   return res.json(success({
-
-    name:       user.name,
-    lastName:   user.lastName,
-    affiliated: user.affiliated,
-    _activated: user._activated,
-    activated:  user.activated,
-    plan:       user.plan,
-    country:    user.country,
-    photo:      user.photo,
-    tree:       user.tree,
-
-    id:         user.id,
-    node,
+    node: mainNode,
+    children,
+    children_points,
   }))
 }
