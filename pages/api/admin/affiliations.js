@@ -362,6 +362,7 @@ const handler = async (req, res) => {
           affiliation_points: affiliation.plan.affiliation_points,
         }
       );
+      await lib.updateTotalPointsCascade(User, Tree, user.id);
 
       if (!user.tree) {
         // reserve Token

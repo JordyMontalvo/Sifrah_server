@@ -230,6 +230,7 @@ export default async (req, res) => {
           points: points_total,
         }
       );
+      await lib.updateTotalPointsCascade(User, Tree, user.id);
 
       if (activated) {
         // migrar transacciones virtuales solo las que fueron creadas después del último cierre
