@@ -4,7 +4,7 @@ import lib from "../../../components/lib"
 const { User, Session, Transaction, Tree, Banner, Plan } = db
 const { error, success, acum, midd,model } = lib
 
-const D = ['id', 'name', 'lastName', 'affiliated', 'activated', 'tree', 'email', 'phone', 'address', 'rank', 'points', 'parentId']
+const D = ['id', 'name', 'lastName', 'affiliated', 'activated', 'tree', 'email', 'phone', 'address', 'rank', 'points', 'parentId', 'total_points']
 export default async (req, res) => {
   await midd(req, res)
 
@@ -78,6 +78,7 @@ export default async (req, res) => {
    _balance: (insVirtual - outsVirtual),
     rank:    user.rank,
     points:  user.points,
-    plans, // <-- Agregar todos los planes a la respuesta
+    plans,
+    total_points: user.total_points, // <-- Agregar todos los planes a la respuesta
   }))
 }
