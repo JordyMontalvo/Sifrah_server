@@ -3,7 +3,9 @@ const allowedOrigins = [
   'http://localhost:8081',
   'http://localhost:8082',
   'http://localhost:8080',
-  'http://localhost:3000'
+  'http://localhost:3000',
+  'https://sifrah-admin.vercel.app',
+  'https://sifrah-admin-git-main-saywite.vercel.app'
 ];
 
 function corsMiddleware(req, res, next) {
