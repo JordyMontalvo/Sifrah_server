@@ -1,11 +1,20 @@
 // Middleware CORS configurable para múltiples orígenes
 const allowedOrigins = [
+  // Desarrollo local
   'http://localhost:8081',
   'http://localhost:8082',
   'http://localhost:8080',
   'http://localhost:3000',
+  
+  // Producción - Heroku y otros servicios
   'https://sifrah-admin.vercel.app',
-  'https://sifrah-admin-git-main-saywite.vercel.app'
+  'https://sifrah-admin-git-main-saywite.vercel.app',
+  
+  // Heroku - Se configuran automáticamente
+  ...(process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',') : []),
+  
+  // Permitir todos los orígenes en producción si no hay restricciones específicas
+  ...(process.env.NODE_ENV === 'production' && !process.env.CORS_ORIGINS ? ['*'] : [])
 ];
 
 function corsMiddleware(req, res, next) {

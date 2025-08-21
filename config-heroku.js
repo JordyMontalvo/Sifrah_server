@@ -12,8 +12,8 @@ module.exports = {
   // MongoDB
   mongoUri: process.env.MONGODB_URI || 'mongodb://localhost:27017/sifrah',
   
-  // CORS
-  corsOrigin: process.env.CORS_ORIGIN || '*',
+  // CORS - Configuración para producción
+  corsOrigin: process.env.CORS_ORIGIN || '*', // En Heroku permitimos todos los orígenes por defecto
   
   // Timeouts para Heroku
   serverTimeout: 30000, // 30 segundos
