@@ -6,7 +6,8 @@ const allowedOrigins = [
   'http://localhost:8080',
   'http://localhost:3000',
   
-  // Producción - Heroku y otros servicios
+  // Producción - Vercel
+  'https://sifrah.vercel.app',
   'https://sifrah-admin.vercel.app',
   'https://sifrah-admin-git-main-saywite.vercel.app',
   
@@ -20,12 +21,22 @@ const allowedOrigins = [
 function corsMiddleware(req, res, next) {
   const origin = req.headers.origin;
   
-  // Verificar si el origen está permitido
-  if (origin && allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
+  // En producción, ser más permisivo con CORS
+  if (process.env.NODE_ENV === 'production') {
+    // Si hay un origen específico y está en la lista, usarlo
+    if (origin && allowedOrigins.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+    } else {
+      // En producción, permitir el origen que viene en la request
+      res.setHeader('Access-Control-Allow-Origin', origin || '*');
+    }
   } else {
-    // Fallback a localhost:8081 si no hay origen o no está permitido
-    res.setHeader('Access-Control-Allow-Origin', 'http://localhost:8081');
+    // En desarrollo, usar la lógica original
+    if (origin && allowedOrigins.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+    } else {
+      res.setHeader('Access-Control-Allow-Origin', 'http://localhost:8081');
+    }
   }
   
   res.setHeader('Access-Control-Allow-Credentials', true);
@@ -45,10 +56,22 @@ function corsMiddleware(req, res, next) {
 function applyCORS(req, res) {
   const origin = req.headers.origin;
   
-  if (origin && allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
+  // En producción, ser más permisivo con CORS
+  if (process.env.NODE_ENV === 'production') {
+    // Si hay un origen específico y está en la lista, usarlo
+    if (origin && allowedOrigins.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+    } else {
+      // En producción, permitir el origen que viene en la request
+      res.setHeader('Access-Control-Allow-Origin', origin || '*');
+    }
   } else {
-    res.setHeader('Access-Control-Allow-Origin', 'http://localhost:8081');
+    // En desarrollo, usar la lógica original
+    if (origin && allowedOrigins.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+    } else {
+      res.setHeader('Access-Control-Allow-Origin', 'http://localhost:8081');
+    }
   }
   
   res.setHeader('Access-Control-Allow-Credentials', true);
