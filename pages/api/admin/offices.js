@@ -75,18 +75,40 @@ export default async (req, res) => {
 
     if(office) {
       console.log(' update office ', office)
-      await Office.update(
-        { id },
-        {
-          email:    office.email,
-          password: office.password,
-          name:     office.name,
-          address:  office.address,
-          accounts: office.accounts,
+      
+      if(id) {
+        // Actualizar oficina existente
+        await Office.update(
+          { id },
+          {
+            email:    office.email,
+            name:     office.name,
+            address:  office.address,
+            googleMapsUrl: office.googleMapsUrl,
+            accounts: office.accounts,
+          }
+        )
+      } else {
+        // Crear nueva oficina
+        const newOffice = {
+          id: Date.now().toString(), // Generar ID único
+          email: office.email,
+          name: office.name,
+          address: office.address,
+          googleMapsUrl: office.googleMapsUrl || "",
+          accounts: office.accounts || "",
+          products: [], // Inicializar array de productos vacío
+          recharges: [] // Inicializar array de recargas vacío
         }
-      )
+        
+        await Office.insert(newOffice)
+        
+        // Retornar la nueva oficina creada
+        return res.json(success({ office: newOffice }))
+      }
     }
 
+    // Solo retornar success() si no se creó una nueva oficina
     return res.json(success())
   }
 }
