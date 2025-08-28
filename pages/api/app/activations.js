@@ -1,7 +1,7 @@
 import db  from "../../../components/db"
 import lib from "../../../components/lib"
 
-const { User, Session, Activation } = db
+const { User, Session, Activation, Product } = db
 const { error, success, midd } = lib
 
 
@@ -40,6 +40,11 @@ export default async (req, res) => {
   const user = await User.findOne({ id: session.id })
   // if(!user.verified) return res.json(error('unverified user'))
 
+  // obtener catálogo de productos con subdescription
+  const products = await Product.find({})
+  console.log("[API App Activations] Productos obtenidos:", products.map(p => ({ id: p.id, name: p.name, subdescription: p.subdescription })));
+  console.log("[API App Activations] Estructura completa del primer producto:", products.length > 0 ? products[0] : "No hay productos");
+  console.log("[API App Activations] Campos disponibles en productos:", products.length > 0 ? Object.keys(products[0]) : "No hay productos");
 
   if(req.method == 'GET') {
 
@@ -69,8 +74,9 @@ export default async (req, res) => {
       photo:      user.photo,
       tree:       user.tree,
 
-      activations,
-      // arr,
+              activations,
+        products,
+        // arr,
     }))
   }
 }
