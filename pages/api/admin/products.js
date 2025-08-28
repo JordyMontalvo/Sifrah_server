@@ -19,6 +19,7 @@ export default async (req, res) => {
   }
 
   if (req.method == "POST") {
+    console.log("[API Admin Products] POST recibido:", req.body);
     const { action } = req.body;
 
     if (action == "edit") {
@@ -31,7 +32,7 @@ export default async (req, res) => {
         _img,
         _code,
         _description,
-        _subdescription,
+        _subdescription = "",
         _plans,
         _weight,
         _prices,
@@ -73,7 +74,7 @@ export default async (req, res) => {
         points,
         img,
         description,
-        subdescription,
+        subdescription = "",
         plans,
         weight,
         prices,
