@@ -81,7 +81,7 @@ export default async (req, res) => {
         await Office.update(
           { id },
           {
-            email:    office.email,
+            phone:    office.phone,
             name:     office.name,
             address:  office.address,
             googleMapsUrl: office.googleMapsUrl,
@@ -92,7 +92,7 @@ export default async (req, res) => {
         // Crear nueva oficina
         const newOffice = {
           id: Date.now().toString(), // Generar ID único
-          email: office.email,
+          phone: office.phone,
           name: office.name,
           address: office.address,
           googleMapsUrl: office.googleMapsUrl || "",
