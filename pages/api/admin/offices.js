@@ -8,7 +8,7 @@ const { success, midd } = lib
 export default async (req, res) => {
   await midd(req, res)
 
-  let offices   = await Office.find({})
+  let offices   = await Office.find({}) // Admin ve todas las oficinas
   let products  = await Product.find({})
   let recharges = await Recharge.find({})
 
@@ -97,6 +97,7 @@ export default async (req, res) => {
           address: office.address,
           googleMapsUrl: office.googleMapsUrl || "",
           accounts: office.accounts || "",
+          active: true, // Nueva oficina activa por defecto
           products: [], // Inicializar array de productos vacío
           recharges: [] // Inicializar array de recargas vacío
         }
@@ -110,5 +111,44 @@ export default async (req, res) => {
 
     // Solo retornar success() si no se creó una nueva oficina
     return res.json(success())
+  }
+
+  if(req.method == 'DELETE') {
+    const { id } = req.body
+
+    if(!id) {
+      return res.status(400).json({ error: true, message: 'ID de oficina requerido' })
+    }
+
+    try {
+      // Desactivar la oficina en lugar de eliminarla (soft delete)
+      await Office.update({ id }, { active: false })
+      
+      return res.json(success({ message: 'Oficina desactivada exitosamente' }))
+    } catch (error) {
+      console.error('Error al desactivar oficina:', error)
+      return res.status(500).json({ error: true, message: 'Error interno del servidor' })
+    }
+  }
+
+  if(req.method == 'PATCH') {
+    const { id, action } = req.body
+
+    if(!id) {
+      return res.status(400).json({ error: true, message: 'ID de oficina requerido' })
+    }
+
+    try {
+      if(action === 'reactivate') {
+        // Reactivar oficina desactivada
+        await Office.update({ id }, { active: true })
+        return res.json(success({ message: 'Oficina reactivada exitosamente' }))
+      }
+      
+      return res.status(400).json({ error: true, message: 'Acción no válida' })
+    } catch (error) {
+      console.error('Error al reactivar oficina:', error)
+      return res.status(500).json({ error: true, message: 'Error interno del servidor' })
+    }
   }
 }

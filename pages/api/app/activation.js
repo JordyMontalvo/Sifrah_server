@@ -63,7 +63,7 @@ export default async (req, res) => {
 
   if(req.method == 'GET') {
 
-    const offices = await Office.find({})
+    const offices = await Office.find({ active: { $ne: false } })// Usuarios solo ven oficinas activas
 
 
     // response

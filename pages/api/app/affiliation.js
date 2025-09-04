@@ -71,7 +71,7 @@ export default async (req, res) => {
   const _balance = _ins - _outs;
 
   if (req.method == "GET") {
-    const offices = await Office.find({});
+    const offices = await Office.find({ active: { $ne: false } }); // Usuarios solo ven oficinas activas
     console.log("[API App Affiliation] Estructura completa del primer producto:", products.length > 0 ? products[0] : "No hay productos");
     console.log("[API App Affiliation] Campos disponibles en productos:", products.length > 0 ? Object.keys(products[0]) : "No hay productos");
 
