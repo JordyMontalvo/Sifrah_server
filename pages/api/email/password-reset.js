@@ -1,6 +1,15 @@
 const emailService = require('../../../components/email-service');
+const { applyCORS } = require('../../../middleware/middleware-cors');
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
+  // Aplicar CORS
+  applyCORS(req, res);
+  
+  // Manejar preflight request
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
   // Solo permitir POST
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método no permitido' });

@@ -1,5 +1,5 @@
 import MLMPredictionService from '../../../components/mlm-prediction-service-working';
-const { applyCORS } = require('../../../middleware-cors');
+const { applyCORS } = require('../../../middleware/middleware-cors');
 
 export default async function handler(req, res) {
   // Aplicar CORS flexible

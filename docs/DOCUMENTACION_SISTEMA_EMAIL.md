@@ -238,20 +238,20 @@ EMAIL_PASS=tu-app-password-de-gmail
 ADMIN_EMAIL=admin@sifrah.com
 
 # URLs
-FRONTEND_URL=https://sifrah.vercel.app
+FRONTEND_URL=
 ```
 
 #### **Frontend (Vercel):**
 ```bash
-VUE_APP_SERVER=https://sifrah-server-0920254d8662.herokuapp.com
-BASE_URL=https://sifrah.vercel.app
+VUE_APP_SERVER=
+BASE_URL=
 NODE_ENV=production
 ```
 
 ### **Variables OPCIONALES:**
 ```bash
 # CORS (si quieres restringir orígenes)
-CORS_ORIGINS=https://sifrah.vercel.app,https://sifrah-admin.vercel.app
+CORS_ORIGINS=
 
 # Límites de email
 MAX_EMAILS_PER_HOUR=100

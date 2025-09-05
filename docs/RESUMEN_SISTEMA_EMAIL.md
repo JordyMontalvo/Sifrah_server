@@ -32,17 +32,15 @@ Frontend (Vue.js) → Backend (Next.js) → Email Service (Nodemailer) → Gmail
 
 ### **Heroku (Backend):**
 ```bash
-DB_URL=mongodb://127.0.0.1:27017/sifrah?directConnection=true
 EMAIL_USER=tu-email@gmail.com
 EMAIL_PASS=tu-app-password-de-gmail
-FRONTEND_URL=https://sifrah.vercel.app
 NODE_ENV=production
 ```
 
 ### **Vercel (Frontend):**
 ```bash
-VUE_APP_SERVER=https://sifrah-server-0920254d8662.herokuapp.com
-BASE_URL=https://sifrah.vercel.app
+VUE_APP_SERVER=
+BASE_URL=
 NODE_ENV=production
 ```
 

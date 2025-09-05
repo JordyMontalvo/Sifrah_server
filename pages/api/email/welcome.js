@@ -1,5 +1,5 @@
 const emailService = require('../../../components/email-service');
-const { applyCORS } = require('../../../middleware-cors');
+const { applyCORS } = require('../../../middleware/middleware-cors');
 
 module.exports = async function handler(req, res) {
   // Aplicar CORS

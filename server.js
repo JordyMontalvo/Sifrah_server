@@ -1,7 +1,7 @@
 const { createServer } = require('http');
 const { parse } = require('url');
 const next = require('next');
-const config = require('./config-heroku');
+const config = require('./config/config-heroku');
 
 const dev = config.nodeEnv !== 'production';
 const hostname = config.host;

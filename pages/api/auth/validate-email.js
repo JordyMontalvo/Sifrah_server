@@ -1,4 +1,4 @@
-const { applyCORS } = require('../../../middleware-cors');
+const { applyCORS } = require('../../../middleware/middleware-cors');
 
 module.exports = async function handler(req, res) {
   applyCORS(req, res);
