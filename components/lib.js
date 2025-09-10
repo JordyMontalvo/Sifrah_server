@@ -5,7 +5,7 @@ class Lib {
     this.cors = Cors({
       origin: true, // Allow all origins
       credentials: true,
-      methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+      methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
       allowedHeaders: ["Content-Type", "Authorization"],
     });
 
