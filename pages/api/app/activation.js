@@ -64,7 +64,14 @@ export default async (req, res) => {
   if(req.method == 'GET') {
 
     const offices = await Office.find({ active: { $ne: false } })// Usuarios solo ven oficinas activas
-
+    console.log("[Activation API] Oficinas cargadas:", offices.map(o => ({ 
+      id: o.id, 
+      name: o.name, 
+      address: o.address,
+      horario: o.horario,
+      dias: o.dias,
+      accounts: o.accounts 
+    })));
 
     // response
     return res.json(success({

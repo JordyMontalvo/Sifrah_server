@@ -86,6 +86,8 @@ export default async (req, res) => {
             address:  office.address,
             googleMapsUrl: office.googleMapsUrl,
             accounts: office.accounts,
+            horario:  office.horario,
+            dias:     office.dias,
           }
         )
       } else {
@@ -97,6 +99,8 @@ export default async (req, res) => {
           address: office.address,
           googleMapsUrl: office.googleMapsUrl || "",
           accounts: office.accounts || "",
+          horario: office.horario || "",
+          dias: office.dias || "",
           active: true, // Nueva oficina activa por defecto
           products: [], // Inicializar array de productos vacío
           recharges: [] // Inicializar array de recargas vacío

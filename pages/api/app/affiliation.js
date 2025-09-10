@@ -72,6 +72,14 @@ export default async (req, res) => {
 
   if (req.method == "GET") {
     const offices = await Office.find({ active: { $ne: false } }); // Usuarios solo ven oficinas activas
+    console.log("[Affiliation API] Oficinas cargadas:", offices.map(o => ({ 
+      id: o.id, 
+      name: o.name, 
+      address: o.address,
+      horario: o.horario,
+      dias: o.dias,
+      accounts: o.accounts 
+    })));
     console.log("[API App Affiliation] Estructura completa del primer producto:", products.length > 0 ? products[0] : "No hay productos");
     console.log("[API App Affiliation] Campos disponibles en productos:", products.length > 0 ? Object.keys(products[0]) : "No hay productos");
 
