@@ -97,19 +97,32 @@ export default async (req, res) => {
 
   if(req.method == 'POST') {
 
-    let { products, office, check, voucher, pay_method, bank, date, voucher_number } = req.body
-    // let { products, voucher, office } = req.body
+    let { products, office, check, voucher, pay_method, bank, date, voucher_number, deliveryMethod, deliveryInfo } = req.body;
+
+    let agencyName = '';
+    if (deliveryMethod === 'delivery' && deliveryInfo && deliveryInfo.department !== 'lima' && deliveryInfo.agency) {
+      const { MongoClient } = require('mongodb');
+      const client = new MongoClient(process.env.MONGODB_URI);
+      await client.connect();
+      const db = client.db();
+      const selectedAgency = await db.collection('delivery_agencies').findOne({ agency_code: deliveryInfo.agency });
+      await client.close();
+      if (selectedAgency) {
+        agencyName = selectedAgency.agency_name;
+      }
+    }
 
     // Obtener el plan del usuario
     const planId = user.plan && user.plan.id ? user.plan.id : user.plan;
 
     // Recalcular el precio de cada producto según el plan del usuario
     products = products.map((p) => {
-      let price = p.price;
+      let finalPrice = p.price; // Usar el precio inicial del producto
       if (p.prices && planId && p.prices[planId] != null && p.prices[planId] !== "") {
-        price = p.prices[planId];
+        finalPrice = p.prices[planId];
       }
-      return { ...p, price };
+      // Retornar todas las propiedades del producto y actualizar solo el precio
+      return { ...p, price: finalPrice };
     });
 
     const points = products.reduce((a, b) => a + b.points * b.total, 0)
@@ -188,7 +201,8 @@ export default async (req, res) => {
       voucher,
       transactions,
       amounts,
-      office,
+      // Se usará deliveryInfo.officeId si es 'pickup'
+      office: req.body.deliveryMethod === 'pickup' ? req.body.deliveryInfo.officeId : null,
       status: 'pending',
       delivered: false,
 
@@ -196,6 +210,51 @@ export default async (req, res) => {
       bank,
       voucher_date: date,
       voucher_number,
+      
+      // Campos de delivery
+      delivery_info: {
+        method: req.body.deliveryMethod || 'pickup', // 'delivery' o 'pickup'
+        has_delivery: req.body.deliveryMethod === 'delivery',
+        
+        // Datos del receptor (solo si es delivery)
+        ...(req.body.deliveryMethod === 'delivery' && req.body.deliveryInfo && {
+          recipient_name: req.body.deliveryInfo.recipientName,
+          recipient_document: req.body.deliveryInfo.document,
+          recipient_phone: req.body.deliveryInfo.recipientPhone,
+          
+          // Información de ubicación
+          location: {
+            department: req.body.deliveryInfo.department,
+            province: req.body.deliveryInfo.province,
+            district: req.body.deliveryInfo.district,
+          },
+          
+          // Información específica por tipo de delivery
+          delivery_type: req.body.deliveryInfo.department === 'lima' ? 'zone' : 'agency',
+          
+          // Para Lima (zonas)
+          ...(req.body.deliveryInfo.department === 'lima' && req.body.deliveryInfo.zone_info && {
+            zone_info: { // Asumiendo que zone_info viene dentro de deliveryInfo
+              zone_name: req.body.deliveryInfo.zone_info.zone_name,
+              zone_number: req.body.deliveryInfo.zone_info.zone_number,
+              zone_price: req.body.deliveryInfo.zone_info.price,
+              zone_id: req.body.deliveryInfo.zone_info._id
+            }
+          }),
+          
+          // Para Provincias (agencias)
+          ...(req.body.deliveryInfo.department !== 'lima' && req.body.deliveryInfo.agency && {
+            agency_info: {
+              agency_name: agencyName || '',
+              agency_code: req.body.deliveryInfo.agency
+            }
+          }),
+          
+          // Dirección de entrega (opcional)
+          delivery_address: req.body.deliveryInfo.address || '',
+          delivery_notes: req.body.deliveryInfo.notes || ''
+        })
+      }
     })
 
     // response

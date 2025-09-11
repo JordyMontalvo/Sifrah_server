@@ -42,6 +42,12 @@ async function handleGet(req, res) {
         return await getAllZones(req, res);
       case 'all-agencies':
         return await getAllAgencies(req, res);
+      case 'departments':
+        return await getDepartments(req, res);
+      case 'provinces':
+        return await getProvincesByDepartment(req, res, department);
+      case 'districts':
+        return await getDistrictsByProvince(req, res, department, req.query.province);
       default:
         return res.status(400).json({ message: 'Tipo de consulta no válido' });
     }
@@ -144,6 +150,10 @@ async function getAgenciesByDepartment(req, res, department) {
 
     await client.close();
 
+    if (agencies.length === 0) {
+      console.error('No se encontraron agencias activas para el departamento:', department);
+    }
+
     return res.status(200).json({
       available: agencies.length > 0,
       department: department,
@@ -151,6 +161,7 @@ async function getAgenciesByDepartment(req, res, department) {
         _id: agency._id,
         agency_name: agency.agency_name,
         agency_id: agency.agency_id || agency._id,
+        agency_code: agency.agency_code, // Añadir agency_code
         coverage_areas: agency.coverage_areas
       }))
     });
@@ -214,5 +225,134 @@ async function getAllAgencies(req, res) {
   } catch (error) {
     console.error('Error obteniendo todas las agencias:', error);
     return res.status(500).json({ message: 'Error consultando agencias' });
+  }
+}
+
+// Obtener todos los departamentos únicos de la colección de distritos
+async function getDepartments(req, res) {
+  try {
+    const { MongoClient } = require('mongodb');
+    const client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
+    
+    const db = client.db();
+    
+    const departments = await db.collection('delivery_districts')
+      .distinct('department', { 
+        active: true,
+        department: { $ne: null, $ne: "" },
+        // Filtrar datos de prueba/basura
+        department: { $not: /^(test|dasdas|asdasd|xxx)/i }
+      });
+
+    await client.close();
+
+    // Filtrar y limpiar departamentos válidos
+    const validDepartments = departments
+      .filter(dept => dept && dept.length > 2 && !dept.includes('test') && !dept.includes('das'))
+      .map(dept => ({
+        value: dept.toLowerCase(),
+        name: dept.charAt(0).toUpperCase() + dept.slice(1)
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    return res.status(200).json({
+      departments: validDepartments
+    });
+
+  } catch (error) {
+    console.error('Error obteniendo departamentos:', error);
+    return res.status(500).json({ message: 'Error consultando departamentos' });
+  }
+}
+
+// Obtener provincias por departamento
+async function getProvincesByDepartment(req, res, department) {
+  if (!department) {
+    return res.status(400).json({ message: 'Departamento requerido' });
+  }
+
+  try {
+    const { MongoClient } = require('mongodb');
+    const client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
+    
+    const db = client.db();
+    
+    const provinces = await db.collection('delivery_districts')
+      .distinct('province', { 
+        department: department.toLowerCase(),
+        active: true,
+        province: { $ne: null, $ne: "" }
+      });
+
+    await client.close();
+
+    // Filtrar provincias válidas
+    const validProvinces = provinces
+      .filter(prov => prov && prov.length > 2 && !prov.includes('test') && !prov.includes('das'))
+      .map(prov => ({
+        value: prov.toLowerCase(),
+        name: prov.charAt(0).toUpperCase() + prov.slice(1)
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    return res.status(200).json({
+      provinces: validProvinces
+    });
+
+  } catch (error) {
+    console.error('Error obteniendo provincias:', error);
+    return res.status(500).json({ message: 'Error consultando provincias' });
+  }
+}
+
+// Obtener distritos por departamento y provincia
+async function getDistrictsByProvince(req, res, department, province) {
+  if (!department || !province) {
+    return res.status(400).json({ message: 'Departamento y provincia requeridos' });
+  }
+
+  try {
+    const { MongoClient } = require('mongodb');
+    const client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
+    
+    const db = client.db();
+    
+    const districts = await db.collection('delivery_districts')
+      .find({ 
+        department: department.toLowerCase(),
+        province: province.toLowerCase(),
+        active: true,
+        district_name: { $ne: null, $ne: "" },
+        // Filtrar datos de prueba
+        district_name: { $not: /^(test|dasdas|asdasd|xxx)/i }
+      })
+      .sort({ district_name: 1 })
+      .toArray();
+
+    await client.close();
+
+    // Filtrar distritos válidos
+    const validDistricts = districts
+      .filter(district => district.district_name && 
+                         district.district_name.length > 2 && 
+                         !district.district_name.includes('test') && 
+                         !district.district_name.includes('das'))
+      .map(district => ({
+        value: district.district_name,
+        name: district.district_name,
+        zone_id: district.zone_id,
+        delivery_type: district.delivery_type
+      }));
+
+    return res.status(200).json({
+      districts: validDistricts
+    });
+
+  } catch (error) {
+    console.error('Error obteniendo distritos:', error);
+    return res.status(500).json({ message: 'Error consultando distritos' });
   }
 } 

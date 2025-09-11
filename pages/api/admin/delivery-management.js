@@ -48,6 +48,12 @@ async function handleGet(req, res) {
         return await getAllAgencies(req, res);
       case 'overview':
         return await getDeliveryOverview(req, res);
+      case 'departments':
+        return await getDepartmentsAdmin(req, res);
+      case 'provinces':
+        return await getProvincesByDepartmentAdmin(req, res);
+      case 'districts-admin':
+        return await getDistrictsByProvinceAdmin(req, res);
       default:
         return res.status(400).json({ message: 'Tipo de consulta no válido' });
     }
@@ -686,5 +692,112 @@ async function getDeliveryOverview(req, res) {
   } catch (error) {
     console.error('Error obteniendo overview:', error);
     return res.status(500).json({ message: 'Error consultando resumen' });
+  }
+} 
+
+// Obtener todos los departamentos únicos para admin
+async function getDepartmentsAdmin(req, res) {
+  try {
+    const db = await connectDB();
+    
+    const departments = await db.collection('delivery_districts')
+      .distinct('department', { 
+        active: true,
+        department: { $ne: null, $ne: "", $not: /^(test|dasdas|asdasd|xxx)/i }
+      });
+
+    // Filtrar y limpiar departamentos válidos
+    const validDepartments = departments
+      .filter(dept => dept && dept.length > 2 && !dept.includes('test') && !dept.includes('das'))
+      .map(dept => ({
+        value: dept.toLowerCase(),
+        name: dept.charAt(0).toUpperCase() + dept.slice(1)
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    return res.status(200).json({
+      departments: validDepartments
+    });
+
+  } catch (error) {
+    console.error('Error obteniendo departamentos admin:', error);
+    return res.status(500).json({ message: 'Error consultando departamentos' });
+  }
+}
+
+// Obtener provincias por departamento para admin
+async function getProvincesByDepartmentAdmin(req, res) {
+  const { department } = req.query;
+  
+  if (!department) {
+    return res.status(400).json({ message: 'Departamento requerido' });
+  }
+
+  try {
+    const db = await connectDB();
+    
+    const provinces = await db.collection('delivery_districts')
+      .distinct('province', { 
+        department: department.toLowerCase(),
+        active: true,
+        province: { $ne: null, $ne: "" }
+      });
+
+    // Filtrar provincias válidas
+    const validProvinces = provinces
+      .filter(prov => prov && prov.length > 2 && !prov.includes('test') && !prov.includes('das'))
+      .map(prov => ({
+        value: prov.toLowerCase(),
+        name: prov.charAt(0).toUpperCase() + prov.slice(1)
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    return res.status(200).json({
+      provinces: validProvinces
+    });
+
+  } catch (error) {
+    console.error('Error obteniendo provincias admin:', error);
+    return res.status(500).json({ message: 'Error consultando provincias' });
+  }
+} 
+
+// Obtener distritos por departamento y provincia para admin
+async function getDistrictsByProvinceAdmin(req, res) {
+  const { department, province } = req.query;
+  
+  if (!department || !province) {
+    return res.status(400).json({ message: 'Departamento y provincia requeridos' });
+  }
+
+  try {
+    const db = await connectDB();
+    
+    // Obtener todos los distritos únicos de Perú para ese departamento y provincia
+    // Esto simularia una base de datos completa de distritos del Perú
+    const districts = await db.collection('delivery_districts')
+      .distinct('district_name', { 
+        department: department.toLowerCase(),
+        province: province.toLowerCase(),
+        active: true,
+        district_name: { $ne: null, $ne: "" }
+      });
+
+    // Filtrar distritos válidos
+    const validDistricts = districts
+      .filter(dist => dist && dist.length > 2 && !dist.includes('test') && !dist.includes('das'))
+      .map(dist => ({
+        value: dist,
+        name: dist
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    return res.status(200).json({
+      districts: validDistricts
+    });
+
+  } catch (error) {
+    console.error('Error obteniendo distritos admin:', error);
+    return res.status(500).json({ message: 'Error consultando distritos' });
   }
 } 

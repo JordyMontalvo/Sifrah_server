@@ -28,6 +28,7 @@ const A = [
   "bank",
   "voucher_date",
   "voucher_number",
+  "delivery_info", // Campo nuevo para delivery
 ];
 const U = ["name", "lastName", "dni", "phone"];
 
@@ -314,7 +315,7 @@ export default async (req, res) => {
       // UPDATE STOCK
       console.log("UPDATE STOCK ...");
       const office_id = activation.office;
-      const products = activation.products;
+      const products = activation.products || []; // Asegurarse de que products sea un array
 
       // console.log({ office_id, products })
 
@@ -353,13 +354,18 @@ export default async (req, res) => {
       console.log("PAY BONUS ...");
 
       if (user.parentId) {
-        const amount = products
-          .filter((p) => p.type == "Promoción")
-          .reduce((a, p) => a + p.total * 10, 0);
+        const activationProducts = activation.products || []; // Asegurarse de que products sea un array
+        const amount = activationProducts
+          .filter((p) => p && p.type === "Promoción") // Verificar que p no sea null/undefined
+          .reduce((a, p) => a + (p && typeof p.total === 'number' ? p.total : 0) * 10, 0); // Verificar p y p.total
         console.log("amunt: ", amount);
 
         if (amount) {
           const parent = await User.findOne({ id: user.parentId });
+          if (!parent) {
+            console.error("Parent user not found for userId:", user.parentId);
+            return;
+          }
           const id = rand();
           const virtual = parent.activated ? false : true;
           console.log("parent: ", parent);
@@ -448,20 +454,19 @@ export default async (req, res) => {
       // UPDATE STOCK
       console.log("UPDATE STOCK ...");
       const office_id = activation.office;
-      const products = activation.products;
-
+      const products = activation.products || []; // Asegurarse de que products sea un array
       const office = await Office.findOne({ id: office_id });
-
-      products.forEach((p, i) => {
-        if (office.products[i]) office.products[i].total += products[i].total;
-      });
-
-      await Office.update(
-        { id: office_id },
-        {
-          products: office.products,
-        }
-      );
+      if (office && Array.isArray(products)) {
+        products.forEach((p, i) => {
+          if (office.products[i]) office.products[i].total += products[i].total;
+        });
+        await Office.update(
+          { id: office_id },
+          {
+            products: office.products,
+          }
+        );
+      }
     }
 
     if (action == "change") {
@@ -482,7 +487,7 @@ export default async (req, res) => {
       }
       // Actualizar stock (sumar productos de vuelta)
       const office_id = activation.office;
-      const products = activation.products;
+      const products = activation.products || []; // Asegurarse de que products sea un array
       const office = await Office.findOne({ id: office_id });
       if (office && Array.isArray(products)) {
         products.forEach((p, i) => {
