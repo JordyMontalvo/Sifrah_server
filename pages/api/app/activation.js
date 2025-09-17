@@ -211,7 +211,7 @@ export default async (req, res) => {
       voucher_date: date,
       voucher_number,
       
-      // Campos de delivery
+      //  CAMPOS DE DELIVERY CORREGIDOS
       delivery_info: {
         method: req.body.deliveryMethod || 'pickup', // 'delivery' o 'pickup'
         has_delivery: req.body.deliveryMethod === 'delivery',
@@ -229,30 +229,32 @@ export default async (req, res) => {
             district: req.body.deliveryInfo.district,
           },
           
-          // Información específica por tipo de delivery
-          delivery_type: req.body.deliveryInfo.department === 'lima' ? 'zone' : 'agency',
+          // 🔥 NUEVO: Precio del delivery (siempre presente)
+          delivery_price: req.body.deliveryInfo.deliveryPrice || 0,
+          delivery_type: req.body.deliveryInfo.deliveryType || 'unknown',
           
-          // Para Lima (zonas)
-          ...(req.body.deliveryInfo.department === 'lima' && req.body.deliveryInfo.zone_info && {
-            zone_info: { // Asumiendo que zone_info viene dentro de deliveryInfo
-              zone_name: req.body.deliveryInfo.zone_info.zone_name,
-              zone_number: req.body.deliveryInfo.zone_info.zone_number,
-              zone_price: req.body.deliveryInfo.zone_info.price,
-              zone_id: req.body.deliveryInfo.zone_info._id
+          // Para Lima (zonas) - usando deliveryZone que enviamos desde el frontend
+          ...(req.body.deliveryInfo.deliveryZone && {
+            zone_info: {
+              zone_name: req.body.deliveryInfo.deliveryZone.zone_name,
+              zone_id: req.body.deliveryInfo.deliveryZone.zone_id,
+              zone_price: req.body.deliveryInfo.deliveryZone.price
             }
           }),
           
           // Para Provincias (agencias)
-          ...(req.body.deliveryInfo.department !== 'lima' && req.body.deliveryInfo.agency && {
+          ...(req.body.deliveryInfo.agency && {
             agency_info: {
               agency_name: agencyName || '',
               agency_code: req.body.deliveryInfo.agency
             }
           }),
           
+          // Notas de delivery
+          delivery_notes: req.body.deliveryInfo.deliveryNote || '',
+          
           // Dirección de entrega (opcional)
-          delivery_address: req.body.deliveryInfo.address || '',
-          delivery_notes: req.body.deliveryInfo.notes || ''
+          delivery_address: req.body.deliveryInfo.address || ''
         })
       }
     })
