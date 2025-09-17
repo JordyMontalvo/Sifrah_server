@@ -132,26 +132,16 @@ async function getAgenciesByDepartment(req, res, department) {
     
     const db = client.db();
     
-    // Buscar agencias que cubran el departamento o sean nacionales
+    // Buscar todas las agencias activas (sin filtro de cobertura)
     const agencies = await db.collection('delivery_agencies')
-      .find({ 
-        $and: [
-          { active: true },
-          {
-            $or: [
-              { coverage_areas: { $in: [department.toLowerCase()] } },
-              { coverage_areas: { $in: ['nacional'] } }
-            ]
-          }
-        ]
-      })
+      .find({ active: true })
       .sort({ agency_name: 1 })
       .toArray();
 
     await client.close();
 
     if (agencies.length === 0) {
-      console.error('No se encontraron agencias activas para el departamento:', department);
+      console.error('No se encontraron agencias activas');
     }
 
     return res.status(200).json({
