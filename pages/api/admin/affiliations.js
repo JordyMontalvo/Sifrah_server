@@ -227,16 +227,21 @@ const handler = async (req, res) => {
 
       // Si es upgrade, solo actualizar lo necesario
       if (affiliation.type === "upgrade") {
-        // Actualizar plan y puntos
+        // Actualizar plan y puntos (sumar solo la diferencia)
+        const currentAffiliationPoints = user.affiliation_points || 0;
+        const newAffiliationPoints = currentAffiliationPoints + (affiliation.difference?.points || 0);
+        
         await User.update(
           { id: user.id },
           {
             plan: affiliation.plan.id,
             n: affiliation.plan.n,
-            affiliation_points: affiliation.plan.affiliation_points,
+            affiliation_points: newAffiliationPoints,
             affiliation_date: new Date(),
           }
         );
+        // CRÍTICO: Actualizar total_points después del upgrade
+        await lib.updateTotalPointsCascade(User, Tree, user.id);
         // PAGAR BONOS SOLO SOBRE LA DIFERENCIA
         tree = await Tree.find({});
         users = await User.find({});
@@ -362,6 +367,7 @@ const handler = async (req, res) => {
           affiliation_points: affiliation.plan.affiliation_points,
         }
       );
+      // CRÍTICO: Actualizar total_points después de la afiliación
       await lib.updateTotalPointsCascade(User, Tree, user.id);
 
       if (!user.tree) {
