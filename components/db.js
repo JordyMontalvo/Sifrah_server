@@ -22,6 +22,7 @@ class DB {
     Office,
     Recharge,
     Closed,
+    PaymentMethod,
   }) {
     this.User = User;
     this.Session = Session;
@@ -40,6 +41,7 @@ class DB {
     this.Office = Office;
     this.Recharge = Recharge;
     this.Closed = Closed;
+    this.PaymentMethod = PaymentMethod;
   }
 }
 
@@ -701,6 +703,46 @@ class Closed {
   }
 }
 
+class PaymentMethod {
+  async findOne(query) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    const paymentMethod = await db.collection("payment_methods").findOne(query);
+    client.close();
+    return paymentMethod;
+  }
+  async find(query) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    const paymentMethods = await db.collection("payment_methods").find(query).toArray();
+    client.close();
+    return paymentMethods;
+  }
+  async insert(paymentMethod) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    await db.collection("payment_methods").insertOne(paymentMethod);
+    return client.close();
+  }
+  async update(query, values) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    await db.collection("payment_methods").updateOne(query, { $set: values });
+    return client.close();
+  }
+  async deleteOne(query) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    await db.collection("payment_methods").deleteOne(query);
+    return client.close();
+  }
+}
+
 module.exports = new DB({
   User: new User(),
   Session: new Session(),
@@ -719,4 +761,5 @@ module.exports = new DB({
   Office: new Office(),
   Recharge: new Recharge(),
   Closed: new Closed(),
+  PaymentMethod: new PaymentMethod(),
 });
