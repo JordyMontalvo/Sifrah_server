@@ -25,10 +25,10 @@ export default async (req, res) => {
     }
 
     // Validar campos obligatorios
-    if(!paymentMethod.cuenta || !paymentMethod.titular || !paymentMethod.tipo) {
+    if(!paymentMethod.cuenta || !paymentMethod.titular || !paymentMethod.banco || !paymentMethod.tipo) {
       return res.status(400).json({ 
         error: true, 
-        message: 'Los campos cuenta, titular y tipo son obligatorios' 
+        message: 'Los campos cuenta, titular, banco y tipo son obligatorios' 
       })
     }
 
@@ -46,6 +46,7 @@ export default async (req, res) => {
         id: Date.now().toString(), // Generar ID único
         cuenta: paymentMethod.cuenta,
         titular: paymentMethod.titular,
+        banco: paymentMethod.banco,
         tipo: paymentMethod.tipo,
         active: paymentMethod.active !== undefined ? paymentMethod.active : true,
         createdAt: new Date(),
@@ -73,10 +74,10 @@ export default async (req, res) => {
     }
 
     // Validar campos obligatorios
-    if(!paymentMethod.cuenta || !paymentMethod.titular || !paymentMethod.tipo) {
+    if(!paymentMethod.cuenta || !paymentMethod.titular || !paymentMethod.banco || !paymentMethod.tipo) {
       return res.status(400).json({ 
         error: true, 
-        message: 'Los campos cuenta, titular y tipo son obligatorios' 
+        message: 'Los campos cuenta, titular, banco y tipo son obligatorios' 
       })
     }
 
