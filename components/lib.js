@@ -71,27 +71,32 @@ class Lib {
     // 1. Obtener el nodo del árbol
     const node = await Tree.findOne({ id: userId });
     if (!node) return;
-
+  
     // 2. Obtener el usuario
     const user = await User.findOne({ id: userId });
     if (!user) return;
-
-    // 3. Calcular el total de los hijos
+  
+    // 3. Calcular el total de los hijos (puntos personales + total_points)
     let childrenTotal = 0;
     if (node.childs && node.childs.length > 0) {
       const childUsers = await User.find({ id: { $in: node.childs } });
-      childrenTotal = childUsers.reduce((acc, c) => acc + (c.total_points || 0), 0);
+      childrenTotal = childUsers.reduce((acc, c) => {
+        // Sumar puntos personales del hijo + sus total_points (que incluyen sus propios hijos)
+        const childPersonalPoints = (c.points || 0) + (c.affiliation_points || 0);
+        const childTotalPoints = c.total_points || 0;
+        return acc + childPersonalPoints + childTotalPoints;
+      }, 0);
     }
-
-    // 4. Calcular el total_points propio
-    const total_points = (user.points || 0) + (user.affiliation_points || 0) + childrenTotal;
-
+  
+    // 4. Calcular el total_points propio (solo puntos de hijos, no personales)
+    const total_points = childrenTotal;
+  
     // 5. Guardar el total_points en el usuario
     await User.update({ id: userId }, { total_points });
-
+  
     // 6. Propagar hacia arriba si tiene padre
     if (node.parent) {
-      await this.updateTotalPointsCascade(User, Tree, node.parent);
+      await updateTotalPointsCascade(User, Tree, node.parent);
     }
   }
 }
