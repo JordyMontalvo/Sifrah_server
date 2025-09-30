@@ -96,7 +96,7 @@ class Lib {
   
     // 6. Propagar hacia arriba si tiene padre
     if (node.parent) {
-      await updateTotalPointsCascade(User, Tree, node.parent);
+      await this.updateTotalPointsCascade(User, Tree, node.parent);
     }
   }
 }

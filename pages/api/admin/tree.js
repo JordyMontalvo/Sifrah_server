@@ -2,7 +2,7 @@ import db from "../../../components/db"
 import lib from "../../../components/lib"
 
 const { Tree, User } = db
-const { success, midd, map, error, updateTotalPointsCascade } = lib
+const { success, midd, map, error } = lib
 
 let tree, users, is_found
 
@@ -110,12 +110,12 @@ export default async (req, res) => {
 
     // Actualizar los puntos del padre anterior (si existe)
     if (parent_to && parent_to.id) {
-      await updateTotalPointsCascade(User, Tree, parent_to.id)
+      await lib.updateTotalPointsCascade(User, Tree, parent_to.id)
     }
 
     // Actualizar los puntos del nuevo padre
     if (from && from.id) {
-      await updateTotalPointsCascade(User, Tree, from.id)
+      await lib.updateTotalPointsCascade(User, Tree, from.id)
     }
 
     return res.json(success())
