@@ -238,6 +238,8 @@ const handler = async (req, res) => {
             n: affiliation.plan.n,
             affiliation_points: newAffiliationPoints,
             affiliation_date: new Date(),
+            _activated: true,
+            activated:true
           }
         );
         // CRÍTICO: Actualizar total_points después del upgrade
