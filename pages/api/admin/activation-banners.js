@@ -18,7 +18,11 @@ export default async (req, res) => {
         left: "",
         centerTop: "",
         centerBottom: "",
-        right: ""
+        right: "",
+        leftUrl: "",
+        centerTopUrl: "",
+        centerBottomUrl: "",
+        rightUrl: ""
       }
       await Banner.insert(activationBanners)
     }
@@ -28,15 +32,24 @@ export default async (req, res) => {
   }
 
   if(req.method == 'POST') {
-    const { id, img, position } = req.body
-    console.log({ id, img, position })
+    const { id, img, position, url } = req.body
+    console.log({ id, img, position, url })
 
     // Actualizar el banner específico según la posición
     const updateData = {}
-    if (position === 'left') updateData.left = img
-    if (position === 'centerTop') updateData.centerTop = img
-    if (position === 'centerBottom') updateData.centerBottom = img
-    if (position === 'right') updateData.right = img
+    if (img) {
+      if (position === 'left') updateData.left = img
+      if (position === 'centerTop') updateData.centerTop = img
+      if (position === 'centerBottom') updateData.centerBottom = img
+      if (position === 'right') updateData.right = img
+    }
+
+    if (typeof url === 'string') {
+      if (position === 'left') updateData.leftUrl = url
+      if (position === 'centerTop') updateData.centerTopUrl = url
+      if (position === 'centerBottom') updateData.centerBottomUrl = url
+      if (position === 'right') updateData.rightUrl = url
+    }
 
     // Actualizar o insertar el documento
     const existingBanner = await Banner.findOne({ id: "activation_banners" })
@@ -49,6 +62,10 @@ export default async (req, res) => {
         centerTop: "",
         centerBottom: "",
         right: "",
+        leftUrl: "",
+        centerTopUrl: "",
+        centerBottomUrl: "",
+        rightUrl: "",
         ...updateData
       }
       await Banner.insert(newBanner)

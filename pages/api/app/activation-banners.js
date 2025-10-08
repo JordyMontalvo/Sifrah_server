@@ -23,7 +23,11 @@ export default async (req, res) => {
         left: "",
         centerTop: "",
         centerBottom: "",
-        right: ""
+        right: "",
+        leftUrl: "",
+        centerTopUrl: "",
+        centerBottomUrl: "",
+        rightUrl: ""
       }
     }
 
