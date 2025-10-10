@@ -103,8 +103,11 @@ export default async (req, res) => {
         })
       }
 
+      // Excluir campos que no deben ser actualizados (_id, id)
+      const { _id, id: paymentMethodId, ...paymentMethodData } = paymentMethod
+      
       const updatedPaymentMethod = {
-        ...paymentMethod,
+        ...paymentMethodData,
         updatedAt: new Date()
       }
       
