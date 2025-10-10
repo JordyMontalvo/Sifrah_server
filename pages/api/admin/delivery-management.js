@@ -707,13 +707,24 @@ async function getDepartmentsAdmin(req, res) {
       });
 
     // Filtrar y limpiar departamentos válidos
-    const validDepartments = departments
+    let validDepartments = departments
       .filter(dept => dept && dept.length > 2 && !dept.includes('test') && !dept.includes('das'))
       .map(dept => ({
         value: dept.toLowerCase(),
         name: dept.charAt(0).toUpperCase() + dept.slice(1)
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+      }));
+
+    // Agregar Callao como departamento si no existe
+    const callaoExists = validDepartments.some(dept => dept.value === 'callao' || dept.name.toLowerCase() === 'callao');
+    if (!callaoExists) {
+      validDepartments.push({
+        value: 'callao',
+        name: 'Callao'
+      });
+    }
+
+    // Ordenar alfabéticamente
+    validDepartments.sort((a, b) => a.name.localeCompare(b.name));
 
     return res.status(200).json({
       departments: validDepartments
@@ -736,21 +747,31 @@ async function getProvincesByDepartmentAdmin(req, res) {
   try {
     const db = await connectDB();
     
-    const provinces = await db.collection('delivery_districts')
-      .distinct('province', { 
-        department: department.toLowerCase(),
-        active: true,
-        province: { $ne: null, $ne: "" }
-      });
+    let provinces = [];
+    
+    // Si es Callao, usar provincias específicas
+    if (department.toLowerCase() === 'callao') {
+      provinces = ['Callao'];
+    } else {
+      // Para otros departamentos, cargar desde la base de datos
+      provinces = await db.collection('delivery_districts')
+        .distinct('province', { 
+          department: department.toLowerCase(),
+          active: true,
+          province: { $ne: null, $ne: "" }
+        });
+    }
 
     // Filtrar provincias válidas
-    const validProvinces = provinces
+    let validProvinces = provinces
       .filter(prov => prov && prov.length > 2 && !prov.includes('test') && !prov.includes('das'))
       .map(prov => ({
         value: prov.toLowerCase(),
         name: prov.charAt(0).toUpperCase() + prov.slice(1)
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+      }));
+
+    // Ordenar alfabéticamente
+    validProvinces.sort((a, b) => a.name.localeCompare(b.name));
 
     return res.status(200).json({
       provinces: validProvinces
@@ -773,15 +794,28 @@ async function getDistrictsByProvinceAdmin(req, res) {
   try {
     const db = await connectDB();
     
-    // Obtener todos los distritos únicos de Perú para ese departamento y provincia
-    // Esto simularia una base de datos completa de distritos del Perú
-    const districts = await db.collection('delivery_districts')
-      .distinct('district_name', { 
-        department: department.toLowerCase(),
-        province: province.toLowerCase(),
-        active: true,
-        district_name: { $ne: null, $ne: "" }
-      });
+    let districts = [];
+    
+    // Si es Callao, usar distritos específicos
+    if (department.toLowerCase() === 'callao' && province.toLowerCase() === 'callao') {
+      districts = [
+        'Bellavista',
+        'Callao',
+        'Carmen de la Legua Reynoso',
+        'La Perla',
+        'La Punta',
+        'Ventanilla'
+      ];
+    } else {
+      // Para otros departamentos, cargar desde la base de datos
+      districts = await db.collection('delivery_districts')
+        .distinct('district_name', { 
+          department: department.toLowerCase(),
+          province: province.toLowerCase(),
+          active: true,
+          district_name: { $ne: null, $ne: "" }
+        });
+    }
 
     // Filtrar distritos válidos
     const validDistricts = districts

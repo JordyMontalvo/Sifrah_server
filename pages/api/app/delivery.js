@@ -238,13 +238,24 @@ async function getDepartments(req, res) {
     await client.close();
 
     // Filtrar y limpiar departamentos válidos
-    const validDepartments = departments
+    let validDepartments = departments
       .filter(dept => dept && dept.length > 2 && !dept.includes('test') && !dept.includes('das'))
       .map(dept => ({
         value: dept.toLowerCase(),
         name: dept.charAt(0).toUpperCase() + dept.slice(1)
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+      }));
+
+    // Agregar Callao como departamento si no existe
+    const callaoExists = validDepartments.some(dept => dept.value === 'callao' || dept.name.toLowerCase() === 'callao');
+    if (!callaoExists) {
+      validDepartments.push({
+        value: 'callao',
+        name: 'Callao'
+      });
+    }
+
+    // Ordenar alfabéticamente
+    validDepartments.sort((a, b) => a.name.localeCompare(b.name));
 
     return res.status(200).json({
       departments: validDepartments
@@ -269,23 +280,33 @@ async function getProvincesByDepartment(req, res, department) {
     
     const db = client.db();
     
-    const provinces = await db.collection('delivery_districts')
-      .distinct('province', { 
-        department: department.toLowerCase(),
-        active: true,
-        province: { $ne: null, $ne: "" }
-      });
+    let provinces = [];
+    
+    // Si es Callao, usar provincias específicas
+    if (department.toLowerCase() === 'callao') {
+      provinces = ['Callao'];
+    } else {
+      // Para otros departamentos, cargar desde la base de datos
+      provinces = await db.collection('delivery_districts')
+        .distinct('province', { 
+          department: department.toLowerCase(),
+          active: true,
+          province: { $ne: null, $ne: "" }
+        });
+    }
 
     await client.close();
 
     // Filtrar provincias válidas
-    const validProvinces = provinces
+    let validProvinces = provinces
       .filter(prov => prov && prov.length > 2 && !prov.includes('test') && !prov.includes('das'))
       .map(prov => ({
         value: prov.toLowerCase(),
         name: prov.charAt(0).toUpperCase() + prov.slice(1)
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+      }));
+
+    // Ordenar alfabéticamente
+    validProvinces.sort((a, b) => a.name.localeCompare(b.name));
 
     return res.status(200).json({
       provinces: validProvinces
@@ -310,17 +331,32 @@ async function getDistrictsByProvince(req, res, department, province) {
     
     const db = client.db();
     
-    const districts = await db.collection('delivery_districts')
-      .find({ 
-        department: department.toLowerCase(),
-        province: province.toLowerCase(),
-        active: true,
-        district_name: { $ne: null, $ne: "" },
-        // Filtrar datos de prueba
-        district_name: { $not: /^(test|dasdas|asdasd|xxx)/i }
-      })
-      .sort({ district_name: 1 })
-      .toArray();
+    let districts = [];
+    
+    // Si es Callao, usar distritos específicos
+    if (department.toLowerCase() === 'callao' && province.toLowerCase() === 'callao') {
+      districts = [
+        { district_name: 'Bellavista', zone_id: null, delivery_type: 'zone' },
+        { district_name: 'Callao', zone_id: null, delivery_type: 'zone' },
+        { district_name: 'Carmen de la Legua Reynoso', zone_id: null, delivery_type: 'zone' },
+        { district_name: 'La Perla', zone_id: null, delivery_type: 'zone' },
+        { district_name: 'La Punta', zone_id: null, delivery_type: 'zone' },
+        { district_name: 'Ventanilla', zone_id: null, delivery_type: 'zone' }
+      ];
+    } else {
+      // Para otros departamentos, cargar desde la base de datos
+      districts = await db.collection('delivery_districts')
+        .find({ 
+          department: department.toLowerCase(),
+          province: province.toLowerCase(),
+          active: true,
+          district_name: { $ne: null, $ne: "" },
+          // Filtrar datos de prueba
+          district_name: { $not: /^(test|dasdas|asdasd|xxx)/i }
+        })
+        .sort({ district_name: 1 })
+        .toArray();
+    }
 
     await client.close();
 
