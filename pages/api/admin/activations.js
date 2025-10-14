@@ -479,20 +479,53 @@ export default async (req, res) => {
       await Activation.update({ id }, { points });
     }
 
-    if (action == "delete") {
-      // Eliminar transacciones asociadas
+    if (action == "cancel") {
+      console.log("Cancelando activación...");
+      
+      // Marcar la activación como cancelada (NO eliminarla)
+      await Activation.update({ id }, { status: "cancelled", cancelled_at: new Date() });
+      
+      // Si la activación fue aprobada, revertir los puntos del usuario
+      if (activation.status === "approved") {
+        const user = await User.findOne({ id: activation.userId });
+        
+        // Restar los puntos de la activación
+        const new_points = user.points - activation.points;
+        console.log(`Revirtiendo puntos: ${user.points} - ${activation.points} = ${new_points}`);
+        
+        // Recalcular estados de activación
+        const _activated = user._activated ? (new_points >= 40) : false;
+        const activated = user.activated ? (new_points >= 120) : false;
+        
+        await User.update(
+          { id: user.id },
+          {
+            points: new_points,
+            activated,
+            _activated,
+          }
+        );
+        
+        // Actualizar total_points en cascada
+        await lib.updateTotalPointsCascade(User, Tree, user.id);
+      }
+      
+      // Eliminar las transacciones asociadas (ya que fueron revertidas)
       if (activation.transactions) {
         for (let transactionId of activation.transactions) {
           await Transaction.delete({ id: transactionId });
         }
       }
-      // Actualizar stock (sumar productos de vuelta)
+      
+      // Actualizar stock (devolver productos al inventario)
       const office_id = activation.office;
-      const products = activation.products || []; // Asegurarse de que products sea un array
+      const products = activation.products || [];
       const office = await Office.findOne({ id: office_id });
       if (office && Array.isArray(products)) {
         products.forEach((p, i) => {
-          if (office.products[i]) office.products[i].total += products[i].total;
+          if (office.products[i]) {
+            office.products[i].total += products[i].total;
+          }
         });
         await Office.update(
           { id: office_id },
@@ -501,9 +534,8 @@ export default async (req, res) => {
           }
         );
       }
-      // Eliminar la activación
-      await Activation.delete({ id });
-      return res.json(success());
+      
+      return res.json(success({ message: "Activación anulada correctamente" }));
     }
 
     return res.json(success());
