@@ -97,7 +97,7 @@ export default async (req, res) => {
 
   if(req.method == 'POST') {
 
-    let { products, office, check, voucher, pay_method, bank, date, voucher_number, deliveryMethod, deliveryInfo } = req.body;
+    let { products, office, check, voucher, pay_method, bank, bank_info, date, voucher_number, deliveryMethod, deliveryInfo } = req.body;
 
     let agencyName = '';
     if (deliveryMethod === 'delivery' && deliveryInfo && deliveryInfo.department !== 'lima' && deliveryInfo.agency) {
@@ -208,6 +208,7 @@ export default async (req, res) => {
 
       pay_method,
       bank,
+      bank_info,
       voucher_date: date,
       voucher_number,
       

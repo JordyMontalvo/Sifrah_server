@@ -26,6 +26,7 @@ const A = [
   "closed",
   "pay_method",
   "bank",
+  "bank_info",
   "voucher_date",
   "voucher_number",
   "delivery_info", // Campo nuevo para delivery
