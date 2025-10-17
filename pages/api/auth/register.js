@@ -8,7 +8,12 @@ const { rand, error, success, midd } = lib
 
 const Register = async (req, res) => {
 
-  let { country, dni, name, lastName, date, email, password, phone, code } = req.body
+  let { country, dni, name, lastName, date, email, password, phone, code, department, province, district } = req.body
+
+  // Validar que el código existe y no esté vacío
+  if (!code || code.trim() === '') {
+    return res.json(error('code required'))
+  }
 
   code = code.trim().toUpperCase()
 
@@ -16,6 +21,12 @@ const Register = async (req, res) => {
 
   // valid dni
   if(user) return res.json(error('dni already use'))
+  
+  // Validar que el email no esté en uso
+  if (email) {
+    const existingEmail = await User.findOne({ email })
+    if(existingEmail) return res.json(error('email already use'))
+  }
   
   const parent = await User.findOne({ token: code })
 
@@ -46,6 +57,9 @@ const Register = async (req, res) => {
     email,
     password,
     phone,
+    department,
+    province,
+    district,
     parentId:   parent.id,
     affiliated: false,
     _activated:  false,
@@ -80,7 +94,10 @@ const Register = async (req, res) => {
 
 
   // response
-  return res.json(success({ session }))
+  return res.json(success({ 
+    session,
+    affiliated: false  // El usuario recién registrado aún no está afiliado
+  }))
 }
 
 export default async (req, res) => { await midd(req, res); return Register(req, res) }
