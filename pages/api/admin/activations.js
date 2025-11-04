@@ -241,51 +241,65 @@ export default async (req, res) => {
         // Primero obtener la fecha del último cierre
         const lastClosed = await Closed.findOne({}, { sort: { date: -1 } });
         
-        // Obtener todas las transacciones "closed reset" del usuario
+        // Obtener todas las transacciones "closed reset" del usuario, ordenadas por fecha
         const closedResetTransactions = await Transaction.find({
           user_id: user.id,
           name: "closed reset",
           virtual: true
         });
         
-        // Para cada "closed reset", identificar las transacciones que realmente compensó
-        const compensatedTransactionIds = [];
+        // Ordenar los "closed reset" por fecha (más antiguos primero)
+        closedResetTransactions.sort((a, b) => new Date(a.date) - new Date(b.date));
         
+        // Obtener TODAS las transacciones virtuales del usuario (excepto "closed reset")
+        // para procesarlas en orden cronológico
+        const allVirtualTransactions = await Transaction.find({
+          user_id: user.id,
+          virtual: true,
+          name: { $ne: "closed reset" }
+        }).sort({ date: 1 }); // Ordenar por fecha (más antiguas primero)
+        
+        // Identificar qué transacciones fueron compensadas por cada "closed reset"
+        // IMPORTANTE: Una transacción solo puede ser compensada UNA VEZ
+        const compensatedTransactionIds = new Set(); // Usar Set para evitar duplicados
+        
+        // Para cada "closed reset", identificar las transacciones que compensó
         for (const resetTransaction of closedResetTransactions) {
-          // Obtener todas las transacciones que existían ANTES del "closed reset"
-          const transactionsBeforeReset = await Transaction.find({
-            user_id: user.id,
-            virtual: true,
-            name: { $ne: "closed reset" },
-            date: { $lt: resetTransaction.date } // Solo transacciones ANTES del reset
+          // Obtener todas las transacciones virtuales que existían ANTES o EN la fecha del reset
+          // y que NO hayan sido compensadas previamente
+          const transactionsAvailableForReset = allVirtualTransactions.filter(t => {
+            // Solo considerar transacciones que existían antes o en la fecha del reset
+            const transactionDate = new Date(t.date);
+            const resetDate = new Date(resetTransaction.date);
+            return transactionDate <= resetDate && !compensatedTransactionIds.has(t.id);
           });
           
-          // Ordenar por fecha (más antiguas primero) para compensar en orden cronológico
-          transactionsBeforeReset.sort((a, b) => new Date(a.date) - new Date(b.date));
-          
           // Simular la compensación: sumar transacciones hasta alcanzar el valor del reset
-          let remainingToCompensate = resetTransaction.value;
+          let remainingToCompensate = Math.abs(resetTransaction.value); // Valor absoluto porque es negativo
           const transactionsToCompensate = [];
           
-          for (const transaction of transactionsBeforeReset) {
+          for (const transaction of transactionsAvailableForReset) {
             if (remainingToCompensate <= 0) break;
             
-            if (transaction.value <= remainingToCompensate) {
-              // Esta transacción fue completamente compensada
-              transactionsToCompensate.push(transaction.id);
-              remainingToCompensate -= transaction.value;
-            } else {
-              // Esta transacción fue parcialmente compensada
-              // Por ahora, la consideramos compensada completamente
-              // En el futuro se podría manejar compensaciones parciales
-              transactionsToCompensate.push(transaction.id);
-              remainingToCompensate = 0;
-              break;
+            // Solo considerar transacciones de tipo "in" (entradas)
+            if (transaction.type === 'in') {
+              if (transaction.value <= remainingToCompensate) {
+                // Esta transacción fue completamente compensada
+                transactionsToCompensate.push(transaction.id);
+                remainingToCompensate -= transaction.value;
+              } else {
+                // Esta transacción fue parcialmente compensada
+                // Por ahora, la consideramos compensada completamente
+                // En el futuro se podría manejar compensaciones parciales
+                transactionsToCompensate.push(transaction.id);
+                remainingToCompensate = 0;
+                break;
+              }
             }
           }
           
-          // Agregar los IDs de las transacciones que fueron compensadas
-          compensatedTransactionIds.push(...transactionsToCompensate);
+          // Agregar los IDs de las transacciones que fueron compensadas por este reset
+          transactionsToCompensate.forEach(id => compensatedTransactionIds.add(id));
         }
         
         let virtualTransactionsQuery = {
@@ -304,7 +318,7 @@ export default async (req, res) => {
         // Filtrar transacciones que NO fueron compensadas por "closed reset"
         const validTransactions = transactions.filter(transaction => {
           // Si esta transacción está en la lista de compensadas, no migrarla
-          return !compensatedTransactionIds.includes(transaction.id);
+          return !compensatedTransactionIds.has(transaction.id);
         });
 
         for (let transaction of validTransactions) {
