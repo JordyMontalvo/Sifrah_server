@@ -127,6 +127,8 @@ const handler = async (req, res) => {
       all: {},
       pending: { status: "pending" },
       approved: { status: "approved" },
+      rejected: { status: "rejected" },
+      cancelled: { status: "cancelled" },
     };
 
     if (!(filter in q)) return res.json(error("invalid filter"));
@@ -573,6 +575,88 @@ const handler = async (req, res) => {
 
     if (action == "uncheck") {
       await Affiliation.update({ id }, { delivered: false });
+    }
+
+    if (action == "cancel") {
+      console.log("Cancelando afiliación...");
+      
+      // Marcar la afiliación como cancelada (NO eliminarla)
+      await Affiliation.update({ id }, { status: "cancelled", cancelled_at: new Date() });
+      
+      // Si la afiliación fue aprobada, revertir el estado del usuario
+      if (affiliation.status === "approved") {
+        const user = await User.findOne({ id: affiliation.userId });
+        
+        // Buscar la afiliación aprobada anterior más reciente (excluyendo la actual)
+        const previousAffiliations = await Affiliation.find({
+          userId: user.id,
+          status: "approved",
+          id: { $ne: id }
+        });
+        
+        // Ordenar por fecha descendente para obtener la más reciente
+        previousAffiliations.sort((a, b) => new Date(b.date) - new Date(a.date));
+        
+        if (previousAffiliations.length > 0) {
+          // Si hay una afiliación anterior, restaurar el estado del usuario a esa afiliación
+          const previousAffiliation = previousAffiliations[0];
+          await User.update(
+            { id: user.id },
+            {
+              _activated: false,
+              activated: false,
+              plan: previousAffiliation.plan.id,
+              affiliation_date: previousAffiliation.date,
+              affiliation_points: previousAffiliation.plan.affiliation_points || 0,
+              n: previousAffiliation.plan.n || 0,
+            }
+          );
+        } else {
+          // Si no hay afiliaciones anteriores, restaurar al estado inicial
+          await User.update(
+            { id: user.id },
+            {
+              affiliated: false,
+              _activated: false,
+              activated: false,
+              plan: "default",
+              affiliation_date: null,
+              affiliation_points: 0,
+              n: 0,
+            }
+          );
+        }
+        
+        // Actualizar total_points en cascada
+        await lib.updateTotalPointsCascade(User, Tree, user.id);
+      }
+      
+      // Eliminar las transacciones asociadas (ya que fueron revertidas)
+      if (affiliation.transactions) {
+        for (let transactionId of affiliation.transactions) {
+          await Transaction.delete({ id: transactionId });
+        }
+      }
+      
+      // Actualizar stock (devolver productos al inventario)
+      const office_id = affiliation.office;
+      const products = affiliation.products || [];
+      const office = await Office.findOne({ id: office_id });
+      if (office && Array.isArray(products)) {
+        products.forEach((p, i) => {
+          if (office.products[i]) {
+            office.products[i].total += products[i].total;
+          }
+        });
+        await Office.update(
+          { id: office_id },
+          {
+            products: office.products,
+          }
+        );
+      }
+      
+      return res.json(success({ message: "Afiliación anulada correctamente" }));
     }
 
     if (action == "revert") {
