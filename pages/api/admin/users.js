@@ -38,14 +38,18 @@ const handler = async (req, res) => {
   if (req.method == "GET") {
     console.log("GET ...");
 
-    const { filter, page = 1, limit = 20, search, showAvailable } = req.query;
+    const { filter, page = 1, limit = 20, search, showAvailable, showVirtualBalance } = req.query;
     console.log(
       "Received request with page:",
       page,
       "and limit:",
       limit,
       "search:",
-      search
+      search,
+      "showAvailable:",
+      showAvailable,
+      "showVirtualBalance:",
+      showVirtualBalance
     );
 
     const pageNum = parseInt(page, 10);
@@ -67,6 +71,8 @@ const handler = async (req, res) => {
       virtual: { $in: [null, false] },
     }); // Asegúrate de que esta línea esté antes de usar 'transactions'
 
+    const virtualTransactions = await Transaction.find({ virtual: true });
+
     // Filtrar usuarios con saldo disponible
     if (showAvailable === "true") {
       allUsers = allUsers.filter((user) => {
@@ -78,6 +84,119 @@ const handler = async (req, res) => {
           .reduce((a, b) => a + parseFloat(b.value), 0);
         return ins - outs > 0; // Solo usuarios con saldo disponible
       });
+    }
+
+    // Filtrar usuarios con saldo no disponible
+    if (showVirtualBalance === "true" || showVirtualBalance === true) {
+      console.log(`🔍 Filtrando usuarios con saldo no disponible...`);
+      console.log(`📊 Total usuarios antes del filtro: ${allUsers.length}`);
+      console.log(`📊 Total transacciones virtuales: ${virtualTransactions.length}`);
+      
+      // Obtener todas las transacciones "closed reset" agrupadas por usuario
+      const closedResetTransactionsByUser = {};
+      const allClosedResetTransactions = await Transaction.find({
+        name: "closed reset",
+        virtual: true
+      });
+      
+      for (const resetTransaction of allClosedResetTransactions) {
+        if (!closedResetTransactionsByUser[resetTransaction.user_id]) {
+          closedResetTransactionsByUser[resetTransaction.user_id] = [];
+        }
+        closedResetTransactionsByUser[resetTransaction.user_id].push(resetTransaction);
+      }
+      
+      // Ordenar los "closed reset" por fecha para cada usuario
+      for (const userId in closedResetTransactionsByUser) {
+        closedResetTransactionsByUser[userId].sort((a, b) => new Date(a.date) - new Date(b.date));
+      }
+      
+      // Obtener todas las transacciones virtuales (excepto "closed reset") agrupadas por usuario
+      const allVirtualTransactionsByUser = {};
+      const allVirtualTransactionsExceptReset = await Transaction.find({
+        virtual: true,
+        name: { $ne: "closed reset" }
+      });
+      
+      for (const transaction of allVirtualTransactionsExceptReset) {
+        if (!allVirtualTransactionsByUser[transaction.user_id]) {
+          allVirtualTransactionsByUser[transaction.user_id] = [];
+        }
+        allVirtualTransactionsByUser[transaction.user_id].push(transaction);
+      }
+      
+      // Ordenar las transacciones virtuales por fecha para cada usuario
+      for (const userId in allVirtualTransactionsByUser) {
+        allVirtualTransactionsByUser[userId].sort((a, b) => new Date(a.date) - new Date(b.date));
+      }
+      
+      const filteredUsers = [];
+      const beforeFilterCount = allUsers.length;
+      
+      allUsers = allUsers.filter((user) => {
+        // Obtener transacciones "closed reset" del usuario
+        const userClosedResets = closedResetTransactionsByUser[user.id] || [];
+        
+        // Obtener transacciones virtuales del usuario (excepto "closed reset")
+        const userVirtualTransactions = allVirtualTransactionsByUser[user.id] || [];
+        
+        // Identificar qué transacciones fueron compensadas por cada "closed reset"
+        const compensatedTransactionIds = new Set();
+        
+        for (const resetTransaction of userClosedResets) {
+          const transactionsAvailableForReset = userVirtualTransactions.filter(t => {
+            const transactionDate = new Date(t.date);
+            const resetDate = new Date(resetTransaction.date);
+            return transactionDate <= resetDate && !compensatedTransactionIds.has(t.id);
+          });
+          
+          let remainingToCompensate = Math.abs(resetTransaction.value);
+          
+          for (const transaction of transactionsAvailableForReset) {
+            if (remainingToCompensate <= 0) break;
+            
+            if (transaction.type === 'in') {
+              if (transaction.value <= remainingToCompensate) {
+                compensatedTransactionIds.add(transaction.id);
+                remainingToCompensate -= transaction.value;
+              } else {
+                compensatedTransactionIds.add(transaction.id);
+                remainingToCompensate = 0;
+                break;
+              }
+            }
+          }
+        }
+        
+        // Calcular saldo virtual excluyendo transacciones compensadas
+        const validVirtualTransactions = userVirtualTransactions.filter(t => 
+          !compensatedTransactionIds.has(t.id)
+        );
+        
+        const virtualIns = validVirtualTransactions
+          .filter((i) => i.type === "in")
+          .reduce((a, b) => a + parseFloat(b.value || 0), 0);
+        const virtualOuts = validVirtualTransactions
+          .filter((i) => i.type === "out")
+          .reduce((a, b) => a + parseFloat(b.value || 0), 0);
+        const virtualBalance = virtualIns - virtualOuts;
+        const hasVirtualBalance = virtualBalance > 0;
+        
+        if (hasVirtualBalance) {
+          console.log(`✅ Usuario ${user.name} ${user.lastName} (ID: ${user.id}) tiene saldo no disponible: ${virtualBalance.toFixed(2)}`);
+          filteredUsers.push(`${user.name} ${user.lastName} (${virtualBalance.toFixed(2)})`);
+        }
+        
+        return hasVirtualBalance; // Solo usuarios con saldo no disponible
+      });
+      
+      console.log(`📊 Total usuarios después del filtro: ${allUsers.length} (de ${beforeFilterCount})`);
+      console.log(`📋 Usuarios con saldo no disponible encontrados: ${filteredUsers.length}`);
+      if (filteredUsers.length > 0) {
+        console.log(`📋 Lista: ${filteredUsers.slice(0, 10).join(', ')}${filteredUsers.length > 10 ? '...' : ''}`);
+      } else {
+        console.log(`⚠️ No se encontraron usuarios con saldo no disponible`);
+      }
     }
 
     // Apply search if search parameter exists
@@ -130,9 +249,6 @@ const handler = async (req, res) => {
     });
     console.log("transactions ...");
 
-    const virtualTransactions = await Transaction.find({ virtual: true });
-    console.log("virtualTransactions ...");
-
     // parse user
     const totalBalance = allUsers.reduce((total, user) => {
       const ins = transactions
@@ -180,6 +296,8 @@ const handler = async (req, res) => {
     // parse user
     users = users.map((user) => {
       const u = model(user, U);
+      // Asegurar que virtualbalance siempre sea un número (no null/undefined)
+      u.virtualbalance = user.virtualbalance != null ? Number(user.virtualbalance) : 0;
       return { ...u };
     });
     // Cambia esto para obtener todos los usuarios
@@ -226,11 +344,13 @@ const handler = async (req, res) => {
       
       // Obtener TODAS las transacciones virtuales del usuario (excepto "closed reset")
       // para procesarlas en orden cronológico
-      const allVirtualTransactions = await Transaction.find({
+      let allVirtualTransactions = await Transaction.find({
         user_id: id,
         virtual: true,
         name: { $ne: "closed reset" }
-      }).sort({ date: 1 }); // Ordenar por fecha (más antiguas primero)
+      });
+      // Ordenar por fecha (más antiguas primero)
+      allVirtualTransactions.sort((a, b) => new Date(a.date) - new Date(b.date));
       
       // Identificar qué transacciones fueron compensadas por cada "closed reset"
       // IMPORTANTE: Una transacción solo puede ser compensada UNA VEZ
