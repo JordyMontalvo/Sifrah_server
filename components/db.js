@@ -23,6 +23,7 @@ class DB {
     Recharge,
     Closed,
     PaymentMethod,
+    DashboardConfig,
   }) {
     this.User = User;
     this.Session = Session;
@@ -42,6 +43,7 @@ class DB {
     this.Recharge = Recharge;
     this.Closed = Closed;
     this.PaymentMethod = PaymentMethod;
+    this.DashboardConfig = DashboardConfig;
   }
 }
 
@@ -743,6 +745,39 @@ class PaymentMethod {
   }
 }
 
+class DashboardConfig {
+  async findOne(query) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    const config = await db.collection("dashboard_config").findOne(query);
+    client.close();
+    return config;
+  }
+  async find(query) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    const configs = await db.collection("dashboard_config").find(query).toArray();
+    client.close();
+    return configs;
+  }
+  async insert(config) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    await db.collection("dashboard_config").insertOne(config);
+    return client.close();
+  }
+  async update(query, values) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    await db.collection("dashboard_config").updateOne(query, { $set: values });
+    return client.close();
+  }
+}
+
 module.exports = new DB({
   User: new User(),
   Session: new Session(),
@@ -762,4 +797,5 @@ module.exports = new DB({
   Recharge: new Recharge(),
   Closed: new Closed(),
   PaymentMethod: new PaymentMethod(),
+  DashboardConfig: new DashboardConfig(),
 });

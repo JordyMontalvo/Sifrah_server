@@ -1,7 +1,7 @@
 import db  from "../../../components/db"
 import lib from "../../../components/lib"
 
-const { User, Session, Transaction, Tree, Banner, Plan } = db
+const { User, Session, Transaction, Tree, Banner, Plan, DashboardConfig } = db
 const { error, success, acum, midd,model } = lib
 
 const D = ['id', 'name', 'lastName', 'affiliated', 'activated', 'tree', 'email', 'phone', 'address', 'rank', 'points', 'parentId', 'total_points']
@@ -53,6 +53,18 @@ export default async (req, res) => {
 
   const banner = await Banner.findOne({})
 
+  // GET dashboard config (Bono Viaje text)
+  let dashboardConfig = await DashboardConfig.findOne({ id: 'travel_bonus' })
+  
+  // Si no existe, crear uno por defecto
+  if (!dashboardConfig) {
+    dashboardConfig = {
+      id: 'travel_bonus',
+      text: 'Tu progreso hacia el Bono Viaje se actualizará próximamente. ¡Sigue trabajando para alcanzar tus objetivos!'
+    }
+    await DashboardConfig.insert(dashboardConfig)
+  }
+
   // response
   return res.json(success({
     name:       user.name,
@@ -80,5 +92,6 @@ export default async (req, res) => {
     points:  user.points,
     plans,
     total_points: user.total_points, // <-- Agregar todos los planes a la respuesta
+    travelBonusText: dashboardConfig.text || 'Tu progreso hacia el Bono Viaje se actualizará próximamente. ¡Sigue trabajando para alcanzar tus objetivos!',
   }))
 }
