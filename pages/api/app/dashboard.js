@@ -53,10 +53,19 @@ export default async (req, res) => {
 
   const banner = await Banner.findOne({})
 
-  // GET dashboard config (Bono Viaje text)
-  let dashboardConfig = await DashboardConfig.findOne({ id: 'travel_bonus' })
+  // GET dashboard config (Bono Viaje text) - Primero buscar configuración específica del usuario
+  let dashboardConfig = await DashboardConfig.findOne({ id: 'travel_bonus', userId: user.id })
   
-  // Si no existe, crear uno por defecto
+  // Si no existe configuración específica del usuario, buscar la configuración global
+  // (configuraciones que no tienen el campo userId)
+  if (!dashboardConfig) {
+    dashboardConfig = await DashboardConfig.findOne({ 
+      id: 'travel_bonus', 
+      userId: { $exists: false }
+    })
+  }
+  
+  // Si no existe ninguna configuración, crear una global por defecto
   if (!dashboardConfig) {
     dashboardConfig = {
       id: 'travel_bonus',
