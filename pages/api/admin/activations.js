@@ -207,7 +207,8 @@ export default async (req, res) => {
     if (action == "approve") {
       console.log("1");
       // approve activation
-      await Activation.update({ id }, { status: "approved" });
+      // Marcar delivered como false para nuevas aprobaciones (control manual)
+      await Activation.update({ id }, { status: "approved", delivered: false });
 
       // update USER
       const user = await User.findOne({ id: activation.userId });
