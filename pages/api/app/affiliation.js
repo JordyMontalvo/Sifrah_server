@@ -112,6 +112,7 @@ export default async (req, res) => {
       products,
       plan,
       voucher,
+      voucher2,
       office,
       check,
       pay_method,
@@ -119,6 +120,9 @@ export default async (req, res) => {
       date,
       voucher_number,
     } = req.body;
+    
+    console.log('Affiliation POST - voucher:', voucher ? 'existe' : 'null');
+    console.log('Affiliation POST - voucher2:', voucher2 ? voucher2 : 'null');
 
     // Buscar el plan seleccionado
     plan = plans.find((e) => e.id == plan.id);
@@ -210,7 +214,7 @@ export default async (req, res) => {
       products,
       plan,
       voucher,
-      voucher2: req.body.voucher2 || null,
+      voucher2: voucher2 || null,
       office,
       status: "pending",
       delivered: false,

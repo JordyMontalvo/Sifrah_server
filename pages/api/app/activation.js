@@ -98,6 +98,9 @@ export default async (req, res) => {
   if(req.method == 'POST') {
 
     let { products, office, check, voucher, voucher2, pay_method, bank, bank_info, date, voucher_number, deliveryMethod, deliveryInfo } = req.body;
+    
+    console.log('Activation POST - voucher:', voucher ? 'existe' : 'null');
+    console.log('Activation POST - voucher2:', voucher2 ? voucher2 : 'null');
 
     let agencyName = '';
     if (deliveryMethod === 'delivery' && deliveryInfo && deliveryInfo.department !== 'lima' && deliveryInfo.agency) {
