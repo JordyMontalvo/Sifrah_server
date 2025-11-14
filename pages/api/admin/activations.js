@@ -19,6 +19,7 @@ const A = [
   "price",
   "points",
   "voucher",
+  "voucher2",
   "status",
   "amounts",
   "office",

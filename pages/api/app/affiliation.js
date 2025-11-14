@@ -210,6 +210,7 @@ export default async (req, res) => {
       products,
       plan,
       voucher,
+      voucher2: req.body.voucher2 || null,
       office,
       status: "pending",
       delivered: false,

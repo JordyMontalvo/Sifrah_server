@@ -9,6 +9,7 @@ const A = [
   "date",
   "plan",
   "voucher",
+  "voucher2",
   "status",
   "office",
   "delivered",
