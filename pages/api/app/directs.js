@@ -8,7 +8,7 @@ const { error, success, _ids, _map, model } = lib
 
 // models
 // const D = ['id', 'name', 'lastName', 'email', 'phone', 'affiliated', 'activated', 'affiliationDate']
-const D = ['id', 'name', 'lastName', 'affiliated', 'activated', 'tree', 'email', 'phone']
+const D = ['id', 'name', 'lastName', 'affiliated', 'activated', 'tree', 'email', 'phone', 'points']
 
 
 const directs = async (req, res) => {
@@ -27,6 +27,9 @@ const directs = async (req, res) => {
 
   directs = directs.map(direct => {
     const d = model(direct, D)
+    // Asegurar que points siempre sea un número (puntos personales)
+    // Obtener points del modelo o directamente del objeto original
+    d.points = Number(d.points !== undefined ? d.points : direct.points) || 0
     return { ...d }
   })
 
@@ -40,10 +43,13 @@ const directs = async (req, res) => {
   // frontals = frontals.filter(e => e.parentId != user.id)
   console.log({ frontals })
 
-  // frontals = frontals.map(frontal => {
-  //   const d = model(frontal, D)
-  //   return { ...d }
-  // })
+  frontals = frontals.map(frontal => {
+    const d = model(frontal, D)
+    // Asegurar que points siempre sea un número (puntos personales)
+    // Obtener points del modelo o directamente del objeto original
+    d.points = Number(d.points !== undefined ? d.points : frontal.points) || 0
+    return { ...d }
+  })
 
   // response
   return res.json(success({
