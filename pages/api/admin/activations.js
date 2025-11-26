@@ -223,8 +223,13 @@ export default async (req, res) => {
       const _activated = user._activated ? true : points_total >= 40;
       console.log({ _activated });
 
+      // Verificar si el usuario estaba activado ANTES de esta aprobación
+      const wasActivatedBefore = user.activated;
+      
       const activated = user.activated ? true : points_total >= 120;
       console.log({ activated });
+      console.log('Usuario estaba activado antes:', wasActivatedBefore);
+      console.log('Usuario está activado ahora:', activated);
 
       await User.update(
         { id: user.id },
@@ -236,12 +241,24 @@ export default async (req, res) => {
       );
       await lib.updateTotalPointsCascade(User, Tree, user.id);
 
-      if (activated) {
+      // Migrar saldo solo cuando el usuario se activa por primera vez (cambia de false a true)
+      // Esto ocurre cuando el usuario alcanza 120 puntos por primera vez
+      const isFirstTimeActivation = !wasActivatedBefore && activated;
+      
+      console.log('¿Es primera activación?', isFirstTimeActivation);
+      console.log('Puntos totales:', points_total);
+      
+      if (isFirstTimeActivation) {
+        console.log('🔄 Iniciando migración de saldo no disponible a disponible...');
+        
         // migrar transacciones virtuales solo las que fueron creadas después del último cierre
         // y que NO sean transacciones "closed reset" (compensaciones de cierre)
         // y que NO sean transacciones que ya fueron compensadas por "closed reset"
         // Primero obtener la fecha del último cierre
-        const lastClosed = await Closed.findOne({}, { sort: { date: -1 } });
+        const allCloseds = await Closed.find({});
+        const lastClosed = allCloseds.length > 0 
+          ? allCloseds.sort((a, b) => new Date(b.date) - new Date(a.date))[0]
+          : null;
         
         // Obtener todas las transacciones "closed reset" del usuario, ordenadas por fecha
         const closedResetTransactions = await Transaction.find({
@@ -255,11 +272,15 @@ export default async (req, res) => {
         
         // Obtener TODAS las transacciones virtuales del usuario (excepto "closed reset")
         // para procesarlas en orden cronológico
-        const allVirtualTransactions = await Transaction.find({
+        const allVirtualTransactionsRaw = await Transaction.find({
           user_id: user.id,
           virtual: true,
           name: { $ne: "closed reset" }
-        }).sort({ date: 1 }); // Ordenar por fecha (más antiguas primero)
+        });
+        // Ordenar por fecha (más antiguas primero) - ordenar el array después de obtenerlo
+        const allVirtualTransactions = allVirtualTransactionsRaw.sort((a, b) => {
+          return new Date(a.date) - new Date(b.date);
+        });
         
         // Identificar qué transacciones fueron compensadas por cada "closed reset"
         // IMPORTANTE: Una transacción solo puede ser compensada UNA VEZ
@@ -323,10 +344,20 @@ export default async (req, res) => {
           return !compensatedTransactionIds.has(transaction.id);
         });
 
+        console.log(`📊 Transacciones virtuales encontradas: ${transactions.length}`);
+        console.log(`✅ Transacciones válidas para migrar: ${validTransactions.length}`);
+        
         for (let transaction of validTransactions) {
-          console.log({ transaction });
+          console.log('🔄 Migrando transacción:', { id: transaction.id, value: transaction.value, type: transaction.type, date: transaction.date });
           await Transaction.update({ id: transaction.id }, { virtual: false });
         }
+        
+        console.log(`✅ Migración completada. ${validTransactions.length} transacciones migradas de virtual (no disponible) a disponible.`);
+      } else {
+        console.log('ℹ️  No se requiere migración de saldo:');
+        console.log('   - Usuario ya estaba activado antes:', wasActivatedBefore);
+        console.log('   - Usuario está activado ahora:', activated);
+        console.log('   - Puntos totales:', points_total);
       }
 
       // UPDATE STOCK
