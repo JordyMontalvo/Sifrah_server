@@ -69,7 +69,6 @@ const Register = async (req, res) => {
     points: 0,
     // tree: false,
     tree: true,
-    coverage: { id },
     token: token.value,
   })
   
@@ -81,10 +80,9 @@ const Register = async (req, res) => {
 
 
   // insert to tree
-  // const parent = await User.findOne({ id: user.parentId })
-  const coverage = parent.coverage
-
-  let _id  = coverage.id
+  // Usar parent.id directamente (ya no se usa apalancamiento/coverage)
+  // Si el parent tiene coverage, usar ese ID; si no, usar parent.id
+  const _id = parent.coverage?.id || parent.id
   let node = await Tree.findOne({ id: _id })
 
   node.childs.push(id)

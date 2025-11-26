@@ -54,7 +54,6 @@ const LoginGoogle = async (req, res) => {
       plan: "default",
       points: 0,
       tree: true,
-      coverage: { id },
       token: token.value,
     });
     // Crear sesión

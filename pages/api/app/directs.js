@@ -65,7 +65,6 @@ const directs = async (req, res) => {
     token:      user.token,
 
     id:       user.id,
-    coverage: user.coverage,
     directs,
     frontals,
     // branch:   user.branch,

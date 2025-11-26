@@ -395,10 +395,10 @@ const handler = async (req, res) => {
         await Token.update({ value: token.value }, { free: false });
 
         // insert to tree
+        // Usar parent.id directamente (ya no se usa apalancamiento/coverage)
+        // Si el parent tiene coverage, usar ese ID; si no, usar parent.id
         const parent = await User.findOne({ id: user.parentId });
-        const coverage = parent.coverage;
-
-        let _id = coverage.id;
+        const _id = parent.coverage?.id || parent.id;
         let node = await Tree.findOne({ id: _id });
 
         node.childs.push(user.id);
@@ -411,7 +411,6 @@ const handler = async (req, res) => {
           { id: user.id },
           {
             tree: true,
-            coverage: { id: user.id },
             token: token.value,
           }
         );
