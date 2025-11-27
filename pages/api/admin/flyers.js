@@ -18,79 +18,106 @@ export default async (req, res) => {
   await midd(req, res);
 
   if (req.method == "GET") {
-    let flyers = await Flyer.find({});
+    try {
+      let flyers = await Flyer.find({});
 
-    // response
-    return res.json(
-      success({
-        flyers,
-      })
-    );
+      // response
+      return res.json(
+        success({
+          flyers,
+        })
+      );
+    } catch (error) {
+      console.error("Error en GET /admin/flyers:", error);
+      return res.status(500).json({ error: true, msg: error.message || "Error interno del servidor" });
+    }
   }
 
   if (req.method == "POST") {
-    const { action } = req.body;
+    try {
+      const { action } = req.body;
 
-    if (action == "edit") {
-      const { id } = req.body;
-      const {
-        name,
-        image_url,
-        base_image_url,
-        active,
-        description,
-      } = req.body.data;
+      if (action == "edit") {
+        const { id } = req.body;
+        if (!id) {
+          return res.json({ error: true, msg: "ID es requerido" });
+        }
 
-      await Flyer.update(
-        { id },
-        {
-          $set: {
+        const {
+          name,
+          image_url,
+          base_image_url,
+          active,
+          description,
+        } = req.body.data || {};
+
+        if (!name || !base_image_url) {
+          return res.json({ error: true, msg: "Nombre e imagen base son requeridos" });
+        }
+
+        await Flyer.update(
+          { id },
+          {
             name,
-            image_url,
+            image_url: image_url || "",
             base_image_url,
             active: active !== undefined ? active : true,
             description: description || "",
             updated_at: new Date(),
-          },
+          }
+        );
+      } else if (action == "add") {
+        const { name, image_url, base_image_url, active, description } =
+          req.body.data || {};
+
+        if (!name || !base_image_url) {
+          return res.json({ error: true, msg: "Nombre e imagen base son requeridos" });
         }
-      );
+
+        await Flyer.insert({
+          id: rand(),
+          name,
+          image_url: image_url || "",
+          base_image_url: base_image_url || "",
+          active: active !== undefined ? active : true,
+          description: description || "",
+          created_at: new Date(),
+          updated_at: new Date(),
+        });
+      } else if (action == "delete") {
+        const { id } = req.body;
+        if (!id) {
+          return res.json({ error: true, msg: "ID es requerido" });
+        }
+        await Flyer.delete({ id });
+      }
+
+      // response
+      return res.json(success({}));
+    } catch (error) {
+      console.error("Error en POST /admin/flyers:", error);
+      return res.status(500).json({ error: true, msg: error.message || "Error interno del servidor" });
     }
-
-    if (action == "add") {
-      const { name, image_url, base_image_url, active, description } =
-        req.body.data;
-
-      await Flyer.insert({
-        id: rand(),
-        name,
-        image_url: image_url || "",
-        base_image_url: base_image_url || "",
-        active: active !== undefined ? active : true,
-        description: description || "",
-        created_at: new Date(),
-        updated_at: new Date(),
-      });
-    }
-
-    if (action == "delete") {
-      const { id } = req.body;
-      await Flyer.delete({ id });
-    }
-
-    // response
-    return res.json(success({}));
   }
 
   if (req.method == "DELETE") {
-    const { id } = req.body;
-    await Flyer.delete({ id });
+    try {
+      const { id } = req.body;
+      if (!id) {
+        return res.json({ error: true, msg: "ID es requerido" });
+      }
+      await Flyer.delete({ id });
 
-    // response
-    return res.json(
-      success({
-        message: "Flyer eliminado correctamente",
-      })
-    );
+      // response
+      return res.json(
+        success({
+          message: "Flyer eliminado correctamente",
+        })
+      );
+    } catch (error) {
+      console.error("Error en DELETE /admin/flyers:", error);
+      return res.status(500).json({ error: true, msg: error.message || "Error interno del servidor" });
+    }
   }
 };
 
