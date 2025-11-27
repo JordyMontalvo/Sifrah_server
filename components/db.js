@@ -24,6 +24,7 @@ class DB {
     Closed,
     PaymentMethod,
     DashboardConfig,
+    Flyer,
   }) {
     this.User = User;
     this.Session = Session;
@@ -44,6 +45,7 @@ class DB {
     this.Closed = Closed;
     this.PaymentMethod = PaymentMethod;
     this.DashboardConfig = DashboardConfig;
+    this.Flyer = Flyer;
   }
 }
 
@@ -778,6 +780,46 @@ class DashboardConfig {
   }
 }
 
+class Flyer {
+  async findOne(query) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    const flyer = await db.collection("flyers").findOne(query);
+    client.close();
+    return flyer;
+  }
+  async find(query) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    const flyers = await db.collection("flyers").find(query).toArray();
+    client.close();
+    return flyers;
+  }
+  async insert(flyer) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    await db.collection("flyers").insertOne(flyer);
+    return client.close();
+  }
+  async update(query, values) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    await db.collection("flyers").updateOne(query, { $set: values });
+    return client.close();
+  }
+  async delete(query) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    await db.collection("flyers").deleteOne(query);
+    return client.close();
+  }
+}
+
 module.exports = new DB({
   User: new User(),
   Session: new Session(),
@@ -798,4 +840,5 @@ module.exports = new DB({
   Closed: new Closed(),
   PaymentMethod: new PaymentMethod(),
   DashboardConfig: new DashboardConfig(),
+  Flyer: new Flyer(),
 });
