@@ -94,6 +94,8 @@ export default async (req, res) => {
         country: user.country,
         photo: user.photo,
         tree: user.tree,
+        dni: user.dni,
+        token: user.token,
 
         plans,
         products,
