@@ -110,7 +110,7 @@ async function pay_bonus(
 const handler = async (req, res) => {
   if (req.method == "GET") {
     // Obtener parámetros de paginación
-    const { filter, page = 1, limit = 20, search } = req.query;
+    const { filter, page = 1, limit = 20, search, office } = req.query;
     console.log(
       "Received request with page:",
       page,
@@ -138,6 +138,11 @@ const handler = async (req, res) => {
     let qq = q[filter];
 
     if (account != "admin") qq.office = account;
+    
+    // Agregar filtro de oficina si se proporciona
+    if (office) {
+      qq.office = office;
+    }
 
     try {
       // Primero obtener todas las afiliaciones que coinciden con el filtro
@@ -645,6 +650,44 @@ const handler = async (req, res) => {
     }
 
     return res.json(success());
+  }
+
+  if (req.method == "PUT") {
+    const { id, office } = req.body;
+
+    if (!id) {
+      return res.json(error("ID de afiliación requerido"));
+    }
+
+    if (!office) {
+      return res.json(error("Oficina requerida"));
+    }
+
+    // Buscar la afiliación
+    const affiliation = await Affiliation.findOne({ id });
+    
+    if (!affiliation) {
+      return res.json(error("Afiliación no encontrada"));
+    }
+
+    // Permitir modificar si está pendiente o aprobada
+    if (affiliation.status !== "pending" && affiliation.status !== "approved") {
+      return res.json(error("Solo se puede modificar la oficina de afiliaciones pendientes o aprobadas"));
+    }
+
+    // Verificar que la oficina existe
+    const officeExists = await Office.findOne({ id: office });
+    if (!officeExists) {
+      return res.json(error("Oficina no encontrada"));
+    }
+
+    // Actualizar la oficina
+    await Affiliation.update(
+      { id },
+      { office: office }
+    );
+
+    return res.json(success({ message: "Oficina actualizada correctamente" }));
   }
 };
 
