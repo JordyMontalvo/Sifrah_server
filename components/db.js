@@ -10,6 +10,7 @@ class DB {
     Affiliation,
     Product,
     Activation,
+    Period,
     Banner,
     Promo,
     Prom,
@@ -31,6 +32,7 @@ class DB {
     this.Affiliation = Affiliation;
     this.Product = Product;
     this.Activation = Activation;
+    this.Period = Period;
     this.Banner = Banner;
     this.Promo = Promo;
     this.Prom = Prom;
@@ -376,6 +378,51 @@ class Activation {
     const conn = await client.connect();
     const db = conn.db(name);
     await db.collection("activations").deleteOne(query);
+    return client.close();
+  }
+}
+
+class Period {
+  async findOne(query) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    const period = await db.collection("periods").findOne(query);
+    client.close();
+    return period;
+  }
+
+  async find(query) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    const periods = await db.collection("periods").find(query).toArray();
+    client.close();
+    return periods;
+  }
+
+  async findOneLast(query) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    const periods = await db.collection("periods").find(query).toArray();
+    client.close();
+    return periods && periods.length ? periods[periods.length - 1] : null;
+  }
+
+  async insert(period) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    await db.collection("periods").insertOne(period);
+    return client.close();
+  }
+
+  async update(query, values) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    await db.collection("periods").updateOne(query, { $set: values });
     return client.close();
   }
 }
@@ -826,6 +873,7 @@ module.exports = new DB({
   Affiliation: new Affiliation(),
   Product: new Product(),
   Activation: new Activation(),
+  Period: new Period(),
   Banner: new Banner(),
   Promo: new Promo(),
   Prom: new Prom(),

@@ -1,10 +1,9 @@
 import MLMAIService from '../../../components/mlm-ai-service';
+const { applyCORS } = require('../../../middleware/middleware-cors');
 
 export default async function handler(req, res) {
   // Aplicar CORS
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  applyCORS(req, res);
 
   if (req.method === 'OPTIONS') {
     res.status(200).end();
@@ -37,4 +36,4 @@ export default async function handler(req, res) {
       details: error.message
     });
   }
-} 
+}

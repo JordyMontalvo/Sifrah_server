@@ -25,14 +25,10 @@ export default async function handler(req, res) {
     if (pageNum < 1 || limitNum < 1 || limitNum > 100) {
       return res.status(400).json({ error: 'Invalid pagination parameters' });
     }
+    const result = await MLMPredictionService.getAllPredictions(pageNum, limitNum, filter, search);
 
-    // Obtener predicciones reales usando el servicio MLM
-    const result = await MLMPredictionService.getAllPredictions(
-      pageNum, 
-      limitNum, 
-      filter, 
-      search
-    );
+    // Endpoint DEPRECADO: usa /api/admin/ai-leadership-predictions?source=mlm
+    console.warn('⚠️ Endpoint deprecado: /api/admin/leadership-predictions. Usa /api/admin/ai-leadership-predictions?source=mlm');
 
     res.status(200).json(result);
 
@@ -43,4 +39,4 @@ export default async function handler(req, res) {
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
-} 
+}

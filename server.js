@@ -1,3 +1,4 @@
+require('dotenv').config();
 const { createServer } = require('http');
 const { parse } = require('url');
 const next = require('next');
@@ -48,4 +49,4 @@ app.prepare().then(() => {
       console.log(`> Host: ${hostname}`);
       console.log(`> Timeout: ${config.serverTimeout}ms`);
     });
-}); 
+});

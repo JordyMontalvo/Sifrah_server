@@ -104,8 +104,37 @@ npm run build    # Build para producción
 npm start        # Servidor de producción
 
 # Scripts de utilidad
-node scripts/test-email-config.js  # Probar email
+node scripts/change-email-sender.js  # Cambiar email de envío
+node scripts/test-email-config.js    # Probar configuración de email
 ```
+
+## 📧 Configurar Email de Envío
+
+### Cambiar el email que envía los correos (recuperación, bienvenida, etc.)
+
+**Opción 1: Script automático (Recomendado)**
+```bash
+node scripts/change-email-sender.js
+```
+
+**Opción 2: Manual**
+1. Obtén un **App Password** de Gmail en: https://myaccount.google.com/apppasswords
+2. Crea el archivo `.env` en `/server/` con:
+   ```env
+   EMAIL_USER=tu-nuevo-email@gmail.com
+   EMAIL_PASS=tu-app-password-de-16-caracteres
+   ADMIN_EMAIL=admin@sifrah.com
+   FRONTEND_URL=http://localhost:8080
+   ```
+3. Prueba: `node scripts/test-email-config.js`
+
+**Para producción (Heroku):**
+```bash
+heroku config:set EMAIL_USER="tu-email@gmail.com" --app tu-app
+heroku config:set EMAIL_PASS="tu-app-password" --app tu-app
+```
+
+📖 **Guía detallada:** `CAMBIAR_EMAIL_RAPIDO.md` o `GUIA_CAMBIAR_EMAIL.md`
 
 ## 📦 Tecnologías
 

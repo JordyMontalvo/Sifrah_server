@@ -4,6 +4,82 @@ import lib from "../../../components/lib"
 const { User, Session, Product, Activation, Office, Transaction } = db
 const { error, success, midd, map, rand, acum } = lib
 
+const MONTHS_ES = [
+  "Enero",
+  "Febrero",
+  "Marzo",
+  "Abril",
+  "Mayo",
+  "Junio",
+  "Julio",
+  "Agosto",
+  "Septiembre",
+  "Octubre",
+  "Noviembre",
+  "Diciembre",
+];
+
+function buildPeriodKey(year, month) {
+  const mm = String(month).padStart(2, "0");
+  return `${year}-${mm}`;
+}
+
+function buildPeriodLabel(year, month) {
+  const mName = MONTHS_ES[month - 1] || `Mes ${month}`;
+  return `${mName} ${year}`;
+}
+
+/**
+ * Obtiene el periodo abierto actual o crea uno nuevo.
+ * 
+ * IMPORTANTE: Esta función asigna el periodo ABIERTO en el momento de la compra,
+ * no el periodo del mes de la fecha. Esto permite que:
+ * - Un periodo puede iniciarse en cualquier fecha (ej: 2 de enero)
+ * - Ese periodo puede cerrarse en cualquier fecha posterior (ej: 3 de febrero)
+ * - Todas las compras entre el inicio y el cierre pertenecen a ese periodo,
+ *   sin importar que se hayan hecho en un mes diferente
+ * 
+ * Ejemplo:
+ * - Periodo "Enero 2025" iniciado el 2 de enero, cerrado el 3 de febrero
+ * - Todas las compras del 2 de enero al 3 de febrero pertenecen a "Enero 2025"
+ * - Incluso las compras del 1-3 de febrero pertenecen a "Enero 2025" (hasta que se cierre)
+ */
+async function getOrCreateOpenPeriod(Period, now = new Date()) {
+  // Buscar todos los periodos abiertos
+  const openPeriods = await Period.find({ status: "open" });
+  
+  // Si hay periodos abiertos, usar el más reciente (por fecha de creación)
+  // Esto asegura que se use el periodo que está actualmente activo
+  if (openPeriods && openPeriods.length) {
+    openPeriods.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    return openPeriods[0];
+  }
+
+  // Si no hay periodos abiertos, crear uno nuevo del mes actual
+  // Esto solo debería pasar si es la primera vez que se usa el sistema
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+  const key = buildPeriodKey(year, month);
+
+  // Verificar si ya existe un periodo con esa key (puede estar cerrado)
+  const existing = await Period.findOne({ key });
+  if (existing && existing.status !== "closed") return existing;
+
+  // Crear nuevo periodo
+  const period = {
+    id: rand(),
+    key,
+    year,
+    month,
+    label: buildPeriodLabel(year, month),
+    status: "open",
+    createdAt: now,
+    closedAt: null,
+  };
+  await Period.insert(period);
+  return period;
+}
+
 
 export default async (req, res) => {
   await midd(req, res)
@@ -201,6 +277,8 @@ export default async (req, res) => {
     }
 
     // save new activation
+    const { Period } = db
+    const period = await getOrCreateOpenPeriod(Period, new Date())
     await Activation.insert({
       id:     rand(),
       date:   new Date(),
@@ -209,6 +287,8 @@ export default async (req, res) => {
       price,
       points,
       total,
+      period_key: period.key,
+      period_label: period.label,
       // _total,
       check,
       voucher,

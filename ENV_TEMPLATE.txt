@@ -1,0 +1,58 @@
+# ===================================
+# CONFIGURACIÓN DE EMAIL - SIFRAH
+# ===================================
+# INSTRUCCIONES: Copia este contenido a un archivo llamado .env
+# en el directorio /server/
+
+# Email que enviará los correos (Gmail)
+EMAIL_USER=tu-email@gmail.com
+
+# App Password de Gmail (16 caracteres sin espacios)
+EMAIL_PASS=abcdefghijklmnop
+
+# Email del administrador (donde llegan mensajes de contacto)
+ADMIN_EMAIL=admin@sifrah.com
+
+# URL del frontend (donde están los formularios)
+FRONTEND_URL=https://tu-frontend.vercel.app
+
+# ===================================
+# CONFIGURACIÓN DE BASE DE DATOS
+# ===================================
+
+# MongoDB URI
+MONGODB_URI=mongodb://localhost:27017
+DB_URL=mongodb://127.0.0.1:27017/sifrah?directConnection=true
+
+# ===================================
+# CONFIGURACIÓN GENERAL
+# ===================================
+
+# Ambiente
+NODE_ENV=development
+
+# Puerto del servidor
+PORT=3000
+
+# ===================================
+# CORS (Opcional - para producción)
+# ===================================
+
+# Orígenes permitidos (separados por coma)
+# CORS_ORIGINS=https://sifrah.vercel.app,https://sifrah-admin.vercel.app
+
+# ===================================
+# EJEMPLO DE CONFIGURACIÓN REAL:
+# ===================================
+# EMAIL_USER=notificaciones@miempresa.com
+# EMAIL_PASS=abcd efgh ijkl mnop
+# ADMIN_EMAIL=soporte@miempresa.com
+# FRONTEND_URL=https://sifrah.vercel.app
+
+
+
+
+
+
+
+

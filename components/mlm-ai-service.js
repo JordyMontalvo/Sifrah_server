@@ -1,9 +1,12 @@
 import { connectDB } from './db-connect';
+// Cargar variables de entorno desde .env en cualquier modo (dev/prod)
+require('dotenv').config();
+const _fetch = typeof fetch === 'function' ? fetch : require('node-fetch');
 
 class MLMAIService {
   constructor() {
     this.db = null;
-    this.pythonApiUrl = process.env.PYTHON_API_URL || 'http://localhost:5001';
+    this.pythonApiUrl = process.env.PYTHON_API_URL || 'http://localhost:5000';
   }
 
   async connect() {
@@ -16,12 +19,26 @@ class MLMAIService {
   // Verificar estado del modelo de IA
   async checkAIHealth() {
     try {
-      const response = await fetch(`${this.pythonApiUrl}/health`);
-      const data = await response.json();
+      const responseHealth = await _fetch(`${this.pythonApiUrl}/health`);
+      const healthData = await responseHealth.json();
+
+      // Intentar obtener información detallada del modelo
+      let algorithm = 'No disponible';
+      try {
+        const responseInfo = await _fetch(`${this.pythonApiUrl}/model/info`);
+        if (responseInfo.ok) {
+          const infoJson = await responseInfo.json();
+          const infoData = infoJson.data || infoJson;
+          algorithm = infoData.model_algorithm || infoData.algorithm || infoData.classifier || infoData.model_type || infoData.model_name || algorithm;
+        }
+      } catch (e) {
+        // Silenciar errores de info, la salud es suficiente
+      }
+
       return {
-        healthy: data.status === 'healthy',
-        algorithm: data.model_loaded ? 'GradientBoosting' : 'No disponible',
-        features_count: data.features_count
+        healthy: healthData.status === 'healthy',
+        algorithm,
+        features_count: healthData.features_count
       };
     } catch (error) {
       console.error('Error checking AI health:', error);
@@ -90,8 +107,17 @@ class MLMAIService {
     // Features de red
     const networkAnalysis = this.analyzeNetwork(user.id, treeData, activations, affiliations);
     
+    // Ventana para actividad mensual
+    const monthsWindow = 6;
     // Features de actividad por mes
-    const monthlyActivity = this.analyzeMonthlyActivity(activations, affiliations, transactions, 6);
+    const monthlyActivity = this.analyzeMonthlyActivity(activations, affiliations, transactions, monthsWindow);
+    // Derivar promedios mensuales
+    const monthlyActivationsAvg = monthlyActivity.activations / Math.max(1, monthsWindow);
+    const monthlyAffiliationsAvg = monthlyActivity.affiliations / Math.max(1, monthsWindow);
+    // Consistencia de actividad (0-1), más exigente hacia 3 activaciones/mes
+    const activityConsistency = Math.min(1, monthlyActivationsAvg / 3);
+    // Indicador: al menos 4 directos y ambos (activaciones y afiliaciones) presentes
+    const teamCoactivation4plus = (networkAnalysis.directChildren >= 4 && monthlyActivationsAvg >= 1 && monthlyAffiliationsAvg >= 1) ? 1 : 0;
     
     // Features de afiliaciones y referidos
     const referralAnalysis = this.analyzeReferrals(user.id, affiliations, activations);
@@ -148,24 +174,50 @@ class MLMAIService {
       points: safeValue(points),
       affiliation_points: safeValue(affiliationPoints),
       network_level: safeValue(networkAnalysis.level),
+      network_depth: safeValue(networkAnalysis.maxDepth),
       children_count: safeValue(networkAnalysis.directChildren),
       network_size: safeValue(networkAnalysis.totalNetworkSize),
+
+      // NUEVAS VARIABLES centradas en actividad mensual y trabajo en equipo
+      monthly_activations: safeValue(monthlyActivationsAvg),
+      monthly_affiliations: safeValue(monthlyAffiliationsAvg),
+      activity_consistency: safeValue(activityConsistency),
+      team_coactivation_4plus: safeValue(teamCoactivation4plus),
+
+      // Variables de referidos y actividad reciente
+      referrals_direct: safeValue(referralAnalysis.activeReferrals),
+      referrals_indirect: safeValue(referralAnalysis.inactiveReferrals),
+      recent_activity_days: safeValue(engagementAnalysis.daysSinceLastActivity),
+
+      // Transacciones (se calculan pero el modelo de calidad las ignora)
       total_transactions: safeValue(transactions.length),
       total_transaction_value: safeValue(totalTransactionValue),
       avg_transaction_value: safeValue(avgTransactionValue),
+
+      // Afiliaciones
       total_affiliations: safeValue(affiliations.length),
       total_affiliation_value: safeValue(totalAffiliationValue),
       avg_affiliation_value: safeValue(avgAffiliationValue),
       affiliation_frequency: safeValue(affiliationFrequency),
+
+      // Activaciones
       total_activations: safeValue(activations.length),
       total_activation_value: safeValue(totalActivationValue),
       avg_activation_value: safeValue(avgActivationValue),
+
+      // Recolecciones
       total_collects: safeValue(collects.length),
       total_collect_value: safeValue(totalCollectValue),
       avg_collect_value: safeValue(avgCollectValue),
+
+      // Engagement y crecimiento
       engagement_score: safeValue(engagementAnalysis.engagementScore),
       growth_potential: safeValue(growthPotential),
-      leadership_score: safeValue(leadershipScore)
+      leadership_score: safeValue(leadershipScore),
+
+      // Placeholders de árbol (si el modelo los requiere)
+      tree_branching_factor: 0,
+      children_growth_rate: 0
     };
   }
 
@@ -358,19 +410,36 @@ class MLMAIService {
   // Predicción usando el modelo de IA
   async predictWithAIModel(features) {
     try {
-      const axios = require('axios');
-      const response = await axios.post(`${this.pythonApiUrl}/predict`, features, {
+      const timeoutMs = 10000;
+      const hasAbort = typeof AbortController !== 'undefined';
+      const controller = hasAbort ? new AbortController() : null;
+      let timeoutId;
+      if (controller) {
+        timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      }
+
+      const response = await _fetch(`${this.pythonApiUrl}/predict`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        timeout: 10000
+        body: JSON.stringify(features),
+        signal: controller ? controller.signal : undefined,
       });
 
-      if (!response.data.success) {
-        throw new Error(response.data.error || 'Error en predicción de IA');
+      if (timeoutId) clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`HTTP ${response.status}: ${text || 'Error en predicción de IA'}`);
       }
 
-      return response.data.data;
+      const json = await response.json();
+      if (!json.success) {
+        throw new Error(json.error || 'Error en predicción de IA');
+      }
+
+      return json.data;
     } catch (error) {
       console.error('Error en predicción de IA:', error);
       throw error;
@@ -381,47 +450,52 @@ class MLMAIService {
   normalizeProbabilities(aiPrediction) {
     const probabilities = aiPrediction.probabilities || {};
     const originalProbability = aiPrediction.probability || 0;
-    
-    // Si la probabilidad es muy extrema (>0.99), aplicar normalización
-    if (originalProbability > 0.99) {
-      const level = aiPrediction.leadership_level || 'Bajo';
-      
-      // Crear probabilidades más realistas basadas en el nivel
-      let normalizedProbs = { Bajo: 0.3, Medio: 0.4, Alto: 0.3 };
-      
+    const level = aiPrediction.leadership_level || 'Bajo';
+
+    // Asegurar que existan todas las llaves y que sumen 1
+    let normalizedProbs = {
+      Bajo: typeof probabilities.Bajo === 'number' ? probabilities.Bajo : 0,
+      Medio: typeof probabilities.Medio === 'number' ? probabilities.Medio : 0,
+      Alto: typeof probabilities.Alto === 'number' ? probabilities.Alto : 0,
+    };
+
+    let total = Object.values(normalizedProbs).reduce((sum, val) => sum + val, 0);
+
+    // Si el modelo no entregó una distribución válida, crear una determinística basada en el nivel
+    if (total <= 0) {
       if (level === 'Alto') {
-        normalizedProbs = { Bajo: 0.1, Medio: 0.3, Alto: 0.6 };
+        normalizedProbs = { Bajo: 0.05, Medio: 0.15, Alto: 0.8 };
       } else if (level === 'Medio') {
-        normalizedProbs = { Bajo: 0.2, Medio: 0.6, Alto: 0.2 };
+        normalizedProbs = { Bajo: 0.1, Medio: 0.8, Alto: 0.1 };
       } else {
-        normalizedProbs = { Bajo: 0.7, Medio: 0.2, Alto: 0.1 };
+        normalizedProbs = { Bajo: 0.8, Medio: 0.15, Alto: 0.05 };
       }
-      
-      // Agregar ruido aleatorio para hacer más realista
-      const noise = 0.05;
-      Object.keys(normalizedProbs).forEach(key => {
-        normalizedProbs[key] = Math.max(0, Math.min(1, 
-          normalizedProbs[key] + (Math.random() - 0.5) * noise
-        ));
-      });
-      
-      // Normalizar para que sumen 1
-      const total = Object.values(normalizedProbs).reduce((sum, val) => sum + val, 0);
-      Object.keys(normalizedProbs).forEach(key => {
-        normalizedProbs[key] = normalizedProbs[key] / total;
-      });
-      
-      return {
-        ...aiPrediction,
-        probabilities: normalizedProbs,
-        probability: normalizedProbs[level] || originalProbability,
-        normalized_probability: normalizedProbs[level] || originalProbability
-      };
+      total = 1;
     }
-    
+
+    // Normalizar para que sumen 1
+    if (Math.abs(total - 1) > 1e-6) {
+      Object.keys(normalizedProbs).forEach(key => {
+        normalizedProbs[key] = normalizedProbs[key] / (total || 1);
+      });
+    }
+
+    // Manejar casos extremos (>0.99) SIN ruido aleatorio
+    if (originalProbability > 0.99) {
+      if (level === 'Alto') {
+        normalizedProbs = { Bajo: 0.02, Medio: 0.03, Alto: 0.95 };
+      } else if (level === 'Medio') {
+        normalizedProbs = { Bajo: 0.05, Medio: 0.9, Alto: 0.05 };
+      } else {
+        normalizedProbs = { Bajo: 0.95, Medio: 0.03, Alto: 0.02 };
+      }
+    }
+
     return {
       ...aiPrediction,
-      normalized_probability: originalProbability
+      probabilities: normalizedProbs,
+      probability: aiPrediction.probability,
+      normalized_probability: normalizedProbs[level] || originalProbability,
     };
   }
 
@@ -538,10 +612,10 @@ class MLMAIService {
       consistencyScore // 10% peso a la consistencia
     );
     
-    // BONUS ESPECIAL: Multiplicador por nivel de liderazgo
+    // BONUS ESPECIAL: Multiplicador por nivel de liderazgo (reducido para evitar saturación)
     let finalScore = totalScore;
-    if (level === 'Alto') finalScore *= 1.2; // 20% bonus para líderes altos
-    else if (level === 'Medio') finalScore *= 1.1; // 10% bonus para líderes medios
+    if (level === 'Alto') finalScore *= 1.05; // antes 1.2
+    else if (level === 'Medio') finalScore *= 1.02; // antes 1.1
     
     // Convertir a ranking (1-395, donde 1 es el mejor)
     const finalRanking = Math.max(1, Math.ceil((100 - finalScore) * 3.95) + 1);
@@ -567,38 +641,38 @@ class MLMAIService {
     // Score base: probabilidad de IA (0-100)
     let leadershipScore = probability * 100;
     
-    // Bonus por red grande
+    // Bonus por red grande (valores más conservadores)
     const networkSize = features.network_size || 0;
-    if (networkSize >= 50) leadershipScore += 20;
-    else if (networkSize >= 30) leadershipScore += 15;
-    else if (networkSize >= 20) leadershipScore += 12;
-    else if (networkSize >= 10) leadershipScore += 10;
-    else if (networkSize >= 5) leadershipScore += 8;
+    if (networkSize >= 50) leadershipScore += 12;
+    else if (networkSize >= 30) leadershipScore += 9;
+    else if (networkSize >= 20) leadershipScore += 7;
+    else if (networkSize >= 10) leadershipScore += 5;
+    else if (networkSize >= 5) leadershipScore += 3;
     
-    // Bonus por actividad
-    const monthlyActivations = features.monthly_activations || 0;
-    if (monthlyActivations >= 10) leadershipScore += 15;
-    else if (monthlyActivations >= 5) leadershipScore += 12;
-    else if (monthlyActivations >= 3) leadershipScore += 10;
-    else if (monthlyActivations >= 1) leadershipScore += 5;
+    // Bonus por actividad (más conservador)
+    const monthlyActivations = features.total_activations || 0;
+    if (monthlyActivations >= 10) leadershipScore += 8;
+    else if (monthlyActivations >= 5) leadershipScore += 6;
+    else if (monthlyActivations >= 3) leadershipScore += 4;
+    else if (monthlyActivations >= 1) leadershipScore += 2;
     
     // Bonus por plan
     const planLevel = features.plan_level || 1;
-    if (planLevel >= 5) leadershipScore += 15; // Crown
-    else if (planLevel >= 4) leadershipScore += 12; // Diamond
-    else if (planLevel >= 3) leadershipScore += 10; // Master
-    else if (planLevel >= 2) leadershipScore += 8; // Pioneer
-    else leadershipScore += 5; // Basic
+    if (planLevel >= 5) leadershipScore += 8; // Crown
+    else if (planLevel >= 4) leadershipScore += 6; // Diamond
+    else if (planLevel >= 3) leadershipScore += 4; // Master
+    else if (planLevel >= 2) leadershipScore += 3; // Pioneer
+    else leadershipScore += 2; // Basic
     
     // Bonus por engagement
     const engagementScore = features.engagement_score || 0;
-    if (engagementScore >= 80) leadershipScore += 10;
-    else if (engagementScore >= 60) leadershipScore += 8;
-    else if (engagementScore >= 40) leadershipScore += 5;
+    if (engagementScore >= 80) leadershipScore += 6;
+    else if (engagementScore >= 60) leadershipScore += 4;
+    else if (engagementScore >= 40) leadershipScore += 2;
     
-    // Multiplicador por nivel de liderazgo
-    if (level === 'Alto') leadershipScore *= 1.2;
-    else if (level === 'Medio') leadershipScore *= 1.1;
+    // Eliminar multiplicador por nivel para evitar saturación del 100
+    // if (level === 'Alto') leadershipScore *= 1.2;
+    // else if (level === 'Medio') leadershipScore *= 1.1;
     
     return Math.round(Math.min(100, leadershipScore));
   }
@@ -748,6 +822,13 @@ class MLMAIService {
           
           // Calcular score de liderazgo para mostrar en la interfaz
           const leadershipScore = this.calculateLeadershipScore(features, normalizedPrediction);
+
+          // Normalizar potencial de crecimiento para evitar que sea siempre 100 en la interfaz
+          const uiGrowthPotential = Math.min(100,
+            40 * Math.min((features.network_size || 0) / 50, 1) +
+            30 * Math.min((features.engagement_score || 0) / 100, 1) +
+            30 * Math.min((features.total_activations || 0) / 20, 1)
+          );
           
           predictions.push({
             user_id: user._id,
@@ -756,6 +837,8 @@ class MLMAIService {
             dni: user.dni,
             plan_name: user.plan,
             ...features,
+            // Sobrescribir potencial de crecimiento para la salida (sin afectar el payload del modelo)
+            growth_potential: Math.round(uiGrowthPotential),
             ...normalizedPrediction,
             ranking,
             ranking_category: rankingCategory,
@@ -914,4 +997,4 @@ class MLMAIService {
   }
 }
 
-export default new MLMAIService(); 
+export default new MLMAIService();

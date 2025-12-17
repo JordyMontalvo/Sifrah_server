@@ -47,7 +47,7 @@ export default async (req, res) => {
   await midd(req, res);
 
   if (req.method === "GET") {
-    const { filter, page = 1, limit = 20, search, timeRange, office } = req.query;
+    const { filter, page = 1, limit = 20, search, timeRange } = req.query;
     console.log("Received request with page:", page, "and limit:", limit);
     const q = { all: {}, pending: { status: "pending" } };
     const pageNum = parseInt(page, 10);
@@ -128,10 +128,6 @@ export default async (req, res) => {
       if (Object.keys(dateFilter).length > 0) {
         baseFilter = { ...baseFilter, ...dateFilter };
       }
-      // Agregar filtro de oficina si aplica
-      if (office) {
-        baseFilter.office = office;
-      }
       // Si hay búsqueda, busca los usuarios y filtra por userId
       if (search) {
         const users = await db
@@ -190,44 +186,6 @@ export default async (req, res) => {
       console.error("Database connection error:", error);
       return res.status(500).json(lib.error("Database connection error"));
     }
-  }
-
-  if (req.method == "PUT") {
-    const { id, office } = req.body;
-
-    if (!id) {
-      return res.json(error("ID de activación requerido"));
-    }
-
-    if (!office) {
-      return res.json(error("Oficina requerida"));
-    }
-
-    // Buscar la activación
-    const activation = await Activation.findOne({ id });
-    
-    if (!activation) {
-      return res.json(error("Activación no encontrada"));
-    }
-
-    // Permitir modificar si está pendiente o aprobada
-    if (activation.status !== "pending" && activation.status !== "approved") {
-      return res.json(error("Solo se puede modificar la oficina de activaciones pendientes o aprobadas"));
-    }
-
-    // Verificar que la oficina existe
-    const officeExists = await Office.findOne({ id: office });
-    if (!officeExists) {
-      return res.json(error("Oficina no encontrada"));
-    }
-
-    // Actualizar la oficina
-    await Activation.update(
-      { id },
-      { office: office }
-    );
-
-    return res.json(success({ message: "Oficina actualizada correctamente" }));
   }
 
   if (req.method == "POST") {
@@ -386,20 +344,10 @@ export default async (req, res) => {
           return !compensatedTransactionIds.has(transaction.id);
         });
 
-        console.log(`📊 Transacciones virtuales encontradas: ${transactions.length}`);
-        console.log(`✅ Transacciones válidas para migrar: ${validTransactions.length}`);
-        
         for (let transaction of validTransactions) {
-          console.log('🔄 Migrando transacción:', { id: transaction.id, value: transaction.value, type: transaction.type, date: transaction.date });
+          console.log({ transaction });
           await Transaction.update({ id: transaction.id }, { virtual: false });
         }
-        
-        console.log(`✅ Migración completada. ${validTransactions.length} transacciones migradas de virtual (no disponible) a disponible.`);
-      } else {
-        console.log('ℹ️  No se requiere migración de saldo:');
-        console.log('   - Usuario ya estaba activado antes:', wasActivatedBefore);
-        console.log('   - Usuario está activado ahora:', activated);
-        console.log('   - Puntos totales:', points_total);
       }
 
       // UPDATE STOCK
