@@ -126,6 +126,13 @@ export default async (req, res) => {
     console.log('Affiliation POST - voucher:', voucher ? 'existe' : 'null');
     console.log('Affiliation POST - voucher2:', voucher2 ? voucher2 : 'null');
 
+    // Validación obligatoria: Oficina de recojo (PDE)
+    // Evita afiliaciones/upgrade sin oficina seleccionada.
+    const officeId = office != null ? String(office).trim() : ""
+    if (!officeId) return res.json(error("Selecciona una Oficina de Recojo (PDE)."))
+    const officeDoc = await Office.findOne({ id: officeId, active: { $ne: false } })
+    if (!officeDoc) return res.json(error("La Oficina de Recojo (PDE) seleccionada no es válida."))
+
     // Buscar el plan seleccionado
     plan = plans.find((e) => e.id == plan.id);
     console.log({ plan });
