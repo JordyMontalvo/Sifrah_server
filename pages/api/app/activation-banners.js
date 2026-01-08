@@ -9,6 +9,7 @@ export default async (req, res) => {
 
   let { session } = req.query
 
+  
   // valid session
   session = await Session.findOne({ value: session })
   if(!session) return res.json(error('invalid session'))
