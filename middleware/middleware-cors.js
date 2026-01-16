@@ -6,37 +6,35 @@ const allowedOrigins = [
   'http://localhost:8080',
   'http://localhost:3000',
   
-  // Producción - Vercel
-  'https://sifrah.vercel.app',
-  'https://sifrah-admin.vercel.app',
-  'https://sifrah-admin-git-main-saywite.vercel.app',
+  // Producción - Desde variables de entorno
+  ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
+  ...(process.env.ADMIN_URL ? [process.env.ADMIN_URL] : []),
+  ...(process.env.BACKEND_URL ? [process.env.BACKEND_URL] : []),
   
-  // Heroku - Se configuran automáticamente
-  ...(process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',') : []),
+  // Orígenes adicionales desde CORS_ORIGINS (separados por coma)
+  ...(process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',').map(o => o.trim()) : []),
   
-  // Permitir todos los orígenes en producción si no hay restricciones específicas
-  ...(process.env.NODE_ENV === 'production' && !process.env.CORS_ORIGINS ? ['*'] : [])
-];
+  // Fallback para producción si no hay variables de entorno configuradas
+  ...(process.env.NODE_ENV === 'production' && !process.env.FRONTEND_URL ? [
+    'https://sifrah.vercel.app',
+    'https://sifrah-admin.vercel.app',
+  ] : []),
+];  
 
 function corsMiddleware(req, res, next) {
   const origin = req.headers.origin;
   
-  // En producción, ser más permisivo con CORS
-  if (process.env.NODE_ENV === 'production') {
-    // Si hay un origen específico y está en la lista, usarlo
-    if (origin && allowedOrigins.includes(origin)) {
-      res.setHeader('Access-Control-Allow-Origin', origin);
-    } else {
-      // En producción, permitir el origen que viene en la request
-      res.setHeader('Access-Control-Allow-Origin', origin || '*');
-    }
-  } else {
-    // En desarrollo, usar la lógica original
-    if (origin && allowedOrigins.includes(origin)) {
-      res.setHeader('Access-Control-Allow-Origin', origin);
-    } else {
-      res.setHeader('Access-Control-Allow-Origin', 'http://localhost:8081');
-    }
+  // Siempre permitir el origen de la request si está en la lista permitida
+  if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } 
+  // En producción, permitir cualquier origen que venga en la request
+  else if (process.env.NODE_ENV === 'production' && origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } 
+  // En desarrollo, usar localhost:8081 por defecto
+  else {
+    res.setHeader('Access-Control-Allow-Origin', 'http://localhost:8081');
   }
   
   res.setHeader('Access-Control-Allow-Credentials', true);
@@ -56,22 +54,17 @@ function corsMiddleware(req, res, next) {
 function applyCORS(req, res) {
   const origin = req.headers.origin;
   
-  // En producción, ser más permisivo con CORS
-  if (process.env.NODE_ENV === 'production') {
-    // Si hay un origen específico y está en la lista, usarlo
-    if (origin && allowedOrigins.includes(origin)) {
-      res.setHeader('Access-Control-Allow-Origin', origin);
-    } else {
-      // En producción, permitir el origen que viene en la request
-      res.setHeader('Access-Control-Allow-Origin', origin || '*');
-    }
-  } else {
-    // En desarrollo, usar la lógica original
-    if (origin && allowedOrigins.includes(origin)) {
-      res.setHeader('Access-Control-Allow-Origin', origin);
-    } else {
-      res.setHeader('Access-Control-Allow-Origin', 'http://localhost:8081');
-    }
+  // Siempre permitir el origen de la request si está en la lista permitida
+  if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } 
+  // En producción, permitir cualquier origen que venga en la request
+  else if (process.env.NODE_ENV === 'production' && origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } 
+  // En desarrollo, usar localhost:8081 por defecto
+  else {
+    res.setHeader('Access-Control-Allow-Origin', 'http://localhost:8081');
   }
   
   res.setHeader('Access-Control-Allow-Credentials', true);
