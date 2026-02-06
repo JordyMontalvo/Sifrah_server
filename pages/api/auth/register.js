@@ -36,14 +36,32 @@ const Register = async (req, res) => {
   
   password = await bcrypt.hash(password, 12)
 
-  const      id  = rand()
+
+  const      id  = rand() + rand() + rand()
   const session  = rand() + rand() + rand()
 
 
-  // reserve Token
-  const token = await Token.findOne({ free: true })
-  if(!token) return res.json(error('token not available'))
-  await Token.update({ value: token.value }, { free: false })
+  // Generate a unique token dynamically (instead of using a pre-generated pool)
+  let token = null
+  let attempts = 0
+  const maxAttempts = 10
+  
+  while (!token && attempts < maxAttempts) {
+    const generatedToken = lib.generateToken()
+    
+    // Check if token already exists
+    const existingToken = await User.findOne({ token: generatedToken })
+    
+    if (!existingToken) {
+      token = generatedToken
+    }
+    attempts++
+  }
+  
+  // If we couldn't generate a unique token after max attempts, return error
+  if (!token) {
+    return res.json(error('unable to generate unique token'))
+  }
 
 
   await User.insert({
@@ -69,7 +87,7 @@ const Register = async (req, res) => {
     points: 0,
     // tree: false,
     tree: true,
-    token: token.value,
+    token: token,
   })
   
   // save new session

@@ -388,10 +388,23 @@ const handler = async (req, res) => {
       await lib.updateTotalPointsCascade(User, Tree, user.id);
 
       if (!user.tree) {
-        // reserve Token
-        const token = await Token.findOne({ free: true });
-        if (!token) return res.json(error("token not available"));
-        await Token.update({ value: token.value }, { free: false });
+        // Generate a unique token dynamically
+        let token = null;
+        let attempts = 0;
+        const maxAttempts = 10;
+        
+        while (!token && attempts < maxAttempts) {
+          const generatedToken = lib.generateToken();
+          const existingToken = await User.findOne({ token: generatedToken });
+          if (!existingToken) {
+            token = generatedToken;
+          }
+          attempts++;
+        }
+        
+        if (!token) {
+          return res.json(error('unable to generate unique token'));
+        }
 
         // insert to tree
         // Usar parent.id directamente (ya no se usa apalancamiento/coverage)
@@ -410,7 +423,7 @@ const handler = async (req, res) => {
           { id: user.id },
           {
             tree: true,
-            token: token.value,
+            token: token,
           }
         );
       }

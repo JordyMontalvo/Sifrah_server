@@ -30,12 +30,27 @@ const LoginGoogle = async (req, res) => {
 
   if (!user) {
     // Crear usuario básico (sin afiliación ni código)
-    const id = rand();
+    const id = rand() + rand() + rand();
     const session = rand() + rand() + rand();
-    // Buscar un token libre
-    const token = await Token.findOne({ free: true });
-    if (!token) return res.json(error("token not available"));
-    await Token.update({ value: token.value }, { free: false });
+    
+    // Generate a unique token dynamically
+    let token = null;
+    let attempts = 0;
+    const maxAttempts = 10;
+    
+    while (!token && attempts < maxAttempts) {
+      const generatedToken = lib.generateToken();
+      const existingToken = await User.findOne({ token: generatedToken });
+      if (!existingToken) {
+        token = generatedToken;
+      }
+      attempts++;
+    }
+    
+    if (!token) {
+      return res.json(error('unable to generate unique token'));
+    }
+    
     await User.insert({
       id,
       date: new Date(),
@@ -54,7 +69,7 @@ const LoginGoogle = async (req, res) => {
       plan: "default",
       points: 0,
       tree: true,
-      token: token.value,
+      token: token,
     });
     // Crear sesión
     await Session.insert({ id, value: session });

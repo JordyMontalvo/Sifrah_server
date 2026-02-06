@@ -15,6 +15,17 @@ class Lib {
   rand() {
     return Math.random().toString(36).substr(2);
   }
+  
+  // Generate a unique 6-character token (e.g., "A3B5C7")
+  generateToken() {
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let token = '';
+    for (let i = 0; i < 6; i++) {
+      token += characters.charAt(Math.floor(Math.random() * characters.length));
+    }
+    return token;
+  }
+  
   error(msg) {
     return { error: true, msg };
   }
