@@ -25,6 +25,28 @@ export default async (req, res) => {
     const account = user.account ? user.account : null
     const ibk = user.ibk ? user.ibk : null
 
+    // Si el usuario no tiene token, generar uno automáticamente
+    let token = user.token
+    if (!token || token === null) {
+      // Generar un token único
+      let attempts = 0
+      const maxAttempts = 10
+      
+      while (!token && attempts < maxAttempts) {
+        const generatedToken = lib.generateToken()
+        const existingToken = await User.findOne({ token: generatedToken })
+        if (!existingToken) {
+          token = generatedToken
+        }
+        attempts++
+      }
+      
+      // Actualizar el usuario con el nuevo token
+      if (token) {
+        await User.update({ id: user.id }, { token })
+      }
+    }
+
     // response
     return res.json(success({
       affiliated: user.affiliated,
@@ -43,7 +65,7 @@ export default async (req, res) => {
       phone: user.phone,
       birthdate: user.birthdate,
       address: user.address,
-      token: user.token,
+      token: token,
       city: user.city,
 
       bank,
