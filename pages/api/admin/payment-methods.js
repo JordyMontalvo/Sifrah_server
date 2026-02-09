@@ -7,7 +7,7 @@ const { success, midd } = lib
 export default async (req, res) => {
   await midd(req, res)
 
-  if(req.method == 'GET') {
+  if (req.method == 'GET') {
     try {
       const paymentMethods = await PaymentMethod.find({})
       return res.json(success({ paymentMethods }))
@@ -17,28 +17,28 @@ export default async (req, res) => {
     }
   }
 
-  if(req.method == 'POST') {
+  if (req.method == 'POST') {
     const { paymentMethod } = req.body
 
-    if(!paymentMethod) {
+    if (!paymentMethod) {
       return res.status(400).json({ error: true, message: 'Datos del método de pago requeridos' })
     }
 
     // Validar campos obligatorios
-    if(!paymentMethod.cuenta || !paymentMethod.titular || !paymentMethod.banco || !paymentMethod.tipo) {
-      return res.status(400).json({ 
-        error: true, 
-        message: 'Los campos cuenta, titular, banco y tipo son obligatorios' 
+    if (!paymentMethod.cuenta || !paymentMethod.titular || !paymentMethod.banco || !paymentMethod.tipo) {
+      return res.status(400).json({
+        error: true,
+        message: 'Los campos cuenta, titular, banco y tipo son obligatorios'
       })
     }
 
     try {
       // Verificar si ya existe un método con la misma cuenta
       const existingMethod = await PaymentMethod.findOne({ cuenta: paymentMethod.cuenta })
-      if(existingMethod) {
-        return res.status(400).json({ 
-          error: true, 
-          message: 'Ya existe un método de pago con esta cuenta' 
+      if (existingMethod) {
+        return res.status(400).json({
+          error: true,
+          message: 'Ya existe un método de pago con esta cuenta'
         })
       }
 
@@ -48,13 +48,14 @@ export default async (req, res) => {
         titular: paymentMethod.titular,
         banco: paymentMethod.banco,
         tipo: paymentMethod.tipo,
+        cci: paymentMethod.cci || "",
         active: paymentMethod.active !== undefined ? paymentMethod.active : true,
         createdAt: new Date(),
         updatedAt: new Date()
       }
-      
+
       await PaymentMethod.insert(newPaymentMethod)
-      
+
       return res.json(success({ paymentMethod: newPaymentMethod }))
     } catch (error) {
       console.error('Error al crear método de pago:', error)
@@ -62,57 +63,57 @@ export default async (req, res) => {
     }
   }
 
-  if(req.method == 'PUT') {
+  if (req.method == 'PUT') {
     const { id, paymentMethod } = req.body
 
-    if(!id) {
+    if (!id) {
       return res.status(400).json({ error: true, message: 'ID del método de pago requerido' })
     }
 
-    if(!paymentMethod) {
+    if (!paymentMethod) {
       return res.status(400).json({ error: true, message: 'Datos del método de pago requeridos' })
     }
 
     // Validar campos obligatorios
-    if(!paymentMethod.cuenta || !paymentMethod.titular || !paymentMethod.banco || !paymentMethod.tipo) {
-      return res.status(400).json({ 
-        error: true, 
-        message: 'Los campos cuenta, titular, banco y tipo son obligatorios' 
+    if (!paymentMethod.cuenta || !paymentMethod.titular || !paymentMethod.banco || !paymentMethod.tipo) {
+      return res.status(400).json({
+        error: true,
+        message: 'Los campos cuenta, titular, banco y tipo son obligatorios'
       })
     }
 
     try {
       // Verificar si el método existe
       const existingMethod = await PaymentMethod.findOne({ id })
-      if(!existingMethod) {
-        return res.status(404).json({ 
-          error: true, 
-          message: 'Método de pago no encontrado' 
+      if (!existingMethod) {
+        return res.status(404).json({
+          error: true,
+          message: 'Método de pago no encontrado'
         })
       }
 
       // Verificar si ya existe otro método con la misma cuenta (excluyendo el actual)
-      const duplicateMethod = await PaymentMethod.findOne({ 
+      const duplicateMethod = await PaymentMethod.findOne({
         cuenta: paymentMethod.cuenta,
         id: { $ne: id }
       })
-      if(duplicateMethod) {
-        return res.status(400).json({ 
-          error: true, 
-          message: 'Ya existe otro método de pago con esta cuenta' 
+      if (duplicateMethod) {
+        return res.status(400).json({
+          error: true,
+          message: 'Ya existe otro método de pago con esta cuenta'
         })
       }
 
       // Excluir campos que no deben ser actualizados (_id, id)
       const { _id, id: paymentMethodId, ...paymentMethodData } = paymentMethod
-      
+
       const updatedPaymentMethod = {
         ...paymentMethodData,
         updatedAt: new Date()
       }
-      
+
       await PaymentMethod.update({ id }, updatedPaymentMethod)
-      
+
       return res.json(success({ paymentMethod: { ...existingMethod, ...updatedPaymentMethod } }))
     } catch (error) {
       console.error('Error al actualizar método de pago:', error)
@@ -120,43 +121,43 @@ export default async (req, res) => {
     }
   }
 
-  if(req.method == 'PATCH') {
+  if (req.method == 'PATCH') {
     const { id, action } = req.body
 
-    if(!id) {
+    if (!id) {
       return res.status(400).json({ error: true, message: 'ID del método de pago requerido' })
     }
 
-    if(!action) {
+    if (!action) {
       return res.status(400).json({ error: true, message: 'Acción requerida' })
     }
 
     try {
       // Verificar si el método existe
       const existingMethod = await PaymentMethod.findOne({ id })
-      if(!existingMethod) {
-        return res.status(404).json({ 
-          error: true, 
-          message: 'Método de pago no encontrado' 
+      if (!existingMethod) {
+        return res.status(404).json({
+          error: true,
+          message: 'Método de pago no encontrado'
         })
       }
 
-      if(action === 'activate') {
-        await PaymentMethod.update({ id }, { 
-          active: true, 
-          updatedAt: new Date() 
+      if (action === 'activate') {
+        await PaymentMethod.update({ id }, {
+          active: true,
+          updatedAt: new Date()
         })
         return res.json(success({ message: 'Método de pago activado exitosamente' }))
       }
-      
-      if(action === 'deactivate') {
-        await PaymentMethod.update({ id }, { 
-          active: false, 
-          updatedAt: new Date() 
+
+      if (action === 'deactivate') {
+        await PaymentMethod.update({ id }, {
+          active: false,
+          updatedAt: new Date()
         })
         return res.json(success({ message: 'Método de pago desactivado exitosamente' }))
       }
-      
+
       return res.status(400).json({ error: true, message: 'Acción no válida' })
     } catch (error) {
       console.error('Error al actualizar estado del método de pago:', error)
@@ -164,26 +165,26 @@ export default async (req, res) => {
     }
   }
 
-  if(req.method == 'DELETE') {
+  if (req.method == 'DELETE') {
     const { id } = req.body
 
-    if(!id) {
+    if (!id) {
       return res.status(400).json({ error: true, message: 'ID del método de pago requerido' })
     }
 
     try {
       // Verificar si el método existe
       const existingMethod = await PaymentMethod.findOne({ id })
-      if(!existingMethod) {
-        return res.status(404).json({ 
-          error: true, 
-          message: 'Método de pago no encontrado' 
+      if (!existingMethod) {
+        return res.status(404).json({
+          error: true,
+          message: 'Método de pago no encontrado'
         })
       }
 
       // Eliminar el método de pago
       await PaymentMethod.deleteOne({ id })
-      
+
       return res.json(success({ message: 'Método de pago eliminado exitosamente' }))
     } catch (error) {
       console.error('Error al eliminar método de pago:', error)

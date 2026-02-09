@@ -11,13 +11,13 @@ export default async (req, res) => {
 
   // valid session
   session = await Session.findOne({ value: session })
-  if(!session) return res.json(error('invalid session'))
+  if (!session) return res.json(error('invalid session'))
 
-  if(req.method == 'GET') {
+  if (req.method == 'GET') {
     try {
       // Obtener solo métodos de pago activos
       const paymentMethods = await PaymentMethod.find({ active: true })
-      
+
       // Formatear los datos para que sean compatibles con el frontend
       const formattedMethods = paymentMethods.map(method => ({
         id: method.id,
@@ -25,9 +25,10 @@ export default async (req, res) => {
         account: method.cuenta,
         holder: method.titular,
         type: method.tipo,
+        cci: method.cci || "",
         active: method.active
       }))
-      
+
       return res.json(success({ paymentMethods: formattedMethods }))
     } catch (error) {
       console.error('Error al obtener métodos de pago:', error)
