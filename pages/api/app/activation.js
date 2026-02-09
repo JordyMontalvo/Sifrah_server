@@ -1,4 +1,4 @@
-import db  from "../../../components/db"
+import db from "../../../components/db"
 import lib from "../../../components/lib"
 
 const { User, Session, Product, Activation, Office, Transaction } = db
@@ -47,7 +47,7 @@ function buildPeriodLabel(year, month) {
 async function getOrCreateOpenPeriod(Period, now = new Date()) {
   // Buscar todos los periodos abiertos
   const openPeriods = await Period.find({ status: "open" });
-  
+
   // Si hay periodos abiertos, usar el más reciente (por fecha de creación)
   // Esto asegura que se use el periodo que está actualmente activo
   if (openPeriods && openPeriods.length) {
@@ -88,7 +88,7 @@ export default async (req, res) => {
 
   // valid session
   session = await Session.findOne({ value: session })
-  if(!session) return res.json(error('invalid session'))
+  if (!session) return res.json(error('invalid session'))
 
   // check verified
   const user = await User.findOne({ id: session.id })
@@ -97,7 +97,7 @@ export default async (req, res) => {
   // get plans
   let _products = await Product.find({})
 
-  if(!user.activated) {
+  if (!user.activated) {
     _products = _products.filter((p) => p.type != 'Promoción')
   }
 
@@ -124,57 +124,58 @@ export default async (req, res) => {
 
 
   // get transactions
-  const  transactions = await Transaction.find({ user_id: user.id, virtual: {$in: [null, false]} })
-  const _transactions = await Transaction.find({ user_id: user.id, virtual:              true    })
+  const transactions = await Transaction.find({ user_id: user.id, virtual: { $in: [null, false] } })
+  const _transactions = await Transaction.find({ user_id: user.id, virtual: true })
 
-  const  ins  = acum( transactions, {type: 'in' }, 'value')
-  const  outs = acum( transactions, {type: 'out'}, 'value')
-  const _ins  = acum(_transactions, {type: 'in' }, 'value')
-  const _outs = acum(_transactions, {type: 'out'}, 'value')
+  const ins = acum(transactions, { type: 'in' }, 'value')
+  const outs = acum(transactions, { type: 'out' }, 'value')
+  const _ins = acum(_transactions, { type: 'in' }, 'value')
+  const _outs = acum(_transactions, { type: 'out' }, 'value')
 
-  const  balance =  ins -  outs
+  const balance = ins - outs
   const _balance = _ins - _outs
 
 
 
-  if(req.method == 'GET') {
+  if (req.method == 'GET') {
 
     const offices = await Office.find({ active: { $ne: false } })// Usuarios solo ven oficinas activas
-    console.log("[Activation API] Oficinas cargadas:", offices.map(o => ({ 
-      id: o.id, 
-      name: o.name, 
+    console.log("[Activation API] Oficinas cargadas:", offices.map(o => ({
+      id: o.id,
+      name: o.name,
       address: o.address,
       horario: o.horario,
       dias: o.dias,
-      accounts: o.accounts 
+      accounts: o.accounts
     })));
 
     // response
     return res.json(success({
-      name:       user.name,
-      lastName:   user.lastName,
+      name: user.name,
+      lastName: user.lastName,
+      dni: user.dni,
       affiliated: user.affiliated,
-      activated:  user.activated,
-     _activated:  user._activated,
-      plan:       user.plan,
-      country:    user.country,
-      photo:      user.photo,
-      tree:       user.tree,
-      
-      products:  _products,
-      points:     user.points,
+      activated: user.activated,
+      _activated: user._activated,
+      plan: user.plan,
+      country: user.country,
+      photo: user.photo,
+      tree: user.tree,
+
+      products: _products,
+      points: user.points,
       profit,
       offices,
 
       balance,
-     _balance,
+      _balance,
     }))
   }
 
-  if(req.method == 'POST') {
+  if (req.method == 'POST') {
 
     let { products, office, check, voucher, voucher2, pay_method, bank, bank_info, date, voucher_number, deliveryMethod, deliveryInfo } = req.body;
-    
+
     console.log('Activation POST - voucher:', voucher ? 'existe' : 'null');
     console.log('Activation POST - voucher2:', voucher2 ? voucher2 : 'null');
 
@@ -217,7 +218,7 @@ export default async (req, res) => {
     const points = products.reduce((a, b) => a + b.points * b.total, 0)
     // const points = products.reduce((a, b) => a + (b.val ? b.val : b.price) * b.total, 0)
 
-    const total  = products.reduce((a, b) => a + b.total, 0)
+    const total = products.reduce((a, b) => a + b.total, 0)
     // const _total = products.reduce((a, b) => a + (b.desc ? b.total : 0), 0)
     // console.log({ _total })
 
@@ -235,7 +236,7 @@ export default async (req, res) => {
     let transactions = []
     let amounts
 
-    if(check) {
+    if (check) {
 
       const a = _balance < price ? _balance : price
       const r = (price - _balance) > 0 ? price - _balance : 0
@@ -247,30 +248,30 @@ export default async (req, res) => {
 
       amounts = [a, b, c]
 
-      if(a) {
+      if (a) {
         transactions.push(id1)
 
         await Transaction.insert({
-          id:      id1,
-          date:    new Date(),
-          user_id:  user.id,
-          type:   'out',
-          value:   a,
-          name:   'activation',
+          id: id1,
+          date: new Date(),
+          user_id: user.id,
+          type: 'out',
+          value: a,
+          name: 'activation',
           virtual: true,
         })
       }
 
-      if(b) {
+      if (b) {
         transactions.push(id2)
 
         await Transaction.insert({
-          id:      id2,
-          date:    new Date(),
-          user_id:  user.id,
-          type:   'out',
-          value:   b,
-          name:   'activation',
+          id: id2,
+          date: new Date(),
+          user_id: user.id,
+          type: 'out',
+          value: b,
+          name: 'activation',
           virtual: false,
         })
       }
@@ -280,8 +281,8 @@ export default async (req, res) => {
     const { Period } = db
     const period = await getOrCreateOpenPeriod(Period, new Date())
     await Activation.insert({
-      id:     rand(),
-      date:   new Date(),
+      id: rand(),
+      date: new Date(),
       userId: user.id,
       products,
       price,
@@ -305,29 +306,29 @@ export default async (req, res) => {
       bank_info,
       voucher_date: date,
       voucher_number,
-      
+
       //  CAMPOS DE DELIVERY CORREGIDOS
       delivery_info: {
         method: req.body.deliveryMethod || 'pickup', // 'delivery' o 'pickup'
         has_delivery: req.body.deliveryMethod === 'delivery',
-        
+
         // Datos del receptor (solo si es delivery)
         ...(req.body.deliveryMethod === 'delivery' && req.body.deliveryInfo && {
           recipient_name: req.body.deliveryInfo.recipientName,
           recipient_document: req.body.deliveryInfo.document,
           recipient_phone: req.body.deliveryInfo.recipientPhone,
-          
+
           // Información de ubicación
           location: {
             department: req.body.deliveryInfo.department,
             province: req.body.deliveryInfo.province,
             district: req.body.deliveryInfo.district,
           },
-          
+
           // 🔥 NUEVO: Precio del delivery (siempre presente)
           delivery_price: req.body.deliveryInfo.deliveryPrice || 0,
           delivery_type: req.body.deliveryInfo.deliveryType || 'unknown',
-          
+
           // Para Lima (zonas) - usando deliveryZone que enviamos desde el frontend
           ...(req.body.deliveryInfo.deliveryZone && {
             zone_info: {
@@ -336,7 +337,7 @@ export default async (req, res) => {
               zone_price: req.body.deliveryInfo.deliveryZone.price
             }
           }),
-          
+
           // Para Provincias (agencias)
           ...(req.body.deliveryInfo.agency && {
             agency_info: {
@@ -344,10 +345,10 @@ export default async (req, res) => {
               agency_code: req.body.deliveryInfo.agency
             }
           }),
-          
+
           // Notas de delivery
           delivery_notes: req.body.deliveryInfo.deliveryNote || '',
-          
+
           // Dirección de entrega (opcional)
           delivery_address: req.body.deliveryInfo.address || ''
         })
