@@ -409,7 +409,8 @@ const handler = async (req, res) => {
           user_id: user.id,
           virtual: true,
           name: { $ne: "closed reset" }
-        }).sort({ date: 1 }); // Ordenar por fecha (más antiguas primero)
+        });
+        allVirtualTransactions.sort((a, b) => new Date(a.date) - new Date(b.date)); // Ordenar por fecha (más antiguas primero)
         
         // Identificar qué transacciones fueron compensadas por cada "closed reset"
         // IMPORTANTE: Una transacción solo puede ser compensada UNA VEZ
@@ -624,7 +625,8 @@ const handler = async (req, res) => {
         user_id: user.id,
         virtual: true,
         name: { $ne: "closed reset" }
-      }).sort({ date: 1 }); // Ordenar por fecha (más antiguas primero)
+      });
+      allVirtualTransactions.sort((a, b) => new Date(a.date) - new Date(b.date)); // Ordenar por fecha (más antiguas primero)
       
       // Identificar qué transacciones fueron compensadas por cada "closed reset"
       // IMPORTANTE: Una transacción solo puede ser compensada UNA VEZ
