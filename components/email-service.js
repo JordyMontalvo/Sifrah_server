@@ -29,6 +29,31 @@ class EmailService {
     }
   }
 
+  // Enviar email de bienvenida de afiliación aprobada (mensaje oficial SIFRAH)
+  async sendAffiliationApprovedEmail(userData) {
+    if (!this.transporter) {
+      throw new Error('Transporter no configurado');
+    }
+
+    const { email, name, lastName, dni } = userData;
+
+    const mailOptions = {
+      from: `"SIFRAH" <${emailConfig.smtp.auth.user}>`,
+      to: email,
+      subject: '🌟 ¡Bienvenido(a) oficialmente a la familia SIFRAH! 🌟',
+      html: this.getAffiliationApprovedTemplate(name, lastName, dni)
+    };
+
+    try {
+      const result = await this.transporter.sendMail(mailOptions);
+      console.log('Email de bienvenida SIFRAH enviado a:', email, '| ID:', result.messageId);
+      return { success: true, messageId: result.messageId };
+    } catch (error) {
+      console.error('Error enviando email de bienvenida SIFRAH:', error);
+      throw error;
+    }
+  }
+
   // Enviar email de bienvenida
   async sendWelcomeEmail(userData) {
     if (!this.transporter) {
@@ -388,6 +413,119 @@ class EmailService {
           <div class="footer">
             <p>© 2024 Sifrah. Todos los derechos reservados.</p>
             <p>Gracias por ser parte de nuestra comunidad.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
+  // Plantilla oficial de bienvenida por afiliación aprobada
+  getAffiliationApprovedTemplate(name, lastName, dni) {
+    const dashboardUrl = emailConfig.frontendUrl + '/dashboard';
+    const tutorialUrl = 'https://www.youtube.com/playlist?list=PLWYJViqkAe6G0cmbXbTXfDORD0DomWWzY';
+    const whatsappUrl = 'https://wa.me/51959141444';
+    return `
+      <!DOCTYPE html>
+      <html lang="es">
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>¡Bienvenido(a) a la familia SIFRAH!</title>
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+          body { margin: 0; padding: 0; background: #0f0f1a; font-family: 'Inter', Arial, sans-serif; }
+          .wrapper { background: #0f0f1a; padding: 40px 20px; }
+          .container { max-width: 600px; margin: 0 auto; background: #1a1a2e; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+          .header { background: linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #c084fc 100%); padding: 40px 30px; text-align: center; }
+          .header .star { font-size: 40px; display: block; margin-bottom: 10px; }
+          .header h1 { color: white; margin: 0; font-size: 26px; font-weight: 800; line-height: 1.3; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+          .header p { color: rgba(255,255,255,0.9); margin: 10px 0 0; font-size: 15px; }
+          .content { padding: 35px 30px; color: #e2e8f0; }
+          .greeting { font-size: 18px; color: #c084fc; font-weight: 700; margin-bottom: 15px; }
+          .intro { font-size: 15px; line-height: 1.7; color: #cbd5e1; margin-bottom: 25px; }
+          .access-box { background: linear-gradient(135deg, #1e1b4b, #2d1b69); border: 1px solid #7c3aed; border-radius: 12px; padding: 25px; margin: 25px 0; }
+          .access-box h3 { color: #c084fc; margin: 0 0 15px; font-size: 16px; text-transform: uppercase; letter-spacing: 1px; }
+          .access-row { display: flex; align-items: center; margin: 10px 0; font-size: 15px; }
+          .access-label { color: #94a3b8; min-width: 110px; font-weight: 600; }
+          .access-value { color: #f1f5f9; font-weight: 700; background: rgba(124,58,237,0.2); padding: 4px 12px; border-radius: 6px; font-family: monospace; font-size: 14px; }
+          .cta-btn { display: block; background: linear-gradient(135deg, #7c3aed, #a855f7); color: white !important; text-decoration: none; text-align: center; padding: 16px 30px; border-radius: 10px; font-weight: 700; font-size: 16px; margin: 25px 0; letter-spacing: 0.5px; box-shadow: 0 4px 15px rgba(124,58,237,0.4); }
+          .notice-box { background: rgba(168,85,247,0.1); border-left: 4px solid #a855f7; border-radius: 0 8px 8px 0; padding: 15px 20px; margin: 20px 0; }
+          .notice-box p { margin: 0; color: #c084fc; font-size: 14px; font-weight: 600; }
+          .section-title { color: #a855f7; font-size: 15px; font-weight: 700; margin: 25px 0 12px; display: flex; align-items: center; gap: 8px; }
+          .tutorial-link { display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.05); border-radius: 10px; padding: 15px; text-decoration: none; color: #e2e8f0; margin-bottom: 12px; border: 1px solid rgba(255,255,255,0.08); }
+          .tutorial-link:hover { border-color: #7c3aed; }
+          .tutorial-icon { font-size: 28px; }
+          .tutorial-text strong { display: block; color: #f1f5f9; font-size: 14px; }
+          .tutorial-text span { color: #94a3b8; font-size: 12px; }
+          .whatsapp-btn { display: flex; align-items: center; justify-content: center; gap: 10px; background: #25D366; color: white !important; text-decoration: none; padding: 14px 25px; border-radius: 10px; font-weight: 700; font-size: 15px; margin: 15px 0; }
+          .footer { background: #0f0f1a; padding: 25px 30px; text-align: center; }
+          .footer p { color: #475569; font-size: 13px; margin: 5px 0; }
+          .footer .brand { color: #7c3aed; font-weight: 700; font-size: 16px; }
+          .divider { height: 1px; background: rgba(255,255,255,0.08); margin: 20px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="wrapper">
+          <div class="container">
+            <div class="header">
+              <span class="star">🌟</span>
+              <h1>¡Bienvenido(a) oficialmente a la familia SIFRAH!</h1>
+              <p>Hola <strong>${name} ${lastName}</strong>, ¡ya eres parte del sistema! 💜</p>
+            </div>
+            <div class="content">
+              <p class="intro">
+                Nos alegra que hayas tomado la decisión de construir tu libertad y formar parte de una comunidad que transforma vidas desde la <strong style="color:#c084fc">salud</strong>, la <strong style="color:#c084fc">educación</strong> y las <strong style="color:#c084fc">finanzas</strong>. 💜
+              </p>
+
+              <p class="section-title">🚀 Tu acceso a la plataforma virtual</p>
+              <div class="access-box">
+                <h3>📌 Credenciales de acceso</h3>
+                <div class="access-row">
+                  <span class="access-label">🔗 Plataforma:</span>
+                  <span class="access-value">${dashboardUrl}</span>
+                </div>
+                <div class="access-row" style="margin-top:12px;">
+                  <span class="access-label">👤 Usuario:</span>
+                  <span class="access-value">${dni || 'Tu DNI'}</span>
+                </div>
+                <div class="access-row" style="margin-top:8px;">
+                  <span class="access-label">🔒 Contraseña:</span>
+                  <span class="access-value">123456</span>
+                </div>
+              </div>
+
+              <a href="${dashboardUrl}" class="cta-btn">🚀 Ingresar a mi plataforma</a>
+
+              <div class="notice-box">
+                <p>📌 Una vez dentro, ve a la sección <strong>"Perfil"</strong> para personalizar tu contraseña.</p>
+              </div>
+
+              <div class="divider"></div>
+
+              <p class="section-title">🎓 Tutoriales de uso de tu oficina virtual</p>
+              <p style="color:#94a3b8; font-size:14px; margin-bottom:15px;">Aquí aprenderás paso a paso cómo utilizar tu plataforma:</p>
+
+              <a href="${tutorialUrl}" class="tutorial-link">
+                <span class="tutorial-icon">📺</span>
+                <div class="tutorial-text">
+                  <strong>Ver tutoriales en YouTube</strong>
+                  <span>Lista de reproducción oficial SIFRAH</span>
+                </div>
+              </a>
+
+              <div class="divider"></div>
+
+              <p class="section-title">💬 ¿Necesitas ayuda?</p>
+              <a href="${whatsappUrl}" class="whatsapp-btn">
+                <span>📱</span> WhatsApp de Soporte: +51 959 141 444
+              </a>
+            </div>
+            <div class="footer">
+              <p class="brand">SIFRAH</p>
+              <p>Salud · Educación · Finanzas</p>
+              <p style="margin-top:10px;">© ${new Date().getFullYear()} SIFRAH Network. Todos los derechos reservados.</p>
+            </div>
           </div>
         </div>
       </body>

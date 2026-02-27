@@ -1,5 +1,6 @@
 import db from "../../../components/db";
 import lib from "../../../components/lib";
+const emailService = require('../../../components/email-service');
 
 const { Affiliation, User, Tree, Token, Transaction, Office, Closed } = db;
 const { error, success, midd, ids, parent_ids, map, model, rand } = lib;
@@ -369,6 +370,22 @@ const handler = async (req, res) => {
         for (let transaction of validTransactions) {
           await Transaction.update({ id: transaction.id }, { virtual: false });
         }
+
+        // Enviar email de bienvenida SIFRAH al aprobar upgrade
+        try {
+          if (user.email) {
+            await emailService.sendAffiliationApprovedEmail({
+              email: user.email,
+              name: user.name,
+              lastName: user.lastName || '',
+              dni: user.dni || ''
+            });
+            console.log('[Affiliations] Email de bienvenida SIFRAH enviado (upgrade) a:', user.email);
+          }
+        } catch (emailError) {
+          console.error('[Affiliations] Error enviando email SIFRAH (upgrade), pero la afiliacion fue aprobada:', emailError.message);
+        }
+
         return res.json(success());
       }
 
@@ -566,6 +583,21 @@ const handler = async (req, res) => {
       for (let transaction of validTransactions) {
         console.log({ transaction });
         await Transaction.update({ id: transaction.id }, { virtual: false });
+      }
+
+      // Enviar email de bienvenida SIFRAH al aprobar primera afiliacion
+      try {
+        if (user.email) {
+          await emailService.sendAffiliationApprovedEmail({
+            email: user.email,
+            name: user.name,
+            lastName: user.lastName || '',
+            dni: user.dni || ''
+          });
+          console.log('[Affiliations] Email de bienvenida SIFRAH enviado a:', user.email);
+        }
+      } catch (emailError) {
+        console.error('[Affiliations] Error enviando email SIFRAH, pero la afiliacion fue aprobada:', emailError.message);
       }
     }
 
