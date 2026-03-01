@@ -27,6 +27,7 @@ class DB {
     DashboardConfig,
     Flyer,
     Material,
+    Audio,
   }) {
     this.User = User;
     this.Session = Session;
@@ -50,6 +51,7 @@ class DB {
     this.DashboardConfig = DashboardConfig;
     this.Flyer = Flyer;
     this.Material = Material;
+    this.Audio = Audio;
   }
 }
 
@@ -869,6 +871,46 @@ class DashboardConfig {
   }
 }
 
+class Audio {
+  async findOne(query) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    const audio = await db.collection("audios").findOne(query);
+    client.close();
+    return audio;
+  }
+  async find(query) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    const audios = await db.collection("audios").find(query).toArray();
+    client.close();
+    return audios;
+  }
+  async insert(audio) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    await db.collection("audios").insertOne(audio);
+    return client.close();
+  }
+  async update(query, values) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    await db.collection("audios").updateOne(query, { $set: values });
+    return client.close();
+  }
+  async delete(query) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    await db.collection("audios").deleteOne(query);
+    return client.close();
+  }
+}
+
 class Flyer {
   async findOne(query) {
     const client = new Client(URL, { useUnifiedTopology: true });
@@ -932,4 +974,5 @@ module.exports = new DB({
   DashboardConfig: new DashboardConfig(),
   Flyer: new Flyer(),
   Material: new Material(),
+  Audio: new Audio(),
 });
