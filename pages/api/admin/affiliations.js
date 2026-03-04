@@ -108,8 +108,52 @@ async function sendSifrahWelcomeEmail({ email, name, lastName, dni }) {
   return info;
 }
 
-const { Affiliation, User, Tree, Token, Transaction, Office, Closed } = db;
+const { Affiliation, User, Tree, Token, Transaction, Office, Closed, Period } = db;
 const { error, success, midd, ids, parent_ids, map, model, rand } = lib;
+
+/**
+ * Determina el periodo correcto al momento de la aprobación.
+ * Reglas:
+ *   - Si hay periodo ABIERTO en approvedAt  -> ese periodo
+ *   - Si todos están cerrados y approvedAt <= closedAt de alguno -> el más reciente con closedAt >= approvedAt
+ *   - Si no cumple ningún criterio -> el periodo abierto más reciente o null
+ */
+async function resolvePeriodAtApproval(approvedAt) {
+  const allPeriods = await Period.find({});
+  if (!allPeriods || !allPeriods.length) return null;
+
+  // Buscar periodos abiertos al momento de la aprobación:
+  // Un periodo estaba abierto si: createdAt <= approvedAt Y (closedAt == null O approvedAt <= closedAt)
+  const openAtApproval = allPeriods.filter((p) => {
+    const createdAt = p.createdAt ? new Date(p.createdAt) : null;
+    if (!createdAt || isNaN(createdAt)) return false;
+    if (createdAt > approvedAt) return false; // el periodo aún no había empezado
+    if (p.status === 'open') return true;     // sigue abierto
+    // cerrado: verificar si approvedAt es antes de o igual al cierre
+    if (p.closedAt) {
+      const closedAt = new Date(p.closedAt);
+      return approvedAt <= closedAt; // aprobado dentro del periodo (incluyendo el instante exacto de cierre)
+    }
+    return false;
+  });
+
+  if (openAtApproval.length > 0) {
+    // Usar el más reciente por createdAt
+    openAtApproval.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    return openAtApproval[0];
+  }
+
+  // Si ya todos cerraron antes de approvedAt → usar el periodo ABIERTO actual o el más reciente
+  const openPeriods = allPeriods.filter((p) => p.status === 'open');
+  if (openPeriods.length > 0) {
+    openPeriods.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    return openPeriods[0];
+  }
+
+  // Último recurso: periodo cerrado más reciente
+  allPeriods.sort((a, b) => new Date(b.closedAt || 0) - new Date(a.closedAt || 0));
+  return allPeriods[0] || null;
+}
 
 const A = [
   "id",
@@ -126,10 +170,13 @@ const A = [
   "voucher_number",
   "amounts",
   "products",
-  "transactions", // Asegúrate de que este campo esté en tu modelo
-  "type", // NUEVO: mostrar tipo de afiliación
-  "previousPlan", // NUEVO: mostrar plan anterior si es upgrade
-  "difference", // NUEVO: mostrar diferencia si es upgrade
+  "transactions",
+  "type",
+  "previousPlan",
+  "difference",
+  "period_key",    // Periodo al momento de aprobación
+  "period_label",  // Label del periodo al momento de aprobación
+  "approved_at",   // Fecha y hora exacta de aprobación
 ];
 const U = ["name", "lastName", "dni", "phone"];
 
@@ -327,8 +374,21 @@ const handler = async (req, res) => {
 
     if (action == "approve") {
       // approve AFFILIATION
+      // Calcular el periodo correcto según el momento exacto de la aprobación
+      const approvedAt = new Date();
+      const resolvedPeriod = await resolvePeriodAtApproval(approvedAt);
+      const approvedPeriodKey   = resolvedPeriod ? resolvedPeriod.key   : (affiliation.period_key   || null);
+      const approvedPeriodLabel = resolvedPeriod ? resolvedPeriod.label : (affiliation.period_label || null);
+      console.log('[Approve Affiliation] approved_at:', approvedAt, '| periodo resuelto:', approvedPeriodKey);
+
       // Marcar delivered como false para nuevas aprobaciones (control manual)
-      await Affiliation.update({ id }, { status: "approved", delivered: false });
+      await Affiliation.update({ id }, {
+        status: "approved",
+        delivered: false,
+        approved_at: approvedAt,
+        period_key: approvedPeriodKey,
+        period_label: approvedPeriodLabel,
+      });
 
       // update USER
       const user = await User.findOne({ id: affiliation.userId });
