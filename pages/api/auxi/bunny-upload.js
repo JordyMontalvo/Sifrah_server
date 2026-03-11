@@ -10,7 +10,6 @@ export const config = {
 };
 
 const handler = async (req, res) => {
-  // Aplicar CORS
   applyCORS(req, res);
 
   if (req.method === 'OPTIONS') {
@@ -21,24 +20,38 @@ const handler = async (req, res) => {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  console.log(`[Bunny-Stream] Incoming request...`);
+  console.log(`[Bunny-Final] >>> START NEW UPLOAD REQUEST`);
+  console.log(`[Bunny-Final] User-Agent: ${req.headers['user-agent']}`);
+  console.log(`[Bunny-Final] Content-Length: ${req.headers['content-length']}`);
 
   return new Promise((resolve) => {
+    let isTerminated = false;
+    const terminate = (status, data) => {
+      if (isTerminated) return;
+      isTerminated = true;
+      console.log(`[Bunny-Final] Request terminated with status ${status}`);
+      if (!res.writableEnded) {
+        res.status(status).json(data);
+      }
+      resolve();
+    };
+
     const busboy = Busboy({ 
-        headers: req.headers,
-        limits: { fileSize: 100 * 1024 * 1024 } // 100MB
+      headers: req.headers,
+      limits: { fileSize: 100 * 1024 * 1024 } // 100MB
     });
 
     let fields = {};
     let uploadPromise = null;
-    let isAborted = false;
 
     req.on('aborted', () => {
-      console.warn('[Bunny-Stream] Request aborted by client');
-      isAborted = true;
+      console.warn('[Bunny-Final] !! Client aborted connection mid-stream');
+      isTerminated = true;
+      resolve();
     });
 
     busboy.on('field', (name, val) => {
+      console.log(`[Bunny-Final] Field [${name}]: ${val}`);
       fields[name] = val;
     });
 
@@ -47,7 +60,7 @@ const handler = async (req, res) => {
       const fileName = fields.fileName || filename;
       const dir = fields.dir || 'general';
 
-      console.log(`[Bunny-Stream] Processing file: ${fileName} in dir: ${dir}`);
+      console.log(`[Bunny-Final] File Event detected: ${fileName} (${mimeType})`);
 
       const storageZoneName = process.env.BUNNY_STORAGE_ZONE_NAME;
       const storagePassword = process.env.BUNNY_STORAGE_PASSWORD;
@@ -55,34 +68,26 @@ const handler = async (req, res) => {
       const pullZoneUrl = process.env.BUNNY_PULL_ZONE_URL;
 
       if (!storageZoneName || !storagePassword || !pullZoneUrl) {
-        console.error('[Bunny-Stream] Missing configuration');
-        file.resume(); // Consumir el stream para no colgar
+        console.error('[Bunny-Final] ERROR: Configuration missing in .env');
+        file.resume();
         return;
       }
 
       const folderMapping = {
-        'activacion': 'activaciones',
-        'activations': 'activaciones',
-        'afiliacion': 'afiliaciones',
-        'affiliations': 'afiliaciones',
-        'banner': 'banners',
-        'banners': 'banners',
+        'activacion': 'activaciones', 'activations': 'activaciones',
+        'afiliacion': 'afiliaciones', 'affiliations': 'afiliaciones',
+        'banner': 'banners', 'banners': 'banners',
         'activation_banner': 'banners/activation',
         'affiliation_banner': 'banners/affiliation',
-        'flyer': 'flyers',
-        'flyes': 'flyers',
-        'perfil': 'perfiles',
-        'photos': 'perfiles',
-        'product': 'productos',
-        'producto': 'productos',
-        'plan': 'planes',
-        'audios': 'audios'
+        'flyer': 'flyers', 'flyes': 'flyers',
+        'perfil': 'perfiles', 'photos': 'perfiles',
+        'product': 'productos', 'producto': 'productos',
+        'plan': 'planes', 'audios': 'audios'
       };
 
       const targetFolder = folderMapping[dir] || dir;
       const path = `${targetFolder}/${fileName}`;
-
-      console.log(`[Bunny-Stream] Uploading to: ${path}`);
+      console.log(`[Bunny-Final] Targeted Bunny Path: ${path}`);
 
       uploadPromise = axios({
         method: 'put',
@@ -91,42 +96,39 @@ const handler = async (req, res) => {
           'AccessKey': storagePassword,
           'Content-Type': mimeType || 'application/octet-stream',
         },
-        data: file, // Pasar el stream directamente
+        data: file,
         maxContentLength: Infinity,
         maxBodyLength: Infinity,
       }).then(response => {
-        if (response.status === 201 || response.status === 200) {
-          const basePullUrl = pullZoneUrl.endsWith('/') ? pullZoneUrl : `${pullZoneUrl}/`;
-          return { url: `${basePullUrl}${path}` };
-        }
-        throw new Error(`Bunny error: ${response.status}`);
+        console.log(`[Bunny-Final] Bunny API Response: ${response.status}`);
+        const basePullUrl = pullZoneUrl.endsWith('/') ? pullZoneUrl : `${pullZoneUrl}/`;
+        return { url: `${basePullUrl}${path}` };
       }).catch(err => {
-        console.error(`[Bunny-Stream] Axios error: ${err.message}`);
+        console.error(`[Bunny-Final] Bunny API Upload Failed: ${err.message}`);
         throw err;
       });
     });
 
     busboy.on('error', (err) => {
-      console.error('[Bunny-Stream] Busboy error:', err.message);
-      if (!res.writableEnded) res.status(500).json({ error: err.message });
-      resolve();
+      console.error('[Bunny-Final] Busboy parser error:', err.message);
+      terminate(500, { error: err.message });
     });
 
     busboy.on('finish', async () => {
-      console.log('[Bunny-Stream] Form parsing finished');
-      if (isAborted) return resolve();
+      console.log('[Bunny-Final] Busboy reached end of form data');
+      if (isTerminated) return;
 
       try {
         if (!uploadPromise) {
-          if (!res.writableEnded) res.status(400).json({ error: 'No file found in request' });
+          console.warn('[Bunny-Final] No file parts were detected in form');
+          terminate(400, { error: 'No file found' });
         } else {
           const result = await uploadPromise;
-          if (!res.writableEnded) res.json(result);
+          terminate(200, result);
         }
       } catch (err) {
-        if (!res.writableEnded) res.status(500).json({ error: `Upload failed: ${err.message}` });
+        terminate(500, { error: `Upload process failed: ${err.message}` });
       }
-      resolve();
     });
 
     req.pipe(busboy);
