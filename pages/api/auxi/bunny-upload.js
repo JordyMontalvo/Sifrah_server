@@ -1,5 +1,4 @@
-const formidable = require('formidable');
-const fs = require('fs');
+const busboy = require('busboy');
 const axios = require('axios');
 const cors = require('micro-cors')();
 
@@ -14,83 +13,99 @@ const handler = async (req, res) => {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const form = new formidable.IncomingForm({ 
-    keepExtensions: true,
-    multiples: false
-  });
+  const bb = busboy({ headers: req.headers });
+  let fileName = '';
+  let dir = 'general';
+  let uploadStarted = false;
+  let uploadError = null;
 
-  return new Promise((resolve, reject) => {
-    form.parse(req, async (err, fields, files) => {
-      if (err) {
-        console.error('Error parsing form:', err);
-        res.status(500).json({ error: 'Error parsing form' });
-        return resolve();
-      }
+  const storageZoneName = process.env.BUNNY_STORAGE_ZONE_NAME;
+  const storagePassword = process.env.BUNNY_STORAGE_PASSWORD;
+  const storageHostname = process.env.BUNNY_STORAGE_HOSTNAME || 'storage.bunnycdn.com';
+  const pullZoneUrl = process.env.BUNNY_PULL_ZONE_URL;
 
-      const file = files.file instanceof Array ? files.file[0] : files.file;
-      const fileName = fields.fileName || file.originalFilename;
-      const dir = fields.dir || 'general';
+  const folderMapping = {
+    'activacion': 'activaciones',
+    'activations': 'activaciones',
+    'afiliacion': 'afiliaciones',
+    'affiliations': 'afiliaciones',
+    'banner': 'banners',
+    'banners': 'banners',
+    'activation_banner': 'banners/activation',
+    'affiliation_banner': 'banners/affiliation',
+    'flyer': 'flyers',
+    'flyes': 'flyers',
+    'perfil': 'perfiles',
+    'photos': 'perfiles',
+    'product': 'productos',
+    'producto': 'productos',
+    'plan': 'planes'
+  };
 
-      const storageZoneName = process.env.BUNNY_STORAGE_ZONE_NAME;
-      const storagePassword = process.env.BUNNY_STORAGE_PASSWORD;
-      const storageHostname = process.env.BUNNY_STORAGE_HOSTNAME || 'storage.bunnycdn.com';
-      const pullZoneUrl = process.env.BUNNY_PULL_ZONE_URL;
+  return new Promise((resolve) => {
+    bb.on('field', (name, val) => {
+      if (name === 'fileName') fileName = val;
+      if (name === 'dir') dir = val;
+    });
+
+    bb.on('file', async (name, file, info) => {
+      // In busboy 1.0+, info is an object { filename, encoding, mimeType }
+      const originalFilename = info.filename;
+      const mimeType = info.mimeType;
+      
+      const finalFileName = fileName || originalFilename;
+      const targetFolder = folderMapping[dir] || dir;
+      const path = `${targetFolder}/${finalFileName}`;
 
       if (!storageZoneName || !storagePassword || !pullZoneUrl) {
-          res.status(500).json({ error: 'Bunny.net configuration missing in .env' });
-          return resolve();
+        uploadError = 'Bunny.net configuration missing in .env';
+        file.resume();
+        return;
       }
 
-      // map internal directory names to Bunny folders
-      const folderMapping = {
-        'activacion': 'activaciones',
-        'activations': 'activaciones',
-        'afiliacion': 'afiliaciones',
-        'affiliations': 'afiliaciones',
-        'banner': 'banners',
-        'banners': 'banners',
-        'activation_banner': 'banners/activation',
-        'affiliation_banner': 'banners/affiliation',
-        'flyer': 'flyers',
-        'flyes': 'flyers',
-        'perfil': 'perfiles',
-        'photos': 'perfiles',
-        'product': 'productos',
-        'producto': 'productos',
-        'plan': 'planes'
-      };
-
-      const targetFolder = folderMapping[dir] || dir;
-      const path = `${targetFolder}/${fileName}`;
+      uploadStarted = true;
 
       try {
-        const fileContent = fs.readFileSync(file.filepath || file.path);
-
         const response = await axios({
           method: 'put',
           url: `https://${storageHostname}/${storageZoneName}/${path}`,
           headers: {
             'AccessKey': storagePassword,
-            'Content-Type': 'application/octet-stream',
+            'Content-Type': mimeType || 'application/octet-stream',
           },
-          data: fileContent,
+          data: file, // Direct stream
           maxContentLength: Infinity,
           maxBodyLength: Infinity,
         });
 
         if (response.status === 201 || response.status === 200) {
           const basePullUrl = pullZoneUrl.endsWith('/') ? pullZoneUrl : `${pullZoneUrl}/`;
-          const finalUrl = `${basePullUrl}${path}`;
-          res.json({ url: finalUrl });
+          res.json({ url: `${basePullUrl}${path}` });
         } else {
           throw new Error(`Bunny.net error: ${response.statusText}`);
         }
-      } catch (uploadErr) {
-        console.error('Error uploading to Bunny.net:', uploadErr.message);
-        res.status(500).json({ error: `Error uploading to Bunny.net: ${uploadErr.message}` });
+      } catch (err) {
+        console.error('Error uploading to Bunny.net:', err.message);
+        uploadError = `Error uploading to Bunny.net: ${err.message}`;
+        if (!res.headersSent) res.status(500).json({ error: uploadError });
       }
       resolve();
     });
+
+    bb.on('finish', () => {
+      if (!uploadStarted && !res.headersSent) {
+        res.status(400).json({ error: uploadError || 'No file uploaded' });
+      }
+      resolve();
+    });
+
+    bb.on('error', (err) => {
+      console.error('Busboy error:', err);
+      if (!res.headersSent) res.status(500).json({ error: 'Error processing upload stream' });
+      resolve();
+    });
+
+    req.pipe(bb);
   });
 };
 
