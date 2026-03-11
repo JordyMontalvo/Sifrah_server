@@ -1,5 +1,5 @@
 import Busboy from 'busboy';
-import axios from 'axios';
+import https from 'https';
 const { applyCORS } = require('../../../middleware/middleware-cors');
 
 export const config = {
@@ -20,38 +20,39 @@ const handler = async (req, res) => {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  console.log(`[Bunny-Final] >>> START NEW UPLOAD REQUEST`);
-  console.log(`[Bunny-Final] User-Agent: ${req.headers['user-agent']}`);
-  console.log(`[Bunny-Final] Content-Length: ${req.headers['content-length']}`);
+  console.log(`[Bunny-Native] New upload request. Length: ${req.headers['content-length']}`);
 
   return new Promise((resolve) => {
-    let isTerminated = false;
-    const terminate = (status, data) => {
-      if (isTerminated) return;
-      isTerminated = true;
-      console.log(`[Bunny-Final] Request terminated with status ${status}`);
-      if (!res.writableEnded) {
-        res.status(status).json(data);
-      }
-      resolve();
-    };
-
     const busboy = Busboy({ 
       headers: req.headers,
       limits: { fileSize: 100 * 1024 * 1024 } // 100MB
     });
 
     let fields = {};
-    let uploadPromise = null;
+    let isTerminated = false;
+
+    const terminate = (status, data) => {
+      if (isTerminated) return;
+      isTerminated = true;
+      console.log(`[Bunny-Native] Finalizing with status ${status}`);
+      if (!res.writableEnded) {
+        res.status(status).json(data);
+      }
+      resolve();
+    };
+
+    req.on('error', (err) => {
+      console.error('[Bunny-Native] Request error:', err.message);
+      terminate(500, { error: `Request error: ${err.message}` });
+    });
 
     req.on('aborted', () => {
-      console.warn('[Bunny-Final] !! Client aborted connection mid-stream');
+      console.warn('[Bunny-Native] Client aborted connection');
       isTerminated = true;
       resolve();
     });
 
     busboy.on('field', (name, val) => {
-      console.log(`[Bunny-Final] Field [${name}]: ${val}`);
       fields[name] = val;
     });
 
@@ -60,7 +61,7 @@ const handler = async (req, res) => {
       const fileName = fields.fileName || filename;
       const dir = fields.dir || 'general';
 
-      console.log(`[Bunny-Final] File Event detected: ${fileName} (${mimeType})`);
+      console.log(`[Bunny-Native] File detected: ${fileName} (${mimeType})`);
 
       const storageZoneName = process.env.BUNNY_STORAGE_ZONE_NAME;
       const storagePassword = process.env.BUNNY_STORAGE_PASSWORD;
@@ -68,7 +69,7 @@ const handler = async (req, res) => {
       const pullZoneUrl = process.env.BUNNY_PULL_ZONE_URL;
 
       if (!storageZoneName || !storagePassword || !pullZoneUrl) {
-        console.error('[Bunny-Final] ERROR: Configuration missing in .env');
+        console.error('[Bunny-Native] Missing credentials');
         file.resume();
         return;
       }
@@ -87,48 +88,47 @@ const handler = async (req, res) => {
 
       const targetFolder = folderMapping[dir] || dir;
       const path = `${targetFolder}/${fileName}`;
-      console.log(`[Bunny-Final] Targeted Bunny Path: ${path}`);
+      const bunnyUrl = `https://${storageHostname}/${storageZoneName}/${path}`;
 
-      uploadPromise = axios({
-        method: 'put',
-        url: `https://${storageHostname}/${storageZoneName}/${path}`,
+      console.log(`[Bunny-Native] Streaming to Bunny: ${path}`);
+
+      const bunnyReq = https.request(bunnyUrl, {
+        method: 'PUT',
         headers: {
           'AccessKey': storagePassword,
           'Content-Type': mimeType || 'application/octet-stream',
-        },
-        data: file,
-        maxContentLength: Infinity,
-        maxBodyLength: Infinity,
-      }).then(response => {
-        console.log(`[Bunny-Final] Bunny API Response: ${response.status}`);
-        const basePullUrl = pullZoneUrl.endsWith('/') ? pullZoneUrl : `${pullZoneUrl}/`;
-        return { url: `${basePullUrl}${path}` };
-      }).catch(err => {
-        console.error(`[Bunny-Final] Bunny API Upload Failed: ${err.message}`);
-        throw err;
+        }
+      }, (bunnyRes) => {
+        let responseData = '';
+        bunnyRes.on('data', (chunk) => { responseData += chunk; });
+        bunnyRes.on('end', () => {
+          if (bunnyRes.statusCode === 201 || bunnyRes.statusCode === 200) {
+            const basePullUrl = pullZoneUrl.endsWith('/') ? pullZoneUrl : `${pullZoneUrl}/`;
+            terminate(200, { url: `${basePullUrl}${path}` });
+          } else {
+            console.error(`[Bunny-Native] Bunny error (${bunnyRes.statusCode}): ${responseData}`);
+            terminate(500, { error: `Bunny storage error: ${bunnyRes.statusCode}` });
+          }
+        });
       });
+
+      bunnyReq.on('error', (err) => {
+        console.error('[Bunny-Native] Stream to Bunny failed:', err.message);
+        terminate(500, { error: `Upload stream failed: ${err.message}` });
+      });
+
+      // Pasar los datos directamente del navegador a Bunny.net
+      file.pipe(bunnyReq);
     });
 
     busboy.on('error', (err) => {
-      console.error('[Bunny-Final] Busboy parser error:', err.message);
+      console.error('[Bunny-Native] Busboy error:', err.message);
       terminate(500, { error: err.message });
     });
 
-    busboy.on('finish', async () => {
-      console.log('[Bunny-Final] Busboy reached end of form data');
-      if (isTerminated) return;
-
-      try {
-        if (!uploadPromise) {
-          console.warn('[Bunny-Final] No file parts were detected in form');
-          terminate(400, { error: 'No file found' });
-        } else {
-          const result = await uploadPromise;
-          terminate(200, result);
-        }
-      } catch (err) {
-        terminate(500, { error: `Upload process failed: ${err.message}` });
-      }
+    busboy.on('finish', () => {
+      console.log('[Bunny-Native] Form data parsing complete');
+      // No resolvemos aquí, esperamos a que el stream de archivo termine o falle
     });
 
     req.pipe(busboy);
