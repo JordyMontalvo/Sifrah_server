@@ -1,6 +1,6 @@
-import formidable from 'formidable';
-import fs from 'fs';
-import axios from 'axios';
+const formidable = require('formidable');
+const fs = require('fs');
+const axios = require('axios');
 const cors = require('micro-cors')();
 
 export const config = {
@@ -14,7 +14,7 @@ const handler = async (req, res) => {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const form = formidable({ 
+  const form = new formidable.IncomingForm({ 
     keepExtensions: true,
     multiples: false
   });
