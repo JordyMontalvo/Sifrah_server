@@ -3,7 +3,9 @@ const { applyCORS } = require('../../../middleware/middleware-cors');
 
 export const config = {
   api: {
-    bodyParser: false, // Vital para recibir streaming binario
+    bodyParser: {
+      sizeLimit: '100mb', // Permitir JSONs grandes con Base64
+    },
     externalResolver: true,
   },
 };
@@ -19,17 +21,19 @@ const handler = async (req, res) => {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Leer metadatos de cabeceras o de la URL (query) para máxima compatibilidad
-  const fileName = req.headers['x-file-name'] || req.query.fileName;
-  const dir = req.headers['x-dir'] || req.query.dir || 'general';
+  // En modo Safe-Mode, los datos vienen en el body JSON
+  const { fileName, dir, fileData, mimeType } = req.body;
 
-  if (!fileName) {
-    console.error('[Bunny-Binary] Error: Missing fileName (neither in headers nor query)');
-    console.log('[Bunny-Binary] Headers received:', JSON.stringify(req.headers));
-    return res.status(400).json({ error: 'Falta nombre de archivo (x-file-name o query fileName)' });
+  if (!fileName || !fileData) {
+    console.error('[Bunny-Safe] Error: Missing fileName or fileData in JSON body');
+    return res.status(400).json({ error: 'Faltan datos en la petición JSON' });
   }
 
-  console.log(`[Bunny-Binary] INCOMING: ${fileName} | DIR: ${dir} | SIZE: ${req.headers['content-length']}`);
+  console.log(`[Bunny-Safe] Processing: ${fileName} | Folder: ${dir}`);
+
+  // Decodificar Base64 a Buffer
+  const buffer = Buffer.from(fileData, 'base64');
+  console.log(`[Bunny-Safe] Decoded buffer size: ${buffer.length} bytes`);
 
   const storageZoneName = process.env.BUNNY_STORAGE_ZONE_NAME;
   const storagePassword = process.env.BUNNY_STORAGE_PASSWORD;
@@ -37,7 +41,7 @@ const handler = async (req, res) => {
   const pullZoneUrl = process.env.BUNNY_PULL_ZONE_URL;
 
   if (!storageZoneName || !storagePassword || !pullZoneUrl) {
-    return res.status(500).json({ error: 'Error de configuración en servidor' });
+    return res.status(500).json({ error: 'Configuración de Bunny incompleta' });
   }
 
   const folderMapping = {
@@ -56,15 +60,13 @@ const handler = async (req, res) => {
   const bunnyPath = `${targetFolder}/${fileName}`;
   const bunnyUrl = `https://${storageHostname}/${storageZoneName}/${bunnyPath}`;
 
-  console.log(`[Bunny-Binary] PROXYING TO: ${bunnyPath}`);
-
-  // Creamos la petición hacia Bunny.net
+  // Subir a Bunny
   const bunnyReq = https.request(bunnyUrl, {
     method: 'PUT',
     headers: {
       'AccessKey': storagePassword,
-      'Content-Type': req.headers['content-type'] || 'application/octet-stream',
-      'Content-Length': req.headers['content-length']
+      'Content-Type': mimeType || 'application/octet-stream',
+      'Content-Length': buffer.length
     }
   }, (bunnyRes) => {
     let responseData = '';
@@ -72,22 +74,22 @@ const handler = async (req, res) => {
     bunnyRes.on('end', () => {
       if (bunnyRes.statusCode === 201 || bunnyRes.statusCode === 200) {
         const basePullUrl = pullZoneUrl.endsWith('/') ? pullZoneUrl : `${pullZoneUrl}/`;
-        console.log(`[Bunny-Binary] SUCCESS: ${bunnyPath}`);
+        console.log(`[Bunny-Safe] SUCCESS: ${bunnyPath}`);
         res.status(200).json({ url: `${basePullUrl}${bunnyPath}` });
       } else {
-        console.error(`[Bunny-Binary] Bunny Error ${bunnyRes.statusCode}: ${responseData}`);
-        res.status(500).json({ error: `Bunny error: ${bunnyRes.statusCode}` });
+        console.error(`[Bunny-Safe] Bunny Error ${bunnyRes.statusCode}: ${responseData}`);
+        res.status(500).json({ error: `Bunny storage error: ${bunnyRes.statusCode}` });
       }
     });
   });
 
   bunnyReq.on('error', (e) => {
-    console.error('[Bunny-Binary] Proxy Error:', e.message);
+    console.error('[Bunny-Safe] Bunny API Error:', e.message);
     if (!res.writableEnded) res.status(500).json({ error: e.message });
   });
 
-  // Reenviar el cuerpo binario directamente (Sin procesar ni guardar en disco)
-  req.pipe(bunnyReq);
+  bunnyReq.write(buffer);
+  bunnyReq.end();
 };
 
 export default handler;
