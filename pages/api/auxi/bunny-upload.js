@@ -13,12 +13,6 @@ const handler = async (req, res) => {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const bb = busboy({ headers: req.headers });
-  let fileName = '';
-  let dir = 'general';
-  let uploadStarted = false;
-  let uploadError = null;
-
   const storageZoneName = process.env.BUNNY_STORAGE_ZONE_NAME;
   const storagePassword = process.env.BUNNY_STORAGE_PASSWORD;
   const storageHostname = process.env.BUNNY_STORAGE_HOSTNAME || 'storage.bunnycdn.com';
@@ -43,65 +37,76 @@ const handler = async (req, res) => {
   };
 
   return new Promise((resolve) => {
+    let bb;
+    try {
+      bb = busboy({ headers: req.headers });
+    } catch (e) {
+      res.status(400).json({ error: 'Invalid request' });
+      return resolve();
+    }
+
+    let fileName = '';
+    let dir = 'general';
+    let uploadPromise = null;
+    let isFinished = false;
+
     bb.on('field', (name, val) => {
       if (name === 'fileName') fileName = val;
       if (name === 'dir') dir = val;
     });
 
-    bb.on('file', async (name, file, info) => {
-      // In busboy 1.0+, info is an object { filename, encoding, mimeType }
-      const originalFilename = info.filename;
-      const mimeType = info.mimeType;
+    bb.on('file', (name, file, info) => {
+      // Handle both busboy 0.x and 1.x
+      const originalFilename = typeof info === 'string' ? info : (info && info.filename);
+      const mimeType = (info && info.mimeType) || (typeof info === 'object' && info.mimetype);
       
       const finalFileName = fileName || originalFilename;
       const targetFolder = folderMapping[dir] || dir;
       const path = `${targetFolder}/${finalFileName}`;
 
       if (!storageZoneName || !storagePassword || !pullZoneUrl) {
-        uploadError = 'Bunny.net configuration missing in .env';
         file.resume();
+        if (!res.headersSent) res.status(500).json({ error: 'Bunny configuration missing' });
         return;
       }
 
-      uploadStarted = true;
-
-      try {
-        const response = await axios({
-          method: 'put',
-          url: `https://${storageHostname}/${storageZoneName}/${path}`,
-          headers: {
-            'AccessKey': storagePassword,
-            'Content-Type': mimeType || 'application/octet-stream',
-          },
-          data: file, // Direct stream
-          maxContentLength: Infinity,
-          maxBodyLength: Infinity,
-        });
-
-        if (response.status === 201 || response.status === 200) {
+      uploadPromise = axios({
+        method: 'put',
+        url: `https://${storageHostname}/${storageZoneName}/${path}`,
+        headers: {
+          'AccessKey': storagePassword,
+          'Content-Type': mimeType || 'application/octet-stream',
+        },
+        data: file,
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity,
+      }).then((response) => {
+        if (!res.headersSent) {
           const basePullUrl = pullZoneUrl.endsWith('/') ? pullZoneUrl : `${pullZoneUrl}/`;
           res.json({ url: `${basePullUrl}${path}` });
-        } else {
-          throw new Error(`Bunny.net error: ${response.statusText}`);
         }
-      } catch (err) {
+      }).catch((err) => {
         console.error('Error uploading to Bunny.net:', err.message);
-        uploadError = `Error uploading to Bunny.net: ${err.message}`;
-        if (!res.headersSent) res.status(500).json({ error: uploadError });
-      }
-      resolve();
+        if (!res.headersSent) res.status(500).json({ error: `Upload error: ${err.message}` });
+      });
     });
 
-    bb.on('finish', () => {
-      if (!uploadStarted && !res.headersSent) {
-        res.status(400).json({ error: uploadError || 'No file uploaded' });
+    bb.on('finish', async () => {
+      isFinished = true;
+      if (uploadPromise) await uploadPromise;
+      if (!res.headersSent) {
+        res.status(400).json({ error: 'No file uploaded' });
       }
       resolve();
     });
 
     bb.on('error', (err) => {
-      console.error('Busboy error:', err);
-      if (!res.headersSent) res.status(500).json({ error: 'Error processing upload stream' });
+      console.error('Busboy error:', err.message);
+      if (err.message === 'Unexpected end of form' && res.headersSent) {
+        // We already responded success, can safely ignore
+        return resolve();
+      }
+      if (!res.headersSent) res.status(500).json({ error: 'Upload process failed' });
       resolve();
     });
 
