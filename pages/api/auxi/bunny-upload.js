@@ -1,15 +1,18 @@
-const formidable = require('formidable');
-const fs = require('fs');
-const axios = require('axios');
-const cors = require('micro-cors')();
+import formidable from 'formidable';
+import fs from 'fs';
+import axios from 'axios';
+import cors_lib from 'micro-cors';
+const cors = cors_lib();
 
 export const config = {
   api: {
     bodyParser: false,
+    externalResolver: true,
   },
 };
 
 const handler = async (req, res) => {
+  console.log('Incoming upload request to /api/auxi/bunny-upload');
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -97,4 +100,4 @@ const handler = async (req, res) => {
   });
 };
 
-module.exports = cors(handler);
+export default cors(handler);
