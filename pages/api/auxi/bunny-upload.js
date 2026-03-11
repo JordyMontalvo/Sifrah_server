@@ -3,9 +3,7 @@ const { applyCORS } = require('../../../middleware/middleware-cors');
 
 export const config = {
   api: {
-    bodyParser: {
-      sizeLimit: '100mb', // Permitir JSONs grandes con Base64
-    },
+    bodyParser: false, // Desactivamos el parser automático de Next.js
     externalResolver: true,
   },
 };
@@ -21,75 +19,92 @@ const handler = async (req, res) => {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // En modo Safe-Mode, los datos vienen en el body JSON
-  const { fileName, dir, fileData, mimeType } = req.body;
+  // Metadatos vía Query Params (más estable que headers)
+  const fileName = req.query.fileName;
+  const dir = req.query.dir || 'general';
 
-  if (!fileName || !fileData) {
-    console.error('[Bunny-Safe] Error: Missing fileName or fileData in JSON body');
-    return res.status(400).json({ error: 'Faltan datos en la petición JSON' });
+  if (!fileName) {
+    console.error('[Bunny-Mem] Error: Missing fileName in query');
+    return res.status(400).json({ error: 'Falta parametro fileName en la URL' });
   }
 
-  console.log(`[Bunny-Safe] Processing: ${fileName} | Folder: ${dir}`);
+  console.log(`[Bunny-Mem] Starting upload: ${fileName} to ${dir}`);
 
-  // Decodificar Base64 a Buffer
-  const buffer = Buffer.from(fileData, 'base64');
-  console.log(`[Bunny-Safe] Decoded buffer size: ${buffer.length} bytes`);
+  // Paso 1: Acumular TODO el archivo en memoria (Buffer)
+  // Esto evita que Heroku piense que la conexión está "colgada"
+  let chunks = [];
+  let totalLength = 0;
 
-  const storageZoneName = process.env.BUNNY_STORAGE_ZONE_NAME;
-  const storagePassword = process.env.BUNNY_STORAGE_PASSWORD;
-  const storageHostname = process.env.BUNNY_STORAGE_HOSTNAME || 'storage.bunnycdn.com';
-  const pullZoneUrl = process.env.BUNNY_PULL_ZONE_URL;
+  req.on('data', (chunk) => {
+    chunks.push(chunk);
+    totalLength += chunk.length;
+  });
 
-  if (!storageZoneName || !storagePassword || !pullZoneUrl) {
-    return res.status(500).json({ error: 'Configuración de Bunny incompleta' });
-  }
+  req.on('error', (err) => {
+    console.error('[Bunny-Mem] Request error:', err.message);
+    if (!res.writableEnded) res.status(500).json({ error: 'Error recibiendo archivo' });
+  });
 
-  const folderMapping = {
-    'activacion': 'activaciones', 'activations': 'activaciones',
-    'afiliacion': 'afiliaciones', 'affiliations': 'afiliaciones',
-    'banner': 'banners', 'banners': 'banners',
-    'activation_banner': 'banners/activation',
-    'affiliation_banner': 'banners/affiliation',
-    'flyer': 'flyers', 'flyes': 'flyers',
-    'perfil': 'perfiles', 'photos': 'perfiles',
-    'product': 'productos', 'producto': 'productos',
-    'plan': 'planes', 'audios': 'audios'
-  };
+  req.on('end', () => {
+    const buffer = Buffer.concat(chunks);
+    console.log(`[Bunny-Mem] File received. Size: ${totalLength} bytes`);
 
-  const targetFolder = folderMapping[dir] || dir;
-  const bunnyPath = `${targetFolder}/${fileName}`;
-  const bunnyUrl = `https://${storageHostname}/${storageZoneName}/${bunnyPath}`;
+    const storageZoneName = process.env.BUNNY_STORAGE_ZONE_NAME;
+    const storagePassword = process.env.BUNNY_STORAGE_PASSWORD;
+    const storageHostname = process.env.BUNNY_STORAGE_HOSTNAME || 'storage.bunnycdn.com';
+    const pullZoneUrl = process.env.BUNNY_PULL_ZONE_URL;
 
-  // Subir a Bunny
-  const bunnyReq = https.request(bunnyUrl, {
-    method: 'PUT',
-    headers: {
-      'AccessKey': storagePassword,
-      'Content-Type': mimeType || 'application/octet-stream',
-      'Content-Length': buffer.length
+    if (!storageZoneName || !storagePassword || !pullZoneUrl) {
+      return res.status(500).json({ error: 'Configuración de Bunny ausente' });
     }
-  }, (bunnyRes) => {
-    let responseData = '';
-    bunnyRes.on('data', (d) => { responseData += d; });
-    bunnyRes.on('end', () => {
-      if (bunnyRes.statusCode === 201 || bunnyRes.statusCode === 200) {
-        const basePullUrl = pullZoneUrl.endsWith('/') ? pullZoneUrl : `${pullZoneUrl}/`;
-        console.log(`[Bunny-Safe] SUCCESS: ${bunnyPath}`);
-        res.status(200).json({ url: `${basePullUrl}${bunnyPath}` });
-      } else {
-        console.error(`[Bunny-Safe] Bunny Error ${bunnyRes.statusCode}: ${responseData}`);
-        res.status(500).json({ error: `Bunny storage error: ${bunnyRes.statusCode}` });
+
+    const folderMapping = {
+      'activacion': 'activaciones', 'activations': 'activaciones',
+      'afiliacion': 'afiliaciones', 'affiliations': 'afiliaciones',
+      'banner': 'banners', 'banners': 'banners',
+      'activation_banner': 'banners/activation',
+      'affiliation_banner': 'banners/affiliation',
+      'flyer': 'flyers', 'flyes': 'flyers',
+      'perfil': 'perfiles', 'photos': 'perfiles',
+      'product': 'productos', 'producto': 'productos',
+      'plan': 'planes', 'audios': 'audios'
+    };
+
+    const targetFolder = folderMapping[dir] || dir;
+    const path = `${targetFolder}/${fileName}`;
+    const bunnyUrl = `https://${storageHostname}/${storageZoneName}/${path}`;
+
+    // Paso 2: Subir el Buffer completo a Bunny.net
+    const bunnyReq = https.request(bunnyUrl, {
+      method: 'PUT',
+      headers: {
+        'AccessKey': storagePassword,
+        'Content-Type': req.headers['content-type'] || 'application/octet-stream',
+        'Content-Length': buffer.length
       }
+    }, (bunnyRes) => {
+      let responseData = '';
+      bunnyRes.on('data', (d) => { responseData += d; });
+      bunnyRes.on('end', () => {
+        if (bunnyRes.statusCode === 201 || bunnyRes.statusCode === 200) {
+          const basePullUrl = pullZoneUrl.endsWith('/') ? pullZoneUrl : `${pullZoneUrl}/`;
+          console.log(`[Bunny-Mem] Upload Success: ${path}`);
+          res.status(200).json({ url: `${basePullUrl}${path}` });
+        } else {
+          console.error(`[Bunny-Mem] Bunny Error ${bunnyRes.statusCode}: ${responseData}`);
+          res.status(500).json({ error: `Bunny error: ${bunnyRes.statusCode}` });
+        }
+      });
     });
-  });
 
-  bunnyReq.on('error', (e) => {
-    console.error('[Bunny-Safe] Bunny API Error:', e.message);
-    if (!res.writableEnded) res.status(500).json({ error: e.message });
-  });
+    bunnyReq.on('error', (e) => {
+      console.error('[Bunny-Mem] Bunny API failed:', e.message);
+      if (!res.writableEnded) res.status(500).json({ error: e.message });
+    });
 
-  bunnyReq.write(buffer);
-  bunnyReq.end();
+    bunnyReq.write(buffer);
+    bunnyReq.end();
+  });
 };
 
 export default handler;
