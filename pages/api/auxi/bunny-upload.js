@@ -24,9 +24,14 @@ const handler = (req, res) => {
 
   const storageZoneName = process.env.BUNNY_STORAGE_ZONE_NAME;
   const storagePassword = process.env.BUNNY_STORAGE_PASSWORD;
-  // Usar hostname GLOBAL para mayor velocidad desde Heroku
-  const storageHostname = 'storage.bunnycdn.com'; 
+  // Usar el hostname del .env porque las zonas pueden estar bloqueadas por región
+  const storageHostname = process.env.BUNNY_STORAGE_HOSTNAME || 'storage.bunnycdn.com'; 
   const pullZoneUrl = process.env.BUNNY_PULL_ZONE_URL;
+
+  if (!storageZoneName || !storagePassword || !pullZoneUrl) {
+    console.error('[Bunny-Stream] Config error: Missing environment variables');
+    return res.status(500).json({ error: 'Configuración incompleta' });
+  }
 
   const folderMapping = {
     'perfil': 'perfiles', 'photos': 'perfiles', 'audios': 'audios',
@@ -36,7 +41,7 @@ const handler = (req, res) => {
   const path = `${targetFolder}/${fileName}`;
   const bunnyUrl = `https://${storageHostname}/${storageZoneName}/${path}`;
 
-  console.log(`[Bunny-Stream] >>> Proxying: ${fileName} to ${targetFolder}`);
+  console.log(`[Bunny-Stream] >>> Proxying to Bunny: ${bunnyUrl}`);
 
   // Configuramos el túnel hacia Bunny
   const bunnyReq = https.request(bunnyUrl, {
@@ -44,7 +49,8 @@ const handler = (req, res) => {
     headers: {
       'AccessKey': storagePassword,
       'Content-Type': req.headers['content-type'] || 'application/octet-stream',
-      // No pasamos Content-Length manual, dejamos que el pipe lo maneje o Bunny lo detecte
+      // IMPORTANTE: Bunny Storage API prefiere Content-Length explícito
+      ...(req.headers['content-length'] ? { 'Content-Length': req.headers['content-length'] } : {})
     }
   }, (bunnyRes) => {
     let responseData = '';
