@@ -3,7 +3,9 @@ const { applyCORS } = require('../../../middleware/middleware-cors');
 
 export const config = {
   api: {
-    bodyParser: false, // Desactivamos el parser automático de Next.js
+    bodyParser: {
+      sizeLimit: '100mb', // Permitir audios grandes en Base64
+    },
     externalResolver: true,
   },
 };
@@ -19,48 +21,32 @@ const handler = async (req, res) => {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const fileName = req.query.fileName;
-  const dir = req.query.dir || 'general';
+  // Recibir datos como JSON (evita problemas de streaming en Heroku)
+  const { fileName, dir, fileData, mimeType } = req.body;
 
-  if (!fileName) {
-    return res.status(400).json({ error: 'Falta fileName' });
+  if (!fileName || !fileData) {
+    console.error('[Bunny-Safe] Error: Missing data in JSON body');
+    return res.status(400).json({ error: 'Faltan datos (fileName o fileData)' });
   }
 
-  console.log(`[Bunny-Debug] >>> New Request: ${fileName} | Expecting: ${req.headers['content-length']} bytes`);
+  console.log(`[Bunny-Safe] Processing: ${fileName} | Size approx: ${Math.round(fileData.length * 0.75)} bytes`);
 
-  let chunks = [];
-  let received = 0;
-
-  req.on('data', (chunk) => {
-    received += chunk.length;
-    chunks.push(chunk);
-    // Loguear cada 200KB para no saturar pero ver progreso
-    if (received % (200 * 1024) < chunk.length) {
-      console.log(`[Bunny-Debug] Receiving: ${received} bytes...`);
-    }
-  });
-
-  req.on('close', () => {
-    if (received < (req.headers['content-length'] || 0)) {
-      console.error(`[Bunny-Debug] !!! Connection CLOSED prematurely by client/router at ${received} bytes`);
-    }
-  });
-
-  req.on('end', async () => {
-    console.log(`[Bunny-Debug] Finished receiving. Total: ${received} bytes. Processing to Bunny...`);
-    const buffer = Buffer.concat(chunks);
-
+  try {
+    const buffer = Buffer.from(fileData, 'base64');
+    
     const storageZoneName = process.env.BUNNY_STORAGE_ZONE_NAME;
     const storagePassword = process.env.BUNNY_STORAGE_PASSWORD;
     const storageHostname = process.env.BUNNY_STORAGE_HOSTNAME || 'storage.bunnycdn.com';
     const pullZoneUrl = process.env.BUNNY_PULL_ZONE_URL;
 
+    if (!storageZoneName || !storagePassword || !pullZoneUrl) {
+      throw new Error('Configuracion Bunny incompleta');
+    }
+
     const folderMapping = {
       'activacion': 'activaciones', 'activations': 'activaciones',
       'afiliacion': 'afiliaciones', 'affiliations': 'afiliaciones',
       'banner': 'banners', 'banners': 'banners',
-      'activation_banner': 'banners/activation',
-      'affiliation_banner': 'banners/affiliation',
       'flyer': 'flyers', 'flyes': 'flyers',
       'perfil': 'perfiles', 'photos': 'perfiles',
       'product': 'productos', 'producto': 'productos',
@@ -75,7 +61,7 @@ const handler = async (req, res) => {
       method: 'PUT',
       headers: {
         'AccessKey': storagePassword,
-        'Content-Type': req.headers['content-type'] || 'application/octet-stream',
+        'Content-Type': mimeType || 'application/octet-stream',
         'Content-Length': buffer.length
       }
     }, (bunnyRes) => {
@@ -86,20 +72,23 @@ const handler = async (req, res) => {
           const basePullUrl = pullZoneUrl.endsWith('/') ? pullZoneUrl : `${pullZoneUrl}/`;
           res.status(200).json({ url: `${basePullUrl}${path}` });
         } else {
-          console.error(`[Bunny-Debug] Bunny API Error ${bunnyRes.statusCode}`);
-          res.status(500).json({ error: 'Error en almacenamiento' });
+          res.status(500).json({ error: `Bunny error: ${bunnyRes.statusCode}` });
         }
       });
     });
 
     bunnyReq.on('error', (e) => {
-      console.error('[Bunny-Debug] Bunny Connection Error:', e.message);
-      res.status(500).json({ error: 'Error de conexion con Bunny' });
+      console.error('[Bunny-Safe] Bunny Connection Error:', e.message);
+      res.status(500).json({ error: e.message });
     });
 
     bunnyReq.write(buffer);
     bunnyReq.end();
-  });
+
+  } catch (err) {
+    console.error('[Bunny-Safe] Critical Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
 };
 
 export default handler;
