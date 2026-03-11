@@ -1,5 +1,7 @@
-import Busboy from 'busboy';
+import formidable from 'formidable';
+import fs from 'fs';
 import https from 'https';
+import path from 'path';
 const { applyCORS } = require('../../../middleware/middleware-cors');
 
 export const config = {
@@ -20,48 +22,33 @@ const handler = async (req, res) => {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  console.log(`[Bunny-Native] New upload request. Length: ${req.headers['content-length']}`);
+  console.log(`[Bunny-Robust] Starting robust upload. CL: ${req.headers['content-length']}`);
+
+  const form = new formidable.IncomingForm({
+    keepExtensions: true,
+    maxFileSize: 100 * 1024 * 1024, // 100MB
+    uploadDir: '/tmp', // Heroku permite escribir en /tmp
+  });
 
   return new Promise((resolve) => {
-    const busboy = Busboy({ 
-      headers: req.headers,
-      limits: { fileSize: 100 * 1024 * 1024 } // 100MB
-    });
-
-    let fields = {};
-    let isTerminated = false;
-
-    const terminate = (status, data) => {
-      if (isTerminated) return;
-      isTerminated = true;
-      console.log(`[Bunny-Native] Finalizing with status ${status}`);
-      if (!res.writableEnded) {
-        res.status(status).json(data);
+    form.parse(req, async (err, fields, files) => {
+      if (err) {
+        console.error('[Bunny-Robust] Formidable parsing error:', err.message);
+        if (!res.writableEnded) res.status(500).json({ error: `Upload error: ${err.message}` });
+        return resolve();
       }
-      resolve();
-    };
 
-    req.on('error', (err) => {
-      console.error('[Bunny-Native] Request error:', err.message);
-      terminate(500, { error: `Request error: ${err.message}` });
-    });
+      const file = files.file instanceof Array ? files.file[0] : files.file;
+      if (!file) {
+        console.warn('[Bunny-Robust] No file found in request');
+        if (!res.writableEnded) res.status(400).json({ error: 'No file uploaded' });
+        return resolve();
+      }
 
-    req.on('aborted', () => {
-      console.warn('[Bunny-Native] Client aborted connection');
-      isTerminated = true;
-      resolve();
-    });
+      console.log(`[Bunny-Robust] File received on disk: ${file.filepath || file.path}`);
 
-    busboy.on('field', (name, val) => {
-      fields[name] = val;
-    });
-
-    busboy.on('file', (fieldname, file, info) => {
-      const { filename, mimeType } = info;
-      const fileName = fields.fileName || filename;
+      const fileName = fields.fileName || file.originalFilename || file.name;
       const dir = fields.dir || 'general';
-
-      console.log(`[Bunny-Native] File detected: ${fileName} (${mimeType})`);
 
       const storageZoneName = process.env.BUNNY_STORAGE_ZONE_NAME;
       const storagePassword = process.env.BUNNY_STORAGE_PASSWORD;
@@ -69,9 +56,9 @@ const handler = async (req, res) => {
       const pullZoneUrl = process.env.BUNNY_PULL_ZONE_URL;
 
       if (!storageZoneName || !storagePassword || !pullZoneUrl) {
-        console.error('[Bunny-Native] Missing credentials');
-        file.resume();
-        return;
+          console.error('[Bunny-Robust] Credentials error');
+          if (!res.writableEnded) res.status(500).json({ error: 'Bunny credentials missing' });
+          return resolve();
       }
 
       const folderMapping = {
@@ -87,51 +74,56 @@ const handler = async (req, res) => {
       };
 
       const targetFolder = folderMapping[dir] || dir;
-      const path = `${targetFolder}/${fileName}`;
-      const bunnyUrl = `https://${storageHostname}/${storageZoneName}/${path}`;
+      const bunnyPath = `${targetFolder}/${fileName}`;
+      const bunnyUrl = `https://${storageHostname}/${storageZoneName}/${bunnyPath}`;
 
-      console.log(`[Bunny-Native] Streaming to Bunny: ${path}`);
+      console.log(`[Bunny-Robust] Starting transfer to Bunny: ${bunnyPath}`);
 
-      const bunnyReq = https.request(bunnyUrl, {
-        method: 'PUT',
-        headers: {
-          'AccessKey': storagePassword,
-          'Content-Type': mimeType || 'application/octet-stream',
-        }
-      }, (bunnyRes) => {
-        let responseData = '';
-        bunnyRes.on('data', (chunk) => { responseData += chunk; });
-        bunnyRes.on('end', () => {
-          if (bunnyRes.statusCode === 201 || bunnyRes.statusCode === 200) {
-            const basePullUrl = pullZoneUrl.endsWith('/') ? pullZoneUrl : `${pullZoneUrl}/`;
-            terminate(200, { url: `${basePullUrl}${path}` });
-          } else {
-            console.error(`[Bunny-Native] Bunny error (${bunnyRes.statusCode}): ${responseData}`);
-            terminate(500, { error: `Bunny storage error: ${bunnyRes.statusCode}` });
+      try {
+        const fileStream = fs.createReadStream(file.filepath || file.path);
+        const stats = fs.statSync(file.filepath || file.path);
+
+        const bunnyReq = https.request(bunnyUrl, {
+          method: 'PUT',
+          headers: {
+            'AccessKey': storagePassword,
+            'Content-Type': file.mimetype || 'application/octet-stream',
+            'Content-Length': stats.size
           }
+        }, (bunnyRes) => {
+          let responseData = '';
+          bunnyRes.on('data', (chunk) => { responseData += chunk; });
+          bunnyRes.on('end', () => {
+            // Limpiar archivo temporal siempre
+            fs.unlink(file.filepath || file.path, () => {});
+
+            if (bunnyRes.statusCode === 201 || bunnyRes.statusCode === 200) {
+              const basePullUrl = pullZoneUrl.endsWith('/') ? pullZoneUrl : `${pullZoneUrl}/`;
+              if (!res.writableEnded) res.json({ url: `${basePullUrl}${bunnyPath}` });
+              console.log('[Bunny-Robust] Transfer success');
+            } else {
+              console.error(`[Bunny-Robust] Bunny Error: ${bunnyRes.statusCode}`);
+              if (!res.writableEnded) res.status(500).json({ error: `Bunny storage error: ${bunnyRes.statusCode}` });
+            }
+            resolve();
+          });
         });
-      });
 
-      bunnyReq.on('error', (err) => {
-        console.error('[Bunny-Native] Stream to Bunny failed:', err.message);
-        terminate(500, { error: `Upload stream failed: ${err.message}` });
-      });
+        bunnyReq.on('error', (uploadErr) => {
+          console.error('[Bunny-Robust] Bunny Upload Error:', uploadErr.message);
+          fs.unlink(file.filepath || file.path, () => {});
+          if (!res.writableEnded) res.status(500).json({ error: `Upload stream failed: ${uploadErr.message}` });
+          resolve();
+        });
 
-      // Pasar los datos directamente del navegador a Bunny.net
-      file.pipe(bunnyReq);
+        fileStream.pipe(bunnyReq);
+
+      } catch (streamErr) {
+        console.error('[Bunny-Robust] local FS error:', streamErr.message);
+        if (!res.writableEnded) res.status(500).json({ error: streamErr.message });
+        resolve();
+      }
     });
-
-    busboy.on('error', (err) => {
-      console.error('[Bunny-Native] Busboy error:', err.message);
-      terminate(500, { error: err.message });
-    });
-
-    busboy.on('finish', () => {
-      console.log('[Bunny-Native] Form data parsing complete');
-      // No resolvemos aquí, esperamos a que el stream de archivo termine o falle
-    });
-
-    req.pipe(busboy);
   });
 };
 
