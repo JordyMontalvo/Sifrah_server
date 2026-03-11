@@ -64,7 +64,8 @@ const handler = async (req, res) => {
         'photos': 'perfiles',
         'product': 'productos',
         'producto': 'productos',
-        'plan': 'planes'
+        'plan': 'planes',
+        'audios': 'audios'
       };
 
       const targetFolder = folderMapping[dir] || dir;
