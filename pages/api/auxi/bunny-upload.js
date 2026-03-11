@@ -1,5 +1,4 @@
-import formidable from 'formidable';
-import fs from 'fs';
+import Busboy from 'busboy';
 import axios from 'axios';
 const { applyCORS } = require('../../../middleware/middleware-cors');
 
@@ -11,55 +10,44 @@ export const config = {
 };
 
 const handler = async (req, res) => {
-  // Aplicar CORS usando el middleware interno del proyecto
+  // Aplicar CORS
   applyCORS(req, res);
 
-  // Manejar OPTIONS para evitar errores de preflight
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
-
-  console.log(`[Bunny] New ${req.method} request to /api/auxi/bunny-upload`);
-  console.log(`[Bunny] Content-Type: ${req.headers['content-type']}`);
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const form = new formidable.IncomingForm({
-    keepExtensions: true,
-    multiples: false,
-    maxFileSize: 50 * 1024 * 1024, // 50MB
-  });
+  console.log(`[Bunny-Stream] Incoming request...`);
 
   return new Promise((resolve) => {
-    // Escuchar si el request se aborta desde el cliente
-    req.on('aborted', () => {
-      console.warn('[Bunny] Client aborted the request');
-      resolve();
+    const busboy = Busboy({ 
+        headers: req.headers,
+        limits: { fileSize: 100 * 1024 * 1024 } // 100MB
     });
 
-    form.parse(req, async (err, fields, files) => {
-      if (err) {
-        console.error('[Bunny] Formidable error:', err.message);
-        // Evitar responder si el cliente ya cerró la conexión
-        if (!res.writableEnded) {
-            res.status(500).json({ error: `Error processing upload: ${err.message}` });
-        }
-        return resolve();
-      }
+    let fields = {};
+    let uploadPromise = null;
+    let isAborted = false;
 
-      console.log('[Bunny] Form parsed. Fields:', Object.keys(fields));
+    req.on('aborted', () => {
+      console.warn('[Bunny-Stream] Request aborted by client');
+      isAborted = true;
+    });
 
-      const file = files.file instanceof Array ? files.file[0] : files.file;
-      if (!file) {
-        console.warn('[Bunny] No file found in request');
-        if (!res.writableEnded) res.status(400).json({ error: 'No file uploaded' });
-        return resolve();
-      }
+    busboy.on('field', (name, val) => {
+      fields[name] = val;
+    });
 
-      const fileName = fields.fileName || file.originalFilename || file.name;
+    busboy.on('file', (fieldname, file, info) => {
+      const { filename, mimeType } = info;
+      const fileName = fields.fileName || filename;
       const dir = fields.dir || 'general';
+
+      console.log(`[Bunny-Stream] Processing file: ${fileName} in dir: ${dir}`);
 
       const storageZoneName = process.env.BUNNY_STORAGE_ZONE_NAME;
       const storagePassword = process.env.BUNNY_STORAGE_PASSWORD;
@@ -67,9 +55,9 @@ const handler = async (req, res) => {
       const pullZoneUrl = process.env.BUNNY_PULL_ZONE_URL;
 
       if (!storageZoneName || !storagePassword || !pullZoneUrl) {
-          console.error('[Bunny] Configuration missing in .env');
-          if (!res.writableEnded) res.status(500).json({ error: 'Bunny configuration missing' });
-          return resolve();
+        console.error('[Bunny-Stream] Missing configuration');
+        file.resume(); // Consumir el stream para no colgar
+        return;
       }
 
       const folderMapping = {
@@ -94,37 +82,54 @@ const handler = async (req, res) => {
       const targetFolder = folderMapping[dir] || dir;
       const path = `${targetFolder}/${fileName}`;
 
-      console.log(`[Bunny] Uploading to: ${path}`);
+      console.log(`[Bunny-Stream] Uploading to: ${path}`);
 
-      try {
-        const fileContent = fs.readFileSync(file.filepath || file.path);
-
-        const response = await axios({
-          method: 'put',
-          url: `https://${storageHostname}/${storageZoneName}/${path}`,
-          headers: {
-            'AccessKey': storagePassword,
-            'Content-Type': file.mimetype || file.type || 'application/octet-stream',
-          },
-          data: fileContent,
-          maxContentLength: Infinity,
-          maxBodyLength: Infinity,
-        });
-
+      uploadPromise = axios({
+        method: 'put',
+        url: `https://${storageHostname}/${storageZoneName}/${path}`,
+        headers: {
+          'AccessKey': storagePassword,
+          'Content-Type': mimeType || 'application/octet-stream',
+        },
+        data: file, // Pasar el stream directamente
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity,
+      }).then(response => {
         if (response.status === 201 || response.status === 200) {
           const basePullUrl = pullZoneUrl.endsWith('/') ? pullZoneUrl : `${pullZoneUrl}/`;
-          const finalUrl = `${basePullUrl}${path}`;
-          console.log(`[Bunny] Success! URL: ${finalUrl}`);
-          if (!res.writableEnded) res.json({ url: finalUrl });
-        } else {
-          throw new Error(`Bunny status: ${response.status}`);
+          return { url: `${basePullUrl}${path}` };
         }
-      } catch (uploadErr) {
-        console.error('[Bunny] Storage API error:', uploadErr.message);
-        if (!res.writableEnded) res.status(500).json({ error: `Upload error: ${uploadErr.message}` });
+        throw new Error(`Bunny error: ${response.status}`);
+      }).catch(err => {
+        console.error(`[Bunny-Stream] Axios error: ${err.message}`);
+        throw err;
+      });
+    });
+
+    busboy.on('error', (err) => {
+      console.error('[Bunny-Stream] Busboy error:', err.message);
+      if (!res.writableEnded) res.status(500).json({ error: err.message });
+      resolve();
+    });
+
+    busboy.on('finish', async () => {
+      console.log('[Bunny-Stream] Form parsing finished');
+      if (isAborted) return resolve();
+
+      try {
+        if (!uploadPromise) {
+          if (!res.writableEnded) res.status(400).json({ error: 'No file found in request' });
+        } else {
+          const result = await uploadPromise;
+          if (!res.writableEnded) res.json(result);
+        }
+      } catch (err) {
+        if (!res.writableEnded) res.status(500).json({ error: `Upload failed: ${err.message}` });
       }
       resolve();
     });
+
+    req.pipe(busboy);
   });
 };
 
