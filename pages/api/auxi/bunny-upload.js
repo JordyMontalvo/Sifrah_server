@@ -19,13 +19,14 @@ const handler = async (req, res) => {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Leer metadatos de las cabeceras personalizadas
-  const fileName = req.headers['x-file-name'];
-  const dir = req.headers['x-dir'] || 'general';
+  // Leer metadatos de cabeceras o de la URL (query) para máxima compatibilidad
+  const fileName = req.headers['x-file-name'] || req.query.fileName;
+  const dir = req.headers['x-dir'] || req.query.dir || 'general';
 
   if (!fileName) {
-    console.error('[Bunny-Binary] Error: Missing x-file-name header');
-    return res.status(400).json({ error: 'Falta cabecera x-file-name' });
+    console.error('[Bunny-Binary] Error: Missing fileName (neither in headers nor query)');
+    console.log('[Bunny-Binary] Headers received:', JSON.stringify(req.headers));
+    return res.status(400).json({ error: 'Falta nombre de archivo (x-file-name o query fileName)' });
   }
 
   console.log(`[Bunny-Binary] INCOMING: ${fileName} | DIR: ${dir} | SIZE: ${req.headers['content-length']}`);
