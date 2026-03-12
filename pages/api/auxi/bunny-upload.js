@@ -1,40 +1,59 @@
 import https from 'https';
-import formidable from 'formidable';
 const { applyCORS } = require('../../../middleware/middleware-cors');
 
 export const config = {
   api: {
-    bodyParser: false, // Formidable lo manejará
+    bodyParser: false, // Manejo manual para evitar cortes prematuros
     externalResolver: true,
   },
 };
 
-const handler = (req, res) => {
+const handler = async (req, res) => {
   applyCORS(req, res);
 
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const form = formidable({ 
-    multiples: false,
-    keepExtensions: true,
-    maxFileSize: 50 * 1024 * 1024 // 50MB
-  });
+  // Metadatos por URL para máxima estabilidad
+  const fileName = req.query.fileName;
+  const dir = req.query.dir || 'general';
 
-  form.parse(req, async (err, fields, files) => {
-    if (err) {
-      console.error('[Bunny-Form] Formidable error:', err);
-      return res.status(500).json({ error: 'Error procesando formulario' });
-    }
+  if (!fileName) {
+    return res.status(400).json({ error: 'Falta nombre de archivo en URL' });
+  }
 
-    const { fileName, dir } = fields;
-    const file = files.file;
+  console.log(`[Bunny-Final] Receving: ${fileName} | Expecting: ${req.headers['content-length']} bytes`);
 
-    if (!file || !fileName) {
-      console.error('[Bunny-Form] Missing file or fileName in body');
-      return res.status(400).json({ error: 'Falta archivo o nombre' });
-    }
+  try {
+    // Fase 1: Recopilación total en Memoria
+    const buffer = await new Promise((resolve, reject) => {
+      let chunks = [];
+      let totalReceived = 0;
 
+      req.on('data', (chunk) => {
+        chunks.push(chunk);
+        totalReceived += chunk.length;
+      });
+
+      req.on('end', () => {
+        console.log(`[Bunny-Final] Fully received: ${totalReceived} bytes`);
+        resolve(Buffer.concat(chunks));
+      });
+
+      req.on('error', (err) => {
+        console.error('[Bunny-Final] Input Stream Error:', err.message);
+        reject(err);
+      });
+
+      // Si el cliente corta, limpiamos
+      req.on('aborted', () => {
+        reject(new Error('Client aborted'));
+      });
+    });
+
+    if (buffer.length === 0) throw new Error('Empty file received');
+
+    // Fase 2: Subida Segura a Bunny
     const storageZoneName = process.env.BUNNY_STORAGE_ZONE_NAME;
     const storagePassword = process.env.BUNNY_STORAGE_PASSWORD;
     const storageHostname = process.env.BUNNY_STORAGE_HOSTNAME || 'br.storage.bunnycdn.com';
@@ -48,44 +67,40 @@ const handler = (req, res) => {
     const path = `${targetFolder}/${fileName}`;
     const bunnyUrl = `https://${storageHostname}/${storageZoneName}/${path}`;
 
-    console.log(`[Bunny-Form] Uploading ${fileName} to ${targetFolder}`);
-
-    // Leer el archivo temporal creado por formidable y mandarlo a Bunny
-    const fs = require('fs');
-    const fileStream = fs.createReadStream(file.filepath);
-
     const bunnyReq = https.request(bunnyUrl, {
       method: 'PUT',
       headers: {
         'AccessKey': storagePassword,
-        'Content-Type': file.mimetype || 'application/octet-stream',
-        'Content-Length': file.size
+        'Content-Type': req.headers['content-type'] || 'application/octet-stream',
+        'Content-Length': buffer.length
       }
     }, (bunnyRes) => {
       let responseData = '';
       bunnyRes.on('data', d => responseData += d);
       bunnyRes.on('end', () => {
-        // Eliminar archivo temporal después del proceso
-        fs.unlink(file.filepath, () => {});
-
         if (bunnyRes.statusCode === 201 || bunnyRes.statusCode === 200) {
-          console.log(`[Bunny-Form] Success: ${path}`);
+          console.log(`[Bunny-Final] SUCCESS: ${path}`);
           res.status(200).json({ url: `${pullZoneUrl}${path}` });
         } else {
-          console.error(`[Bunny-Form] Bunny Error ${bunnyRes.statusCode}: ${responseData}`);
-          res.status(500).json({ error: `Bunny Error: ${bunnyRes.statusCode}` });
+          console.error(`[Bunny-Final] Bunny Error ${bunnyRes.statusCode}: ${responseData}`);
+          res.status(500).json({ error: `Bunny Auth/API Error: ${bunnyRes.statusCode}` });
         }
       });
     });
 
-    bunnyReq.on('error', e => {
-      fs.unlink(file.filepath, () => {});
-      console.error('[Bunny-Form] Connection Error:', e.message);
-      res.status(500).json({ error: 'Error de red con Bunny' });
-    });
+    bunnyReq.on('error', e => { throw e; });
+    bunnyReq.write(buffer);
+    bunnyReq.end();
 
-    fileStream.pipe(bunnyReq);
-  });
+  } catch (err) {
+    if (err.message === 'Client aborted') {
+      console.warn('[Bunny-Final] Client connection interrupted (H27/499)');
+      // No respondemos porque el socket ya está muerto
+    } else {
+      console.error('[Bunny-Final] Critical Error:', err.message);
+      if (!res.writableEnded) res.status(500).json({ error: err.message });
+    }
+  }
 };
 
 export default handler;
