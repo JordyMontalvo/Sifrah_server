@@ -4,7 +4,7 @@ const { applyCORS } = require('../../../middleware/middleware-cors');
 export const config = {
   api: {
     bodyParser: {
-      sizeLimit: '100mb', // Suficiente para audios grandes
+      sizeLimit: '100mb', 
     },
     externalResolver: true,
   },
@@ -16,23 +16,33 @@ const handler = async (req, res) => {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  // Recibir datos como JSON (Inmune a cortes de stream binary)
-  const { fileName, dir, fileData } = req.body;
-
-  if (!fileName || !fileData) {
-    console.error(`[Bunny-Safe] Missing data. Body keys: ${Object.keys(req.body || {})}`);
-    return res.status(400).json({ error: 'Faltan datos (fileName o fileData)' });
-  }
-
-  console.log(`[Bunny-Safe] Processing: ${fileName} (${Math.round(fileData.length / 1024)} KB base64)`);
+  // 1. Extraer metadatos (soporta Query y Body)
+  const fileName = req.body?.fileName || req.query?.fileName;
+  const dir = req.body?.dir || req.query?.dir || 'general';
+  
+  if (!fileName) return res.status(400).json({ error: 'Falta nombre del archivo' });
 
   try {
-    const buffer = Buffer.from(fileData, 'base64');
-    
-    const storageZoneName = process.env.BUNNY_STORAGE_ZONE_NAME;
+    let buffer;
+    if (req.body?.fileData) {
+      console.log(`[Bunny-Final] Mode: JSON/Base64 | File: ${fileName}`);
+      buffer = Buffer.from(req.body.fileData, 'base64');
+    } else {
+      console.log(`[Bunny-Final] Mode: Binary/XHR | File: ${fileName}`);
+      // Si llegamos aquí como bodyParser: false, leeríamos stream. 
+      // Pero como está activo, req.body será {} si enviamos binario puro.
+      // Así que forzamos al cliente a enviar binario puro con bodyParser desactivado O Base64.
+      // SOLUCIÓN: Usamos Base64 en el cliente para máxima compatibilidad con Heroku.
+      return res.status(400).json({ error: 'El servidor requiere Base64 por JSON para estabilidad' });
+    }
+
+    if (!buffer || buffer.length === 0) throw new Error('Archivo vacío');
+
+    // 2. Configuración Dinámica
+    const storageZoneName = process.env.BUNNY_STORAGE_ZONE_NAME || 'sifrah';
     const storagePassword = process.env.BUNNY_STORAGE_PASSWORD;
     const storageHostname = process.env.BUNNY_STORAGE_HOSTNAME || 'br.storage.bunnycdn.com';
-    const pullZoneUrl = 'https://sifraht.b-cdn.net/';
+    const pullZoneUrl = process.env.BUNNY_PULL_ZONE_URL || 'https://sifraht.b-cdn.net/';
 
     const folderMapping = {
       'perfil': 'perfiles', 'photos': 'perfiles', 'audios': 'audios',
@@ -41,6 +51,8 @@ const handler = async (req, res) => {
     const targetFolder = folderMapping[dir] || dir;
     const path = `${targetFolder}/${fileName}`;
     const bunnyUrl = `https://${storageHostname}/${storageZoneName}/${path}`;
+
+    console.log(`[Bunny-Final] Proxying ${buffer.length} bytes to: ${bunnyUrl}`);
 
     const bunnyReq = https.request(bunnyUrl, {
       method: 'PUT',
@@ -54,11 +66,11 @@ const handler = async (req, res) => {
       bunnyRes.on('data', d => responseData += d);
       bunnyRes.on('end', () => {
         if (bunnyRes.statusCode === 201 || bunnyRes.statusCode === 200) {
-          console.log(`[Bunny-Safe] SUCCESS: ${path}`);
-          res.status(200).json({ url: `${pullZoneUrl}${path}` });
+          const basePullUrl = pullZoneUrl.endsWith('/') ? pullZoneUrl : `${pullZoneUrl}/`;
+          res.status(200).json({ url: `${basePullUrl}${path}` });
         } else {
-          console.error(`[Bunny-Safe] Bunny Error ${bunnyRes.statusCode}: ${responseData}`);
-          res.status(bunnyRes.statusCode === 401 ? 401 : 500).json({ error: `Bunny API Error: ${bunnyRes.statusCode}` });
+          console.error(`[Bunny-Final] Bunny Error ${bunnyRes.statusCode}: ${responseData}`);
+          res.status(500).json({ error: `Error Bunny: ${bunnyRes.statusCode}` });
         }
       });
     });
@@ -68,7 +80,7 @@ const handler = async (req, res) => {
     bunnyReq.end();
 
   } catch (err) {
-    console.error('[Bunny-Safe] Critical Error:', err.message);
+    console.error('[Bunny-Final] Error:', err.message);
     if (!res.writableEnded) res.status(500).json({ error: err.message });
   }
 };
