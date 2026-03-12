@@ -3,7 +3,9 @@ const { applyCORS } = require('../../../middleware/middleware-cors');
 
 export const config = {
   api: {
-    bodyParser: false, // Manejo manual para evitar cortes prematuros
+    bodyParser: {
+      sizeLimit: '100mb', // Suficiente para audios grandes
+    },
     externalResolver: true,
   },
 };
@@ -14,46 +16,19 @@ const handler = async (req, res) => {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  // Metadatos por URL para máxima estabilidad
-  const fileName = req.query.fileName;
-  const dir = req.query.dir || 'general';
+  // Recibir datos como JSON (Inmune a cortes de stream binary)
+  const { fileName, dir, fileData } = req.body;
 
-  if (!fileName) {
-    return res.status(400).json({ error: 'Falta nombre de archivo en URL' });
+  if (!fileName || !fileData) {
+    console.error(`[Bunny-Safe] Missing data. Body keys: ${Object.keys(req.body || {})}`);
+    return res.status(400).json({ error: 'Faltan datos (fileName o fileData)' });
   }
 
-  console.log(`[Bunny-Final] Receving: ${fileName} | Expecting: ${req.headers['content-length']} bytes`);
+  console.log(`[Bunny-Safe] Processing: ${fileName} (${Math.round(fileData.length / 1024)} KB base64)`);
 
   try {
-    // Fase 1: Recopilación total en Memoria
-    const buffer = await new Promise((resolve, reject) => {
-      let chunks = [];
-      let totalReceived = 0;
-
-      req.on('data', (chunk) => {
-        chunks.push(chunk);
-        totalReceived += chunk.length;
-      });
-
-      req.on('end', () => {
-        console.log(`[Bunny-Final] Fully received: ${totalReceived} bytes`);
-        resolve(Buffer.concat(chunks));
-      });
-
-      req.on('error', (err) => {
-        console.error('[Bunny-Final] Input Stream Error:', err.message);
-        reject(err);
-      });
-
-      // Si el cliente corta, limpiamos
-      req.on('aborted', () => {
-        reject(new Error('Client aborted'));
-      });
-    });
-
-    if (buffer.length === 0) throw new Error('Empty file received');
-
-    // Fase 2: Subida Segura a Bunny
+    const buffer = Buffer.from(fileData, 'base64');
+    
     const storageZoneName = process.env.BUNNY_STORAGE_ZONE_NAME;
     const storagePassword = process.env.BUNNY_STORAGE_PASSWORD;
     const storageHostname = process.env.BUNNY_STORAGE_HOSTNAME || 'br.storage.bunnycdn.com';
@@ -71,7 +46,7 @@ const handler = async (req, res) => {
       method: 'PUT',
       headers: {
         'AccessKey': storagePassword,
-        'Content-Type': req.headers['content-type'] || 'application/octet-stream',
+        'Content-Type': 'application/octet-stream',
         'Content-Length': buffer.length
       }
     }, (bunnyRes) => {
@@ -79,11 +54,11 @@ const handler = async (req, res) => {
       bunnyRes.on('data', d => responseData += d);
       bunnyRes.on('end', () => {
         if (bunnyRes.statusCode === 201 || bunnyRes.statusCode === 200) {
-          console.log(`[Bunny-Final] SUCCESS: ${path}`);
+          console.log(`[Bunny-Safe] SUCCESS: ${path}`);
           res.status(200).json({ url: `${pullZoneUrl}${path}` });
         } else {
-          console.error(`[Bunny-Final] Bunny Error ${bunnyRes.statusCode}: ${responseData}`);
-          res.status(500).json({ error: `Bunny Auth/API Error: ${bunnyRes.statusCode}` });
+          console.error(`[Bunny-Safe] Bunny Error ${bunnyRes.statusCode}: ${responseData}`);
+          res.status(bunnyRes.statusCode === 401 ? 401 : 500).json({ error: `Bunny API Error: ${bunnyRes.statusCode}` });
         }
       });
     });
@@ -93,13 +68,8 @@ const handler = async (req, res) => {
     bunnyReq.end();
 
   } catch (err) {
-    if (err.message === 'Client aborted') {
-      console.warn('[Bunny-Final] Client connection interrupted (H27/499)');
-      // No respondemos porque el socket ya está muerto
-    } else {
-      console.error('[Bunny-Final] Critical Error:', err.message);
-      if (!res.writableEnded) res.status(500).json({ error: err.message });
-    }
+    console.error('[Bunny-Safe] Critical Error:', err.message);
+    if (!res.writableEnded) res.status(500).json({ error: err.message });
   }
 };
 
