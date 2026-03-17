@@ -1,4 +1,4 @@
-import db  from "../../../components/db"
+import db from "../../../components/db"
 import lib from "../../../components/lib"
 
 const { User, Session } = db
@@ -12,13 +12,13 @@ export default async (req, res) => {
 
   // valid session
   session = await Session.findOne({ value: session })
-  if(!session) return res.json(error('invalid session'))
+  if (!session) return res.json(error('invalid session'))
 
   // get user
   const user = await User.findOne({ id: session.id })
 
 
-  if(req.method == 'POST') {
+  if (req.method == 'POST') {
 
     let { photo } = req.body
 

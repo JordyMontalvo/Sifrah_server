@@ -28,6 +28,7 @@ class DB {
     Flyer,
     Material,
     Audio,
+    AudioCategory,
   }) {
     this.User = User;
     this.Session = Session;
@@ -52,6 +53,7 @@ class DB {
     this.Flyer = Flyer;
     this.Material = Material;
     this.Audio = Audio;
+    this.AudioCategory = AudioCategory;
   }
 }
 
@@ -911,6 +913,39 @@ class Audio {
   }
 }
 
+class AudioCategory {
+  async findOne(query) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    const category = await db.collection("audio_categories").findOne(query);
+    client.close();
+    return category;
+  }
+  async find(query) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    const categories = await db.collection("audio_categories").find(query).toArray();
+    client.close();
+    return categories;
+  }
+  async insert(category) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    await db.collection("audio_categories").insertOne(category);
+    return client.close();
+  }
+  async delete(query) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    await db.collection("audio_categories").deleteOne(query);
+    return client.close();
+  }
+}
+
 class Flyer {
   async findOne(query) {
     const client = new Client(URL, { useUnifiedTopology: true });
@@ -975,4 +1010,5 @@ module.exports = new DB({
   Flyer: new Flyer(),
   Material: new Material(),
   Audio: new Audio(),
+  AudioCategory: new AudioCategory(),
 });
