@@ -29,6 +29,8 @@ class DB {
     Material,
     Audio,
     AudioCategory,
+    Book,
+    BookCategory,
   }) {
     this.User = User;
     this.Session = Session;
@@ -54,6 +56,8 @@ class DB {
     this.Material = Material;
     this.Audio = Audio;
     this.AudioCategory = AudioCategory;
+    this.Book = Book;
+    this.BookCategory = BookCategory;
   }
 }
 
@@ -986,6 +990,79 @@ class Flyer {
   }
 }
 
+class Book {
+  async findOne(query) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    const book = await db.collection("books").findOne(query);
+    client.close();
+    return book;
+  }
+  async find(query) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    const books = await db.collection("books").find(query).toArray();
+    client.close();
+    return books;
+  }
+  async insert(book) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    await db.collection("books").insertOne(book);
+    return client.close();
+  }
+  async update(query, values) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    await db.collection("books").updateOne(query, { $set: values });
+    return client.close();
+  }
+  async delete(query) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    await db.collection("books").deleteOne(query);
+    return client.close();
+  }
+}
+
+class BookCategory {
+  async findOne(query) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    const category = await db.collection("book_categories").findOne(query);
+    client.close();
+    return category;
+  }
+  async find(query) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    const categories = await db.collection("book_categories").find(query).toArray();
+    client.close();
+    return categories;
+  }
+  async insert(category) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    await db.collection("book_categories").insertOne(category);
+    return client.close();
+  }
+  async delete(query) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    await db.collection("book_categories").deleteOne(query);
+    return client.close();
+  }
+}
+
 module.exports = new DB({
   User: new User(),
   Session: new Session(),
@@ -1011,4 +1088,6 @@ module.exports = new DB({
   Material: new Material(),
   Audio: new Audio(),
   AudioCategory: new AudioCategory(),
+  Book: new Book(),
+  BookCategory: new BookCategory(),
 });
