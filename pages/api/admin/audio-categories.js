@@ -6,15 +6,6 @@ const { midd, success, rand } = lib;
 const { applyCORS } = require("../../../middleware/middleware-cors");
 
 export default async (req, res) => {
-    // Apply CORS
-    applyCORS(req, res);
-
-    // Handle preflight request
-    if (req.method === "OPTIONS") {
-        res.status(200).end();
-        return;
-    }
-
     await midd(req, res);
 
     if (req.method == "GET") {

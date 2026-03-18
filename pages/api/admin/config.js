@@ -3,12 +3,8 @@ import lib from "../../../components/lib";
 
 const { DashboardConfig } = db;
 const { success, error, midd } = lib;
-const { applyCORS } = require("../../../middleware/middleware-cors");
 
 export default async (req, res) => {
-    applyCORS(req, res);
-    if (req.method === "OPTIONS") return res.status(200).end();
-
     await midd(req, res);
 
     if (req.method === "GET") {

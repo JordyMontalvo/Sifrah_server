@@ -2,19 +2,9 @@ import db from "../../../components/db";
 import lib from "../../../components/lib";
 
 const { Audio } = db;
-const { midd, success, rand } = lib;
-const { applyCORS } = require("../../../middleware/middleware-cors");
+const { success, error, midd } = lib;
 
 export default async (req, res) => {
-    // Apply CORS
-    applyCORS(req, res);
-
-    // Handle preflight request
-    if (req.method === "OPTIONS") {
-        res.status(200).end();
-        return;
-    }
-
     await midd(req, res);
 
     if (req.method == "GET") {
