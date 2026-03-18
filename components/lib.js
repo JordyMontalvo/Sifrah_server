@@ -6,7 +6,7 @@ class Lib {
       origin: true, // Allow all origins
       credentials: true,
       methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-      allowedHeaders: ["Content-Type", "Authorization"],
+      allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept", "X-Api-Version", "x-file-name", "x-dir"],
     });
 
     this.midd = this.midd.bind(this);

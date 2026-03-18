@@ -7,6 +7,7 @@ const { applyCORS } = require("../../../middleware/middleware-cors");
 
 export default async (req, res) => {
     await midd(req, res);
+    if (req.method === "OPTIONS") return res.status(200).end();
 
     if (req.method == "GET") {
         try {
