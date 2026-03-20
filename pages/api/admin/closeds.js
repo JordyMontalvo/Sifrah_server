@@ -273,11 +273,20 @@ export default async (req, res) => {
         const enginePath = path.resolve(process.cwd(), 'cierre_engine/' + binaryName);
         const engineCwd  = path.resolve(process.cwd(), 'cierre_engine');
 
+        // Map Node server DB vars → Go engine vars
+        const goEnv = {
+          ...process.env,
+          DB_URL_PROD:  process.env.DB_URL_PROD  || process.env.DB_URL      || process.env.MONGODB_URI,
+          DB_NAME_PROD: process.env.DB_NAME_PROD || process.env.DB_NAME     || 'sifrah',
+          DB_URL_DEV:   process.env.DB_URL_DEV   || process.env.DB_URL      || process.env.MONGODB_URI,
+          DB_NAME_DEV:  process.env.DB_NAME_DEV  || process.env.DB_NAME     || 'sifrah',
+        };
+
         // Run with --dry-run and --json for preview
         const output = execSync(`${enginePath} --dry-run --json`, { 
           cwd: engineCwd,
           encoding: 'utf-8',
-          env: { ...process.env }
+          env: goEnv
         });
 
         const result = JSON.parse(output);
@@ -309,13 +318,19 @@ export default async (req, res) => {
         const enginePath = path.resolve(process.cwd(), 'cierre_engine/' + binaryName);
         const engineCwd  = path.resolve(process.cwd(), 'cierre_engine');
 
-        console.log(`🚀 Executing Go Engine at ${enginePath}...`);
-        
+        const goEnv = {
+          ...process.env,
+          DB_URL_PROD:  process.env.DB_URL_PROD  || process.env.DB_URL      || process.env.MONGODB_URI,
+          DB_NAME_PROD: process.env.DB_NAME_PROD || process.env.DB_NAME     || 'sifrah',
+          DB_URL_DEV:   process.env.DB_URL_DEV   || process.env.DB_URL      || process.env.MONGODB_URI,
+          DB_NAME_DEV:  process.env.DB_NAME_DEV  || process.env.DB_NAME     || 'sifrah',
+        };
+
         // Execute the Go engine. stdout will capture the summary print.
         const output = execSync(enginePath, { 
           cwd: engineCwd,
           encoding: 'utf-8',
-          env: { ...process.env }
+          env: goEnv
         });
 
         console.log('✅ Go Engine output:', output);
