@@ -262,129 +262,76 @@ export default async (req, res) => {
 
     const { action } = req.body
 
-    if (action == 'new') { ; console.log('new ...')
+    if (action == 'new') { ; console.log('preview via Go Engine...')
 
-      const users = await User.find({ tree: true })
-            tree  = await Tree.find({})
+      const { execSync } = require('child_process');
+      const path = require('path');
 
-      tree.forEach(node => {
-        const user = users.find(e => e.id == node.id)
+      try {
+        const enginePath = path.resolve(__dirname, '../../../cierre_engine/engine_test');
+        const engineCwd  = path.resolve(__dirname, '../../../cierre_engine');
 
-        node.parentId           = user.parentId
-        node.plan               = user.plan
-        node.dni                = user.dni
-        node.name               = user.name + ' ' + user.lastName
-        node.activated          = user.activated
-        node._activated         = user._activated ? user._activated : false
-        node.points             = Number(user.points)
-        node.affiliation_points = user.affiliation_points ? user.affiliation_points : 0
-        // node.closeds            = user.closeds ? user.closeds : []
-        node.pays               = user.pays ? user.pays : pays
-        node.bonuses            = user.bonuses ? user.bonuses : bonuses
-        node.n_inactives        = user.n_inactives ? user.n_inactives : 0
-        node.residual_bonus     = 0
-        node.residual_bonus_arr = []
-        node._pays              = []
-      })
+        // Run with --dry-run and --json for preview
+        const output = execSync(`${enginePath} --dry-run --json`, { 
+          cwd: engineCwd,
+          encoding: 'utf-8',
+          env: { ...process.env }
+        });
 
-      total_points('5f0e0b67af92089b5866bcd0')
-      console.log('1')
+        const result = JSON.parse(output);
 
-      tree.forEach(node => {
+        return res.json(success({ 
+          tree: result.tree, 
+          affiliations: result.affiliations, 
+          activations: result.activations 
+        }));
 
-        node.total = []
-        node._total = []
-
-        node.childs.forEach(_id => {
-
-          const _node = tree.find(e => e.id == _id)
-
-          node.total.push(_node.total_points)
-          node._total.push(_node.total_points)
-        })
-
-        node.total.sort((a, b) => b - a)
-      })
-
-      rank(tree[0])
-      console.log('2')
-
-      // for(let node of tree) if(is_rank(node, 'RUBI'))              node.rank = 'RUBI'
-      for(let node of tree) if(is_rank(node, 'DIAMANTE'))          node.rank = 'DIAMANTE'
-      for(let node of tree) if(is_rank(node, 'DOBLE DIAMANTE'))    node.rank = 'DOBLE DIAMANTE'
-      for(let node of tree) if(is_rank(node, 'TRIPLE DIAMANTE'))   node.rank = 'TRIPLE DIAMANTE'
-      for(let node of tree) if(is_rank(node, 'DIAMANTE ESTRELLA')) node.rank = 'DIAMANTE ESTRELLA'
-
-      levels()
-      console.log('3')
-
-      for(let node of tree) if(node.parent) pay_residual(node.parent, 0, node)
-      console.log('4')
-
-      for(let node of tree) {
-
-        let directs = tree.filter(e => e.affiliation_points && e.parenId == node.id && (e.plan == 'business' || e.plan == 'master'))
-
-        directs.sort((a, b) => {
-          if(a.plan == b.plan) return  0
-
-          if(a.plan == 'master' && b.plan == 'business') return -1
-
-          return 1
-        })
-
-        if(directs.length >= 5) {
-
-          const value = (directs[4].plan == 'master') ? 250 : 100
-
-          await Transaction.insert({
-            date:    new Date(),
-            user_id: node.id,
-            type:   'in',
-            value,
-            name:   'fast bonus',
-          })
-          console.log('4 4')
-        }
+      } catch (error) {
+        console.error('❌ Error executing Go Engine (new):', error);
+        return res.status(500).json({ error: 'Error al previsualizar el cierre con Go' });
       }
 
-
-      for (let node of tree) {
-
-        const { rank } = node
-
-        if(rank != 'none') {
-
-          const pos = node.pays.findIndex(e => e.name == rank)
-
-          if(pos != -1) {
-
-            for(let i = 0; i <= pos; i++) {
-
-              const pay = node.pays[i]
-
-              if(!pay.payed) {
-
-                const value = Pay[pay.name]
-
-                pay.value = value
-
-                node._pays.push(pay)
-              }
-            }
-          }
-        }
-      }
-      console.log('5')
-
-      const affiliations = await Affiliation.find({ closed: false })
-      const activations  = await  Activation.find({ closed: false })
-
-      return res.json(success({ tree, affiliations, activations }))
+      /* Original JS logic preserved
+      ...
+      */
     }
 
-    if (action == 'save') { ; console.log('save ...')
+    if (action == 'save') { ; console.log('save via Go Engine...')
 
+      const { execSync } = require('child_process');
+      const path = require('path');
+
+      try {
+        // Path to the Go binary relative to 'server' directory
+        // The binary is in 'cierre_engine/engine_test'
+        const enginePath = path.resolve(__dirname, '../../../cierre_engine/engine_test');
+        const engineCwd  = path.resolve(__dirname, '../../../cierre_engine');
+
+        console.log(`🚀 Executing Go Engine at ${enginePath}...`);
+        
+        // Execute the Go engine. stdout will capture the summary print.
+        const output = execSync(enginePath, { 
+          cwd: engineCwd,
+          encoding: 'utf-8',
+          env: { ...process.env }
+        });
+
+        console.log('✅ Go Engine output:', output);
+
+        return res.json(success({ 
+          message: 'Cierre completado con éxito vía Go Engine',
+          summary: output 
+        }));
+
+      } catch (error) {
+        console.error('❌ Error executing Go Engine:', error);
+        return res.status(500).json({ 
+          error: 'Error crítico en el motor de cierre Go', 
+          details: error.message 
+        });
+      }
+
+      /* Original JS logic preserved for reference
       const { tree, affiliations, activations } = req.body.data
 
       let users = []
@@ -506,6 +453,7 @@ export default async (req, res) => {
           { id: transaction.id }
         )
       }
+      */
     }
 
     // response
