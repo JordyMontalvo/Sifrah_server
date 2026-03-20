@@ -9,7 +9,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "node server.js",
-    "heroku-postbuild": "npm run build && cd cierre_engine && go build -o engine_test main.go"
+    "heroku-postbuild": "npm run build"
   },
   "dependencies": {
     "axios": "^1.11.0",

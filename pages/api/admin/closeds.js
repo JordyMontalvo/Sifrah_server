@@ -266,9 +266,11 @@ export default async (req, res) => {
 
       const { execSync } = require('child_process');
       const path = require('path');
+      const os   = require('os');
 
       try {
-        const enginePath = path.resolve(__dirname, '../../../cierre_engine/engine_test');
+        const binaryName = os.platform() === 'linux' ? 'engine_linux' : 'engine_test';
+        const enginePath = path.resolve(__dirname, '../../../cierre_engine/' + binaryName);
         const engineCwd  = path.resolve(__dirname, '../../../cierre_engine');
 
         // Run with --dry-run and --json for preview
@@ -300,11 +302,11 @@ export default async (req, res) => {
 
       const { execSync } = require('child_process');
       const path = require('path');
+      const os   = require('os');
 
       try {
-        // Path to the Go binary relative to 'server' directory
-        // The binary is in 'cierre_engine/engine_test'
-        const enginePath = path.resolve(__dirname, '../../../cierre_engine/engine_test');
+        const binaryName = os.platform() === 'linux' ? 'engine_linux' : 'engine_test';
+        const enginePath = path.resolve(__dirname, '../../../cierre_engine/' + binaryName);
         const engineCwd  = path.resolve(__dirname, '../../../cierre_engine');
 
         console.log(`🚀 Executing Go Engine at ${enginePath}...`);
