@@ -270,8 +270,8 @@ export default async (req, res) => {
 
       try {
         const binaryName = os.platform() === 'linux' ? 'engine_linux' : 'engine_test';
-        const enginePath = path.resolve(__dirname, '../../../cierre_engine/' + binaryName);
-        const engineCwd  = path.resolve(__dirname, '../../../cierre_engine');
+        const enginePath = path.resolve(process.cwd(), 'cierre_engine/' + binaryName);
+        const engineCwd  = path.resolve(process.cwd(), 'cierre_engine');
 
         // Run with --dry-run and --json for preview
         const output = execSync(`${enginePath} --dry-run --json`, { 
@@ -306,8 +306,8 @@ export default async (req, res) => {
 
       try {
         const binaryName = os.platform() === 'linux' ? 'engine_linux' : 'engine_test';
-        const enginePath = path.resolve(__dirname, '../../../cierre_engine/' + binaryName);
-        const engineCwd  = path.resolve(__dirname, '../../../cierre_engine');
+        const enginePath = path.resolve(process.cwd(), 'cierre_engine/' + binaryName);
+        const engineCwd  = path.resolve(process.cwd(), 'cierre_engine');
 
         console.log(`🚀 Executing Go Engine at ${enginePath}...`);
         
