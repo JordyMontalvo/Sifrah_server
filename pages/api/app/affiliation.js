@@ -203,7 +203,6 @@ export default async (req, res) => {
     console.log('Affiliation POST - voucher2:', voucher2 ? voucher2 : 'null');
 
     // Validación obligatoria: Oficina de recojo (PDE)
-    // Evita afiliaciones/upgrade sin oficina seleccionada.
     const officeId = office != null ? String(office).trim() : ""
     if (!officeId) return res.json(error("Selecciona una Oficina de Recojo (PDE)."))
     const officeDoc = await Office.findOne({ id: officeId, active: { $ne: false } })
@@ -215,44 +214,10 @@ export default async (req, res) => {
 
     let transactions = [];
     let amounts;
-    let type = "affiliation";
-    let previousPlan = null;
-    let difference = null;
 
-    // Detectar si es upgrade
-    // Buscar la afiliación aprobada de mayor plan (más alto ya pagado)
-    let highestAffiliation = null;
-    if (affiliations && affiliations.length > 0) {
-      highestAffiliation = affiliations.reduce((prev, curr) => {
-        // Compara por monto del plan
-        return curr.plan.amount > prev.plan.amount ? curr : prev;
-      }, affiliations[0]);
-    }
-    if (
-      highestAffiliation &&
-      plan &&
-      plan.amount > highestAffiliation.plan.amount
-    ) {
-      type = "upgrade";
-      previousPlan = highestAffiliation.plan;
-      // Calcular diferencia
-      difference = {
-        amount: plan.amount - highestAffiliation.plan.amount,
-        points:
-          (plan.affiliation_points || 0) -
-          (highestAffiliation.plan.affiliation_points || 0),
-        products: products.map((p, i) => ({
-          ...p,
-          total: p.total - (highestAffiliation.products[i]?.total || 0),
-        })),
-      };
-      // Para upgrades, solo registrar la diferencia de productos
-      products = difference.products;
-    }
-
+    // Ya no existe lógica de upgrade. Toda afiliación/migración se cobra completa.
     if (!check) {
-      // Si es upgrade, solo cobrar la diferencia
-      const price = type === "upgrade" ? difference.amount : plan.amount;
+      const price = plan.amount;
 
       const a = _balance < price ? _balance : price;
       const r = price - _balance > 0 ? price - _balance : 0;
@@ -273,7 +238,7 @@ export default async (req, res) => {
           user_id: user.id,
           type: "out",
           value: a,
-          name: type,
+          name: "affiliation",
           virtual: true,
         });
       }
@@ -286,7 +251,7 @@ export default async (req, res) => {
           user_id: user.id,
           type: "out",
           value: b,
-          name: type,
+          name: "affiliation",
           virtual: false,
         });
       }
@@ -312,9 +277,7 @@ export default async (req, res) => {
       bank,
       voucher_date: date,
       voucher_number,
-      type,
-      previousPlan,
-      difference,
+      type: "affiliation",
     });
 
     return res.json(success());

@@ -172,8 +172,6 @@ const A = [
   "products",
   "transactions",
   "type",
-  "previousPlan",
-  "difference",
   "period_key",    // Periodo al momento de aprobación
   "period_label",  // Label del periodo al momento de aprobación
   "approved_at",   // Fecha y hora exacta de aprobación
@@ -186,9 +184,9 @@ let tree = null;
 // Definición de pagos fijos por plan y nivel. Cada array tiene 9 valores (uno por cada nivel de profundidad).
 
 const pay = {
-  basic: [90, 20, 5, 3, 3, 1.5, 1.5, 1.5, 1.5], // Solo absorbe 3 niveles
-  standard: [300, 50, 20, 10, 10, 5, 5, 5, 5], // Solo absorbe 6 niveles
-  master: [500, 100, 60, 40, 20, 10, 10, 10, 10], // Absorbe los 9 niveles
+  basic: [90, 30, 10, 5, 5, 1, 1, 1, 1],      // Ejecutivo
+  standard: [300, 100, 20, 10, 10, 5, 5, 5, 5], // Distribuidor
+  master: [500, 100, 100, 50, 50, 10, 10, 10, 10], // Empresario
 };
 
 // Define cuántos niveles puede absorber cada plan
@@ -208,8 +206,7 @@ async function pay_bonus(
   amount,
   migration,
   plan_afiliado,
-  _id,
-  previousPlan = null
+  _id
 ) {
   const user = users.find((e) => e.id == id);
   const node = tree.find((e) => e.id == id);
@@ -220,17 +217,9 @@ async function pay_bonus(
   const virtual = user._activated || user.activated ? false : true;
   const name = migration ? "migration bonus" : "affiliation bonus";
 
-  // Si es upgrade (previousPlan existe), pagar solo la diferencia por nivel
-  let fixed_payment;
-  if (previousPlan) {
-    const nuevo = pay[plan_afiliado][i] || 0;
-    const anterior = pay[previousPlan][i] || 0;
-    fixed_payment = nuevo - anterior;
-  } else {
-    fixed_payment = pay[plan_afiliado][i];
-  }
+  const fixed_payment = pay[plan_afiliado][i];
 
-  // Solo paga si el usuario puede absorber este nivel según su plan y la diferencia es positiva
+  // Solo paga si el usuario puede absorber este nivel y hay pago definido
   if (i < absorb_levels[user.plan] && fixed_payment && fixed_payment > 0) {
     const transactionId = rand();
     await Transaction.insert({
@@ -238,7 +227,7 @@ async function pay_bonus(
       date: new Date(),
       user_id: user.id,
       type: "in",
-      value: fixed_payment, // Pago fijo o diferencia
+      value: fixed_payment,
       name,
       affiliation_id: aff_id,
       virtual,
@@ -256,8 +245,7 @@ async function pay_bonus(
     amount,
     migration,
     plan_afiliado,
-    _id,
-    previousPlan
+    _id
   );
 }
 
@@ -373,15 +361,15 @@ const handler = async (req, res) => {
     }
 
     if (action == "approve") {
-      // approve AFFILIATION
-      // Calcular el periodo correcto según el momento exacto de la aprobación
+      // approve AFFILIATION - Sin lógica de upgrade
       const approvedAt = new Date();
       const resolvedPeriod = await resolvePeriodAtApproval(approvedAt);
       const approvedPeriodKey   = resolvedPeriod ? resolvedPeriod.key   : (affiliation.period_key   || null);
       const approvedPeriodLabel = resolvedPeriod ? resolvedPeriod.label : (affiliation.period_label || null);
+
       console.log('[Approve Affiliation] approved_at:', approvedAt, '| periodo resuelto:', approvedPeriodKey);
 
-      // Marcar delivered como false para nuevas aprobaciones (control manual)
+      // Marcar como aprobada
       await Affiliation.update({ id }, {
         status: "approved",
         delivered: false,
@@ -392,171 +380,6 @@ const handler = async (req, res) => {
 
       // update USER
       const user = await User.findOne({ id: affiliation.userId });
-
-      // Si es upgrade, solo actualizar lo necesario
-      if (affiliation.type === "upgrade") {
-        // Actualizar plan y puntos (sumar solo la diferencia)
-        const currentAffiliationPoints = user.affiliation_points || 0;
-        const newAffiliationPoints = currentAffiliationPoints + (affiliation.difference?.points || 0);
-        
-        await User.update(
-          { id: user.id },
-          {
-            plan: affiliation.plan.id,
-            n: affiliation.plan.n,
-            affiliation_points: newAffiliationPoints,
-            affiliation_date: new Date(),
-            _activated: true,
-            activated:true
-          }
-        );
-        // CRÍTICO: Actualizar total_points después del upgrade
-        await lib.updateTotalPointsCascade(User, Tree, user.id);
-        // PAGAR BONOS SOLO SOBRE LA DIFERENCIA
-        tree = await Tree.find({});
-        users = await User.find({});
-        pays = [];
-        const plan = affiliation.plan.id;
-        const previousPlan = affiliation.previousPlan?.id; // <-- Tomar solo el id del plan anterior
-        const amount = affiliation.difference?.amount || 0;
-        // Solo repartir bonos si hay diferencia positiva
-        if (amount > 0) {
-          await pay_bonus(
-            user.parentId,
-            0,
-            affiliation.id,
-            amount,
-            false,
-            plan,
-            user.id,
-            previousPlan // <-- Pasar el plan anterior
-          );
-        }
-        // Actualizar la afiliación con las transacciones
-        await Affiliation.update({ id }, { transactions: pays });
-        // UPDATE STOCK SOLO DE PRODUCTOS ADICIONALES
-        const office_id = affiliation.office;
-        const diffProducts = affiliation.difference?.products || [];
-        const office = await Office.findOne({ id: office_id });
-        diffProducts.forEach((p, i) => {
-          if (office.products[i]) office.products[i].total -= p.total;
-        });
-        await Office.update(
-          { id: office_id },
-          {
-            products: office.products,
-          }
-        );
-        // migrar transacciones virtuales solo las que fueron creadas después del último cierre
-        // y que NO sean transacciones "closed reset" (compensaciones de cierre)
-        // y que NO sean transacciones que ya fueron compensadas por "closed reset"
-        // Primero obtener la fecha del último cierre
-        const lastClosed = await Closed.findOne({}, { sort: { date: -1 } });
-        
-        // Obtener todas las transacciones "closed reset" del usuario, ordenadas por fecha
-        const closedResetTransactions = await Transaction.find({
-          user_id: user.id,
-          name: "closed reset",
-          virtual: true
-        });
-        
-        // Ordenar los "closed reset" por fecha (más antiguos primero)
-        closedResetTransactions.sort((a, b) => new Date(a.date) - new Date(b.date));
-        
-        // Obtener TODAS las transacciones virtuales del usuario (excepto "closed reset")
-        // para procesarlas en orden cronológico
-        const allVirtualTransactions = await Transaction.find({
-          user_id: user.id,
-          virtual: true,
-          name: { $ne: "closed reset" }
-        });
-        allVirtualTransactions.sort((a, b) => new Date(a.date) - new Date(b.date)); // Ordenar por fecha (más antiguas primero)
-        
-        // Identificar qué transacciones fueron compensadas por cada "closed reset"
-        // IMPORTANTE: Una transacción solo puede ser compensada UNA VEZ
-        const compensatedTransactionIds = new Set(); // Usar Set para evitar duplicados
-        
-        // Para cada "closed reset", identificar las transacciones que compensó
-        for (const resetTransaction of closedResetTransactions) {
-          // Obtener todas las transacciones virtuales que existían ANTES o EN la fecha del reset
-          // y que NO hayan sido compensadas previamente
-          const transactionsAvailableForReset = allVirtualTransactions.filter(t => {
-            // Solo considerar transacciones que existían antes o en la fecha del reset
-            const transactionDate = new Date(t.date);
-            const resetDate = new Date(resetTransaction.date);
-            return transactionDate <= resetDate && !compensatedTransactionIds.has(t.id);
-          });
-          
-          // Simular la compensación: sumar transacciones hasta alcanzar el valor del reset
-          let remainingToCompensate = Math.abs(resetTransaction.value); // Valor absoluto porque es negativo
-          const transactionsToCompensate = [];
-          
-          for (const transaction of transactionsAvailableForReset) {
-            if (remainingToCompensate <= 0) break;
-            
-            // Solo considerar transacciones de tipo "in" (entradas)
-            if (transaction.type === 'in') {
-              if (transaction.value <= remainingToCompensate) {
-                // Esta transacción fue completamente compensada
-                transactionsToCompensate.push(transaction.id);
-                remainingToCompensate -= transaction.value;
-              } else {
-                // Esta transacción fue parcialmente compensada
-                // Por ahora, la consideramos compensada completamente
-                // En el futuro se podría manejar compensaciones parciales
-                transactionsToCompensate.push(transaction.id);
-                remainingToCompensate = 0;
-                break;
-              }
-            }
-          }
-          
-          // Agregar los IDs de las transacciones que fueron compensadas por este reset
-          transactionsToCompensate.forEach(id => compensatedTransactionIds.add(id));
-        }
-        
-        let virtualTransactionsQuery = {
-          user_id: user.id,
-          virtual: true,
-          name: { $ne: "closed reset" } // Excluir transacciones de compensación de cierre
-        };
-        
-        // Si hay un cierre anterior, solo migrar transacciones creadas después de ese cierre
-        if (lastClosed) {
-          virtualTransactionsQuery.date = { $gte: lastClosed.date };
-        }
-        
-        const transactions = await Transaction.find(virtualTransactionsQuery);
-        
-        // Filtrar transacciones que NO fueron compensadas por "closed reset"
-        const validTransactions = transactions.filter(transaction => {
-          // Si esta transacción está en la lista de compensadas, no migrarla
-          return !compensatedTransactionIds.has(transaction.id);
-        });
-        
-        for (let transaction of validTransactions) {
-          await Transaction.update({ id: transaction.id }, { virtual: false });
-        }
-
-        // Enviar email de bienvenida SIFRAH al aprobar upgrade
-        console.log('[Affiliations] Usuario email para notificacion (upgrade):', user.email);
-        try {
-          if (user.email) {
-            await sendSifrahWelcomeEmail({
-              email: user.email,
-              name: user.name,
-              lastName: user.lastName || '',
-              dni: user.dni || ''
-            });
-          } else {
-            console.warn('[Affiliations] Usuario no tiene email registrado, no se envia notificacion (upgrade). userId:', user.id);
-          }
-        } catch (emailError) {
-          console.error('[Affiliations] Error enviando email SIFRAH (upgrade):', emailError.message);
-        }
-
-        return res.json(success());
-      }
 
       await User.update(
         { id: user.id },
@@ -570,192 +393,59 @@ const handler = async (req, res) => {
           affiliation_points: affiliation.plan.affiliation_points,
         }
       );
-      // CRÍTICO: Actualizar total_points después de la afiliación
+
+      // CRÍTICO: Actualizar total_points
       await lib.updateTotalPointsCascade(User, Tree, user.id);
 
-      if (!user.tree) {
-        // Generate a unique token dynamically
-        let token = null;
-        let attempts = 0;
-        const maxAttempts = 10;
-        
-        while (!token && attempts < maxAttempts) {
-          const generatedToken = lib.generateToken();
-          const existingToken = await User.findOne({ token: generatedToken });
-          if (!existingToken) {
-            token = generatedToken;
-          }
-          attempts++;
-        }
-        
-        if (!token) {
-          return res.json(error('unable to generate unique token'));
-        }
-
-        // insert to tree
-        // Usar parent.id directamente (ya no se usa apalancamiento/coverage)
-        // Si el parent tiene coverage, usar ese ID; si no, usar parent.id
-        const parent = await User.findOne({ id: user.parentId });
-        const _id = parent.coverage?.id || parent.id;
-        let node = await Tree.findOne({ id: _id });
-
-        node.childs.push(user.id);
-
-        await Tree.update({ id: _id }, { childs: node.childs });
-        await Tree.insert({ id: user.id, childs: [], parent: _id });
-
-        // update USER
-        await User.update(
-          { id: user.id },
-          {
-            tree: true,
-            token: token,
-          }
-        );
-      }
-
-      // PAY AFFILIATION BONUS
+      // PAGO DE BONOS (siempre al 100%)
       tree = await Tree.find({});
       users = await User.find({});
       pays = [];
-
       const plan = affiliation.plan.id;
       const amount = affiliation.plan.amount - 50;
 
-      if (user.plan == "default") {
-        await pay_bonus(
-          user.parentId,
-          0,
-          affiliation.id,
-          amount,
-          false,
-          plan,
-          user.id
-        );
-      } else {
-        await pay_bonus(
-          user.parentId,
-          0,
-          affiliation.id,
-          amount,
-          true,
-          plan,
-          user.id
-        );
-      }
+      await pay_bonus(
+        user.parentId,
+        0,
+        affiliation.id,
+        amount,
+        false,
+        plan,
+        user.id
+      );
 
-      // Actualizar la afiliación con las transacciones
-      await Affiliation.update({ id }, { transactions: pays }); // Aquí se agregan las IDs de las transacciones
+      // Guardar transacciones de bonos
+      await Affiliation.update({ id }, { transactions: pays });
 
       // UPDATE STOCK
       const office_id = affiliation.office;
       const products = affiliation.products;
-
       const office = await Office.findOne({ id: office_id });
 
       products.forEach((p, i) => {
         if (office.products[i]) office.products[i].total -= products[i].total;
       });
 
-      await Office.update(
-        { id: office_id },
-        {
-          products: office.products,
-        }
-      );
+      await Office.update({ id: office_id }, { products: office.products });
 
-      // migrar transacciones virtuales solo las que fueron creadas después del último cierre
-      // y que NO sean transacciones "closed reset" (compensaciones de cierre)
-      // y que NO sean transacciones que ya fueron compensadas por "closed reset"
+      // Migrar transacciones virtuales
       const lastClosed = await Closed.findOne({}, { sort: { date: -1 } });
-      
-      // Obtener todas las transacciones "closed reset" del usuario, ordenadas por fecha
-      const closedResetTransactions = await Transaction.find({
-        user_id: user.id,
-        name: "closed reset",
-        virtual: true
-      });
-      
-      // Ordenar los "closed reset" por fecha (más antiguos primero)
-      closedResetTransactions.sort((a, b) => new Date(a.date) - new Date(b.date));
-      
-      // Obtener TODAS las transacciones virtuales del usuario (excepto "closed reset")
-      // para procesarlas en orden cronológico
-      const allVirtualTransactions = await Transaction.find({
-        user_id: user.id,
-        virtual: true,
-        name: { $ne: "closed reset" }
-      });
-      allVirtualTransactions.sort((a, b) => new Date(a.date) - new Date(b.date)); // Ordenar por fecha (más antiguas primero)
-      
-      // Identificar qué transacciones fueron compensadas por cada "closed reset"
-      // IMPORTANTE: Una transacción solo puede ser compensada UNA VEZ
-      const compensatedTransactionIds = new Set(); // Usar Set para evitar duplicados
-      
-      // Para cada "closed reset", identificar las transacciones que compensó
-      for (const resetTransaction of closedResetTransactions) {
-        // Obtener todas las transacciones virtuales que existían ANTES o EN la fecha del reset
-        // y que NO hayan sido compensadas previamente
-        const transactionsAvailableForReset = allVirtualTransactions.filter(t => {
-          // Solo considerar transacciones que existían antes o en la fecha del reset
-          const transactionDate = new Date(t.date);
-          const resetDate = new Date(resetTransaction.date);
-          return transactionDate <= resetDate && !compensatedTransactionIds.has(t.id);
-        });
-        
-        // Simular la compensación: sumar transacciones hasta alcanzar el valor del reset
-        let remainingToCompensate = Math.abs(resetTransaction.value); // Valor absoluto porque es negativo
-        const transactionsToCompensate = [];
-        
-        for (const transaction of transactionsAvailableForReset) {
-          if (remainingToCompensate <= 0) break;
-          
-          // Solo considerar transacciones de tipo "in" (entradas)
-          if (transaction.type === 'in') {
-            if (transaction.value <= remainingToCompensate) {
-              // Esta transacción fue completamente compensada
-              transactionsToCompensate.push(transaction.id);
-              remainingToCompensate -= transaction.value;
-            } else {
-              // Esta transacción fue parcialmente compensada
-              // Por ahora, la consideramos compensada completamente
-              // En el futuro se podría manejar compensaciones parciales
-              transactionsToCompensate.push(transaction.id);
-              remainingToCompensate = 0;
-              break;
-            }
-          }
-        }
-        
-        // Agregar los IDs de las transacciones que fueron compensadas por este reset
-        transactionsToCompensate.forEach(id => compensatedTransactionIds.add(id));
-      }
-      
       let virtualTransactionsQuery = {
         user_id: user.id,
         virtual: true,
-        name: { $ne: "closed reset" } // Excluir transacciones de compensación de cierre
+        name: { $ne: "closed reset" }
       };
       
-      // Si hay un cierre anterior, solo migrar transacciones creadas después de ese cierre
       if (lastClosed) {
         virtualTransactionsQuery.date = { $gte: lastClosed.date };
       }
       
-      const transactions = await Transaction.find(virtualTransactionsQuery);
-      
-      // Filtrar transacciones que NO fueron compensadas por "closed reset"
-      const validTransactions = transactions.filter(transaction => {
-        // Si esta transacción está en la lista de compensadas, no migrarla
-        return !compensatedTransactionIds.has(transaction.id);
-      });
-
-      for (let transaction of validTransactions) {
-        console.log({ transaction });
-        await Transaction.update({ id: transaction.id }, { virtual: false });
+      const virtualTxs = await Transaction.find(virtualTransactionsQuery);
+      for (let tx of virtualTxs) {
+        await Transaction.update({ id: tx.id }, { virtual: false });
       }
 
-      // Enviar email de bienvenida SIFRAH al aprobar primera afiliacion
+      // Enviar email de bienvenida
       console.log('[Affiliations] Usuario email para notificacion:', user.email);
       try {
         if (user.email) {
@@ -765,12 +455,12 @@ const handler = async (req, res) => {
             lastName: user.lastName || '',
             dni: user.dni || ''
           });
-        } else {
-          console.warn('[Affiliations] Usuario no tiene email registrado, no se envia notificacion. userId:', user.id);
         }
       } catch (emailError) {
-        console.error('[Affiliations] Error enviando email SIFRAH:', emailError.message, emailError.stack);
+        console.error('[Affiliations] Error enviando email SIFRAH:', emailError.message);
       }
+
+      return res.json(success());
     }
 
     if (action == "reject") {
