@@ -141,6 +141,10 @@ func main() {
 	}
 
 	ce := engine.NewCierreEngine(users, treeNodes, cl)
+	for i := range users {
+		_ = ce.CalculateTotalPoints(users[i].ID)
+	}
+	legsByUserID := make(map[string][]models.LegDetail)
 
 	// 4. Calculation Phase
 	var updatedUsers []models.User
@@ -177,6 +181,29 @@ func main() {
 			})
 		}
 
+		// Save grouped points by leg for closed history (same logic as preview)
+		if node, ok := ce.TreeNodes[user.ID]; ok {
+			var legs []models.LegDetail
+			for idx, childID := range node.Childs {
+				child, childOk := ce.Users[childID]
+				if !childOk {
+					continue
+				}
+				totalByLeg, hasMemo := ce.MemoPoints[childID]
+				if !hasMemo {
+					totalByLeg = ce.CalculateTotalPoints(childID)
+				}
+				legs = append(legs, models.LegDetail{
+					Idx:         idx + 1,
+					UserID:      childID,
+					Name:        child.Name + " " + child.LastName,
+					DNI:         child.DNI,
+					TotalPoints: totalByLeg,
+				})
+			}
+			legsByUserID[user.ID] = legs
+		}
+
 		// Store for history BEFORE resetting
 		user.LastTotalPoints   = calculatedTotalPoints
 		user.LastResidualBonus = resTotal
@@ -207,12 +234,13 @@ func main() {
 	for _, u := range updatedUsers {
 		if u.Rank != "none" && u.Rank != "" {
 			usersSummary = append(usersSummary, models.ClosedUserEntry{
-				UserID:        u.ID,
-				Name:          u.Name + " " + u.LastName,
-				Rank:          u.Rank,
-				Points:        u.LastTotalPoints,
-				TotalPoints:   u.LastTotalPoints,
-				ResidualBonus: u.LastResidualBonus,
+				UserID:            u.ID,
+				Name:              u.Name + " " + u.LastName,
+				Rank:              u.Rank,
+				Points:            u.LastTotalPoints,
+				TotalPoints:       u.LastTotalPoints,
+				ResidualBonus:     u.LastResidualBonus,
+				GroupedPointsLegs: legsByUserID[u.ID],
 			})
 		}
 	}

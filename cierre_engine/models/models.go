@@ -57,13 +57,22 @@ type Transaction struct {
 	Percentage         float64   `bson:"percentage,omitempty" json:"percentage,omitempty"`
 }
 
+type LegDetail struct {
+	Idx         int     `bson:"idx" json:"idx"`
+	UserID      string  `bson:"user_id" json:"user_id"`
+	Name        string  `bson:"name" json:"name"`
+	DNI         string  `bson:"dni" json:"dni"`
+	TotalPoints float64 `bson:"total_points" json:"total_points"`
+}
+
 type ClosedUserEntry struct {
-	UserID        string  `bson:"user_id" json:"user_id"`
-	Name          string  `bson:"name" json:"name"`
-	Rank          string  `bson:"rank" json:"rank"`
-	Points        float64 `bson:"points" json:"points"`
-	TotalPoints   float64 `bson:"total_points" json:"total_points"`
-	ResidualBonus float64 `bson:"residual_bonus" json:"residual_bonus"`
+	UserID           string      `bson:"user_id" json:"user_id"`
+	Name             string      `bson:"name" json:"name"`
+	Rank             string      `bson:"rank" json:"rank"`
+	Points           float64     `bson:"points" json:"points"`
+	TotalPoints      float64     `bson:"total_points" json:"total_points"`
+	ResidualBonus    float64     `bson:"residual_bonus" json:"residual_bonus"`
+	GroupedPointsLegs []LegDetail `bson:"grouped_points_legs,omitempty" json:"grouped_points_legs,omitempty"`
 }
 
 type Closed struct {

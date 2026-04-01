@@ -1,5 +1,12 @@
 import db from "../../../components/db"
 import lib from "../../../components/lib"
+import path from "path"
+import dotenv from "dotenv"
+import fs from "fs"
+
+dotenv.config({ path: path.resolve(process.cwd(), "../db/.env") })
+dotenv.config({ path: path.resolve(process.cwd(), "./.env.local") })
+dotenv.config({ path: path.resolve(process.cwd(), "./.env") })
 
 const { Product, User, Session, Affiliation, Activation } = db
 const { midd, success, rand } = lib
@@ -389,13 +396,13 @@ export default async (req, res) => {
     if (action == 'new') { ; console.log('preview via Go Engine...')
 
       const { execSync } = require('child_process');
-      const path = require('path');
       const os   = require('os');
 
       try {
-        const binaryName = os.platform() === 'linux' ? 'engine_linux' : 'engine_test';
-        const enginePath = path.resolve(process.cwd(), 'cierre_engine/' + binaryName);
         const engineCwd  = path.resolve(process.cwd(), 'cierre_engine');
+        const linuxBinaryPath = path.resolve(process.cwd(), 'cierre_engine/engine_linux');
+        const useLinuxBinary = os.platform() === 'linux' && fs.existsSync(linuxBinaryPath);
+        const engineCmd = useLinuxBinary ? `"${linuxBinaryPath}" --dry-run --json` : 'go run . --dry-run --json';
 
         // Map Node server DB vars → Go engine vars
         const goEnv = {
@@ -407,7 +414,7 @@ export default async (req, res) => {
         };
 
         // Run with --dry-run and --json for preview
-        const output = execSync(`${enginePath} --dry-run --json`, { 
+        const output = execSync(engineCmd, { 
           cwd: engineCwd,
           encoding: 'utf-8',
           env: goEnv
@@ -437,13 +444,13 @@ export default async (req, res) => {
     if (action == 'save') { ; console.log('save via Go Engine...')
 
       const { execSync } = require('child_process');
-      const path = require('path');
       const os   = require('os');
 
       try {
-        const binaryName = os.platform() === 'linux' ? 'engine_linux' : 'engine_test';
-        const enginePath = path.resolve(process.cwd(), 'cierre_engine/' + binaryName);
         const engineCwd  = path.resolve(process.cwd(), 'cierre_engine');
+        const linuxBinaryPath = path.resolve(process.cwd(), 'cierre_engine/engine_linux');
+        const useLinuxBinary = os.platform() === 'linux' && fs.existsSync(linuxBinaryPath);
+        const engineCmd = useLinuxBinary ? `"${linuxBinaryPath}"` : 'go run .';
 
         const goEnv = {
           ...process.env,
@@ -454,7 +461,7 @@ export default async (req, res) => {
         };
 
         // Execute the Go engine. stdout will capture the summary print.
-        const output = execSync(enginePath, { 
+        const output = execSync(engineCmd, { 
           cwd: engineCwd,
           encoding: 'utf-8',
           env: goEnv
