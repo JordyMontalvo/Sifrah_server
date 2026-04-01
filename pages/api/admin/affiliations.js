@@ -184,8 +184,8 @@ let tree = null;
 // Definición de pagos fijos por plan y nivel. Cada array tiene 9 valores (uno por cada nivel de profundidad).
 
 const pay = {
-  basic: [90, 30, 10, 5, 5, 1, 1, 1, 1],      // Ejecutivo
-  standard: [300, 100, 20, 10, 10, 5, 5, 5, 5], // Distribuidor
+  basic: [90, 10, 10, 5, 5, 1, 1, 1, 1],      // Ejecutivo
+  standard: [300, 50, 20, 10, 10, 5, 5, 5, 5], // Distribuidor
   master: [500, 100, 100, 50, 50, 10, 10, 10, 10], // Empresario
 };
 
