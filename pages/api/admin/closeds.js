@@ -4,9 +4,90 @@ import lib from "../../../components/lib"
 const { Product, User, Session, Affiliation, Activation } = db
 const { midd, success, rand } = lib
 
-const { Tree, Transaction, Closed } = db
+const { Tree, Transaction, Closed, Period } = db
 
 let tree
+
+function buildPeriodKey(year, month) {
+  const mm = String(month).padStart(2, "0")
+  return `${year}-${mm}`
+}
+
+function nextMonthYear(year, month) {
+  if (month === 12) return { year: year + 1, month: 1 }
+  return { year, month: month + 1 }
+}
+
+function resolveYearMonthFromPeriod(period) {
+  if (period?.year && period?.month) {
+    return { year: Number(period.year), month: Number(period.month) }
+  }
+
+  if (period?.key && /^\d{4}-\d{2}$/.test(period.key)) {
+    const [y, m] = period.key.split("-").map((v) => Number(v))
+    return { year: y, month: m }
+  }
+
+  const ref = period?.createdAt ? new Date(period.createdAt) : new Date()
+  return { year: ref.getFullYear(), month: ref.getMonth() + 1 }
+}
+
+async function closeActivePeriodAndOpenNext() {
+  const now = new Date()
+  const openPeriods = await Period.find({ status: "open" })
+  if (!openPeriods || !openPeriods.length) {
+    return { closedPeriod: null, nextPeriod: null, note: "No había periodo activo para cerrar" }
+  }
+
+  openPeriods.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+  const activePeriod = openPeriods[0]
+
+  await Period.update(
+    { key: activePeriod.key },
+    { status: "closed", closedAt: now }
+  )
+  const closedPeriod = await Period.findOne({ key: activePeriod.key })
+
+  const { year, month } = resolveYearMonthFromPeriod(activePeriod)
+  const { year: ny, month: nm } = nextMonthYear(year, month)
+  const nextKey = buildPeriodKey(ny, nm)
+
+  const existingNext = await Period.findOne({ key: nextKey })
+  if (existingNext) {
+    if (existingNext.status !== "open") {
+      await Period.update(
+        { key: nextKey },
+        {
+          status: "open",
+          year: ny,
+          month: nm,
+          createdAt: now,
+          closedAt: null,
+        }
+      )
+    }
+    const nextPeriod = await Period.findOne({ key: nextKey })
+    return { closedPeriod, nextPeriod, note: null }
+  }
+
+  const MONTHS_ES = [
+    "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+  ]
+  const nextPeriod = {
+    id: rand(),
+    key: nextKey,
+    year: ny,
+    month: nm,
+    label: `${MONTHS_ES[nm - 1]} ${ny}`,
+    status: "open",
+    createdAt: now,
+    closedAt: null,
+  }
+  await Period.insert(nextPeriod)
+
+  return { closedPeriod, nextPeriod, note: null }
+}
 
 function buildLegDetails(previewTree, usersList, treeList) {
   const userById = new Map((usersList || []).map((u) => [u.id, u]))
@@ -381,9 +462,12 @@ export default async (req, res) => {
 
         console.log('✅ Go Engine output:', output);
 
+        const periodResult = await closeActivePeriodAndOpenNext()
+
         return res.json(success({ 
           message: 'Cierre completado con éxito vía Go Engine',
-          summary: output 
+          summary: output,
+          period: periodResult
         }));
 
       } catch (error) {

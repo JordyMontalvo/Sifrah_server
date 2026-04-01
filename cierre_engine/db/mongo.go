@@ -100,10 +100,12 @@ func (db *MongoDB) UpdateUserRanks(ctx context.Context, users []models.User) err
 	var models_write []mongo.WriteModel
 	for _, user := range users {
 		filter := bson.M{"id": user.ID}
+		now := time.Now()
 
 		historyEntry := bson.M{
 			"rank":           user.Rank,
-			"date":           time.Now(),
+			"date":           now,
+			"period":         now.Format("2006-01"),
 			"residual_bonus": user.LastResidualBonus,
 			"points":         user.LastTotalPoints,
 		}

@@ -27,12 +27,21 @@ const U = [
   "virtualbalance",
   "country",
   "rank",
+  "rank_history",
   "birthdate",
   "address",
   "city",
   "plan",
   "affiliation_points",
 ];
+
+function periodFromDate(dateValue) {
+  const d = new Date(dateValue || new Date());
+  if (isNaN(d.getTime())) return null;
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  return `${y}-${m}`;
+}
 
 const handler = async (req, res) => {
   if (req.method == "GET") {
@@ -488,6 +497,37 @@ const handler = async (req, res) => {
 
         await User.update({ id }, { parentId: parent.id });
       }
+    }
+
+    if (action == "add_rank_history") {
+      const user = await User.findOne({ id });
+      if (!user) return res.json(error("user not found"));
+
+      const {
+        rank,
+        date,
+        period,
+      } = req.body.data || {};
+
+      if (!rank) return res.json(error("rank is required"));
+
+      const parsedDate = date ? new Date(date) : new Date();
+      if (isNaN(parsedDate.getTime())) return res.json(error("invalid date"));
+
+      const entry = {
+        rank: String(rank),
+        date: parsedDate,
+        period: period || periodFromDate(parsedDate),
+        residual_bonus: 0,
+        points: 0,
+      };
+
+      const rankHistory = Array.isArray(user.rank_history) ? user.rank_history : [];
+      rankHistory.push(entry);
+
+      rankHistory.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+      await User.update({ id }, { rank_history: rankHistory });
     }
 
     // response
