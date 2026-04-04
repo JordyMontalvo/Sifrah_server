@@ -103,7 +103,16 @@ async function main() {
   log("--- Ejecutando motor Go (dry-run JSON)... ---")
   const preview = runGoPreviewJson()
   const tree = preview.tree || []
+  const virtualResets = preview.virtual_resets || []
   log(`Nodos en preview: ${tree.length}`)
+  const totalVirt = virtualResets.reduce((s, r) => s + (Number(r.amount) || 0), 0)
+  log(`Saldo no disponible (virtual) a quitar: ${virtualResets.length} usuario(s) · total S/ ${totalVirt.toFixed(2)}`)
+  if (virtualResets.length) {
+    log("--- Usuarios con closed reset (saldo virtual > 0) ---")
+    for (const r of virtualResets) {
+      log(`  ${r.id} | ${r.name || "—"} | DNI ${r.dni || "—"} | S/ ${Number(r.amount || 0).toFixed(2)}`)
+    }
+  }
   log("")
 
   const client = await MongoClient.connect(uri, { useUnifiedTopology: true })

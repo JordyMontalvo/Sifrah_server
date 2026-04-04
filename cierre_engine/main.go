@@ -17,10 +17,19 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
+// VirtualBalanceResetPreview — saldo virtual (no disponible) que se quita con transacción "closed reset".
+type VirtualBalanceResetPreview struct {
+	ID     string  `json:"id"`
+	Name   string  `json:"name"`
+	DNI    string  `json:"dni"`
+	Amount float64 `json:"amount"`
+}
+
 type PreviewResult struct {
-	Tree         []PreviewNode        `json:"tree"`
-	Affiliations []models.Transaction `json:"affiliations"` // Placeholder for compatibility
-	Activations  []models.Transaction `json:"activations"`  // Placeholder
+	Tree           []PreviewNode                 `json:"tree"`
+	VirtualResets  []VirtualBalanceResetPreview  `json:"virtual_resets"`
+	Affiliations   []models.Transaction          `json:"affiliations"` // Placeholder for compatibility
+	Activations    []models.Transaction          `json:"activations"`  // Placeholder
 }
 
 type PreviewNode struct {
@@ -129,6 +138,24 @@ func main() {
 		}
 	}
 
+	userByID := make(map[string]*models.User)
+	for i := range users {
+		userByID[users[i].ID] = &users[i]
+	}
+	var virtualResets []VirtualBalanceResetPreview
+	for _, rt := range resetTransactions {
+		u := userByID[rt.UserID]
+		nm := ""
+		dni := ""
+		if u != nil {
+			nm = u.Name + " " + u.LastName
+			dni = u.DNI
+		}
+		virtualResets = append(virtualResets, VirtualBalanceResetPreview{
+			ID: rt.UserID, Name: nm, DNI: dni, Amount: rt.Value,
+		})
+	}
+
 	// 3. Initialize Engine and Logger
 	var cl *engine.CierreLogger
 	if !*jsonOutput {
@@ -221,9 +248,10 @@ func main() {
 
 	if *jsonOutput {
 		res := PreviewResult{
-			Tree:         previewNodes,
-			Affiliations: []models.Transaction{},
-			Activations:  []models.Transaction{},
+			Tree:          previewNodes,
+			VirtualResets: virtualResets,
+			Affiliations:  []models.Transaction{},
+			Activations:   []models.Transaction{},
 		}
 		json.NewEncoder(os.Stdout).Encode(res)
 		return
@@ -258,13 +286,23 @@ func main() {
 	}
 
 	// 7. Final Logging
+	var resetDetail []bson.M
+	for _, vr := range virtualResets {
+		resetDetail = append(resetDetail, bson.M{
+			"user_id": vr.ID,
+			"name":    vr.Name,
+			"dni":     vr.DNI,
+			"amount":  vr.Amount,
+		})
+	}
 	summary := bson.M{
-		"users_processed":    len(users),
-		"reset_transactions": len(resetTransactions),
-		"bonus_transactions": len(totalBonusTransactions),
-		"duration_ms":        time.Since(start).Milliseconds(),
-		"timestamp":          time.Now(),
-		"dry_run":            *dryRun,
+		"users_processed":          len(users),
+		"reset_transactions":     len(resetTransactions),
+		"bonus_transactions":     len(totalBonusTransactions),
+		"duration_ms":            time.Since(start).Milliseconds(),
+		"timestamp":              time.Now(),
+		"dry_run":                *dryRun,
+		"virtual_balance_resets": resetDetail,
 	}
 
 	if !*dryRun {

@@ -441,6 +441,7 @@ export default async (req, res) => {
 
         return res.json(success({ 
           tree: treeWithRankBonuses, 
+          virtual_resets: result.virtual_resets || [],
           affiliations: result.affiliations, 
           activations: result.activations 
         }));
