@@ -31,6 +31,7 @@ class DB {
     AudioCategory,
     Book,
     BookCategory,
+    RankBonusPayment,
   }) {
     this.User = User;
     this.Session = Session;
@@ -58,6 +59,7 @@ class DB {
     this.AudioCategory = AudioCategory;
     this.Book = Book;
     this.BookCategory = BookCategory;
+    this.RankBonusPayment = RankBonusPayment;
   }
 }
 
@@ -804,6 +806,25 @@ class Closed {
   }
 }
 
+/** Pagos trazables de bono por rango (logro / mantenimiento). */
+class RankBonusPayment {
+  async find(query) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    const rows = await db.collection("rank_bonus_payments").find(query).toArray();
+    client.close();
+    return rows;
+  }
+  async insert(doc) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    await db.collection("rank_bonus_payments").insertOne(doc);
+    return client.close();
+  }
+}
+
 class PaymentMethod {
   async findOne(query) {
     const client = new Client(URL, { useUnifiedTopology: true });
@@ -1082,6 +1103,7 @@ module.exports = new DB({
   Office: new Office(),
   Recharge: new Recharge(),
   Closed: new Closed(),
+  RankBonusPayment: new RankBonusPayment(),
   PaymentMethod: new PaymentMethod(),
   DashboardConfig: new DashboardConfig(),
   Flyer: new Flyer(),

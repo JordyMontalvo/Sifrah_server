@@ -13,6 +13,9 @@ yarn-error.log*
 
 # Logs
 logs/
+# Reportes generados por scripts (se mantiene la carpeta con .gitkeep)
+reports/*
+!reports/.gitkeep
 *.log
 npm-debug.log*
 yarn-debug.log*

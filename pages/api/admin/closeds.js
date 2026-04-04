@@ -11,7 +11,7 @@ dotenv.config({ path: path.resolve(process.cwd(), "./.env") })
 const { Product, User, Session, Affiliation, Activation } = db
 const { midd, success, rand } = lib
 
-const { Tree, Transaction, Closed, Period } = db
+const { Tree, Transaction, Closed, Period, RankBonusPayment } = db
 
 let tree
 
@@ -425,8 +425,22 @@ export default async (req, res) => {
         const treeList = await Tree.find({})
         const enrichedTree = buildLegDetails(result.tree, usersList, treeList)
 
+        const { enrichPreviewTreeWithRankBonuses } = require("../../../lib/applyRankBonusesOnClose")
+        const closedsList = await Closed.find({})
+        let rankPayDocs = []
+        try {
+          rankPayDocs = await RankBonusPayment.find({})
+        } catch (e) {
+          rankPayDocs = []
+        }
+        const treeWithRankBonuses = enrichPreviewTreeWithRankBonuses(
+          enrichedTree,
+          closedsList,
+          rankPayDocs
+        )
+
         return res.json(success({ 
-          tree: enrichedTree, 
+          tree: treeWithRankBonuses, 
           affiliations: result.affiliations, 
           activations: result.activations 
         }));
@@ -471,10 +485,27 @@ export default async (req, res) => {
 
         const periodResult = await closeActivePeriodAndOpenNext()
 
+        const periodKey =
+          periodResult.closedPeriod?.key ||
+          buildPeriodKey(new Date().getFullYear(), new Date().getMonth() + 1)
+
+        const { applyRankBonusesAfterGoClose } = require("../../../lib/applyRankBonusesOnClose")
+        let rankBonuses = null
+        try {
+          rankBonuses = await applyRankBonusesAfterGoClose({
+            periodKey,
+            rand: () => rand(),
+          })
+        } catch (rankErr) {
+          console.error("❌ Bonos por rango post-cierre Go:", rankErr)
+          rankBonuses = { error: String(rankErr.message || rankErr) }
+        }
+
         return res.json(success({ 
           message: 'Cierre completado con éxito vía Go Engine',
           summary: output,
-          period: periodResult
+          period: periodResult,
+          rank_bonuses: rankBonuses,
         }));
 
       } catch (error) {
