@@ -18,7 +18,7 @@ const dotenv = require("dotenv")
 const { MongoClient } = require("mongodb")
 
 const {
-  maxClosedRankIndexFromHistory,
+  buildMaxEverRankIndexMap,
   buildPaymentStateFromDocs,
   evaluateRankBonusesForUser,
 } = require("../lib/rankBonusEngine")
@@ -119,8 +119,12 @@ async function main() {
   const db = client.db(dbName)
 
   const closeds = await db.collection("closeds").find({}).toArray()
-  const maxByUser = maxClosedRankIndexFromHistory(closeds)
-  log(`Cierres históricos en DB: ${closeds.length}`)
+  const usersForRank = await db
+    .collection("users")
+    .find({}, { projection: { id: 1, rank_history: 1 } })
+    .toArray()
+  const maxByUser = buildMaxEverRankIndexMap(closeds, usersForRank)
+  log(`Cierres históricos en DB: ${closeds.length} (máx. rango: closeds + rank_history usuario)`)
 
   let paymentDocs = []
   try {

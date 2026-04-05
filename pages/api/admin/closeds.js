@@ -436,7 +436,8 @@ export default async (req, res) => {
         const treeWithRankBonuses = enrichPreviewTreeWithRankBonuses(
           enrichedTree,
           closedsList,
-          rankPayDocs
+          rankPayDocs,
+          usersList
         )
 
         return res.json(success({ 

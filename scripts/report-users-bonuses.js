@@ -18,7 +18,7 @@ const dotenv = require("dotenv")
 const { MongoClient } = require("mongodb")
 
 const {
-  maxClosedRankIndexFromHistory,
+  buildMaxEverRankIndexMap,
   buildPaymentStateFromDocs,
   evaluateRankBonusesForUser,
 } = require("../lib/rankBonusEngine")
@@ -138,7 +138,7 @@ async function main() {
   log(`Base: ${dbName}  |  ${new Date().toISOString()}`)
   log("")
   log("Leyenda:")
-  log("  *_sim = simulación próximo cierre (motor Go dry-run + motor bonos rango)")
+  log("  *_sim = simulación próximo cierre (motor Go + bonos rango; máx. rango = closeds + rank_history)")
   log("  *_db  = histórico acumulado en Mongo (transacciones virtuales ingreso 'residual*'; rank_bonus_payments)")
   log("")
 
@@ -151,7 +151,7 @@ async function main() {
   const [usersArr, closeds, paymentDocs, residualByUser] = await Promise.all([
     db
       .collection("users")
-      .find({}, { projection: { id: 1, name: 1, lastName: 1, dni: 1 } })
+      .find({}, { projection: { id: 1, name: 1, lastName: 1, dni: 1, rank_history: 1 } })
       .toArray(),
     db.collection("closeds").find({}).toArray(),
     db.collection("rank_bonus_payments").find({}).toArray().catch(() => []),
@@ -166,7 +166,7 @@ async function main() {
     userMeta.set(id, { nombre, dni: u.dni != null ? String(u.dni) : "—" })
   }
 
-  const maxByUser = maxClosedRankIndexFromHistory(closeds)
+  const maxByUser = buildMaxEverRankIndexMap(closeds, usersArr)
   const payState = buildPaymentStateFromDocs(paymentDocs)
   const rankPaidByUser = aggregateRankPayments(paymentDocs)
 
