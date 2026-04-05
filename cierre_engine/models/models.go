@@ -65,14 +65,26 @@ type LegDetail struct {
 	TotalPoints float64 `bson:"total_points" json:"total_points"`
 }
 
+// ResidualLineEntry — una línea de bono residual (origen: puntos de reconsumo de un downline).
+type ResidualLineEntry struct {
+	FromUserID string  `bson:"from_user_id,omitempty" json:"from_user_id,omitempty"`
+	Name       string  `bson:"name,omitempty" json:"name,omitempty"`
+	DNI        string  `bson:"dni,omitempty" json:"dni,omitempty"`
+	Level      int     `bson:"level,omitempty" json:"level,omitempty"`
+	PR         float64 `bson:"pr,omitempty" json:"pr,omitempty"`
+	Percentage float64 `bson:"percentage,omitempty" json:"percentage,omitempty"`
+	Amount     float64 `bson:"amount,omitempty" json:"amount,omitempty"`
+}
+
 type ClosedUserEntry struct {
-	UserID           string      `bson:"user_id" json:"user_id"`
-	Name             string      `bson:"name" json:"name"`
-	Rank             string      `bson:"rank" json:"rank"`
-	Points           float64     `bson:"points" json:"points"`
-	TotalPoints      float64     `bson:"total_points" json:"total_points"`
-	ResidualBonus    float64     `bson:"residual_bonus" json:"residual_bonus"`
-	GroupedPointsLegs []LegDetail `bson:"grouped_points_legs,omitempty" json:"grouped_points_legs,omitempty"`
+	UserID            string              `bson:"user_id" json:"user_id"`
+	Name              string              `bson:"name" json:"name"`
+	Rank              string              `bson:"rank" json:"rank"`
+	Points            float64             `bson:"points" json:"points"`
+	TotalPoints       float64             `bson:"total_points" json:"total_points"`
+	ResidualBonus     float64             `bson:"residual_bonus" json:"residual_bonus"`
+	ResidualLines     []ResidualLineEntry `bson:"residual_lines,omitempty" json:"residual_lines,omitempty"`
+	GroupedPointsLegs []LegDetail         `bson:"grouped_points_legs,omitempty" json:"grouped_points_legs,omitempty"`
 }
 
 type Closed struct {

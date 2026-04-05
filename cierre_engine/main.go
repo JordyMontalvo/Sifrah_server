@@ -33,15 +33,35 @@ type PreviewResult struct {
 }
 
 type PreviewNode struct {
-	ID             string       `json:"id"`
-	Name           string       `json:"name"`
-	Points         float64      `json:"points"`
-	Total          float64      `json:"_total"`
-	Rank           string       `json:"rank"`
-	ResidualBonus  float64      `json:"residual_bonus"`
-	Activated      bool         `json:"activated"`
-	ActivatedInt   bool         `json:"_activated"`
-	Pays           []models.Pay `json:"_pays"`
+	ID             string                   `json:"id"`
+	Name           string                   `json:"name"`
+	Points         float64                  `json:"points"`
+	Total          float64                  `json:"_total"`
+	Rank           string                   `json:"rank"`
+	ResidualBonus  float64                  `json:"residual_bonus"`
+	ResidualLines  []models.ResidualLineEntry `json:"residual_lines,omitempty"`
+	Activated      bool                     `json:"activated"`
+	ActivatedInt   bool                     `json:"_activated"`
+	Pays           []models.Pay             `json:"_pays"`
+}
+
+func residualLinesFromTxs(txs []models.Transaction) []models.ResidualLineEntry {
+	if len(txs) == 0 {
+		return nil
+	}
+	out := make([]models.ResidualLineEntry, 0, len(txs))
+	for _, tx := range txs {
+		out = append(out, models.ResidualLineEntry{
+			FromUserID: tx.FromUserID,
+			Name:       tx.AffiliateName,
+			DNI:        tx.AffiliateDNI,
+			Level:      tx.Level,
+			PR:         tx.PR,
+			Percentage: tx.Percentage,
+			Amount:     tx.Value,
+		})
+	}
+	return out
 }
 
 func main() {
@@ -192,6 +212,7 @@ func main() {
 			resTxs[j].Date = time.Now()
 		}
 		totalBonusTransactions = append(totalBonusTransactions, resTxs...)
+		resLines := residualLinesFromTxs(resTxs)
 
 		// Collect preview data BEFORE resetting
 		if rank != "none" || calculatedTotalPoints > 0 || resTotal > 0 {
@@ -202,6 +223,7 @@ func main() {
 				Total:          calculatedTotalPoints,
 				Rank:           rank,
 				ResidualBonus:  resTotal,
+				ResidualLines:  resLines,
 				Activated:      user.Activated,
 				ActivatedInt:   user.ActivatedInternal,
 				Pays:           []models.Pay{}, // Can be populated if needed
@@ -261,6 +283,20 @@ func main() {
 	var usersSummary []models.ClosedUserEntry
 	for _, u := range updatedUsers {
 		if u.Rank != "none" && u.Rank != "" {
+			var resLines []models.ResidualLineEntry
+			for _, tx := range totalBonusTransactions {
+				if tx.UserID == u.ID && tx.Name == "residual bonus" {
+					resLines = append(resLines, models.ResidualLineEntry{
+						FromUserID: tx.FromUserID,
+						Name:       tx.AffiliateName,
+						DNI:        tx.AffiliateDNI,
+						Level:      tx.Level,
+						PR:         tx.PR,
+						Percentage: tx.Percentage,
+						Amount:     tx.Value,
+					})
+				}
+			}
 			usersSummary = append(usersSummary, models.ClosedUserEntry{
 				UserID:            u.ID,
 				Name:              u.Name + " " + u.LastName,
@@ -268,6 +304,7 @@ func main() {
 				Points:            u.LastTotalPoints,
 				TotalPoints:       u.LastTotalPoints,
 				ResidualBonus:     u.LastResidualBonus,
+				ResidualLines:     resLines,
 				GroupedPointsLegs: legsByUserID[u.ID],
 			})
 		}
