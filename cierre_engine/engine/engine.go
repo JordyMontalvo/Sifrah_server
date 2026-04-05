@@ -160,18 +160,24 @@ func (e *CierreEngine) CalculateRank(id string) string {
 	return "ACTIVO"
 }
 
-func (e *CierreEngine) CalculateResidualBonus(id string) ([]models.Transaction, float64) {
+// closedRank es el rango calculado en ESTE cierre (CalculateRank). El residual debe usar ese rango,
+// no user.Rank de la BD: si alguien cierra BRONCE pero en BD seguía PLATA, antes se pagaban 5 niveles por error.
+func (e *CierreEngine) CalculateResidualBonus(id string, closedRank string) ([]models.Transaction, float64) {
 	user, ok := e.Users[id]
-	if !ok || user.Rank == "none" {
+	if !ok {
+		return nil, 0
+	}
+	if closedRank == "none" || closedRank == "" {
 		return nil, 0
 	}
 
+	normRank := NormalizeRankKeyForResidual(closedRank)
 	if e.Logger != nil {
-		e.Logger.LogResidual("📊 %s %s (Rango: %s)", user.Name, user.LastName, user.Rank)
+		e.Logger.LogResidual("📊 %s %s (rango cierre=%q → residual %q; rank BD=%q)", user.Name, user.LastName, closedRank, normRank, user.Rank)
 	}
 
-	maxDepth := MaxDepthByRank[user.Rank]
-	percentages := ResidualPercentagesByRank[user.Rank]
+	maxDepth := ResidualMaxDepth(normRank)
+	percentages := ResidualPercentagesByRank[normRank]
 
 	if maxDepth == 0 || len(percentages) == 0 {
 		return nil, 0
@@ -201,37 +207,42 @@ func (e *CierreEngine) CalculateResidualBonus(id string) ([]models.Transaction, 
 			pr := child.Points // Reconsumption points only
 			if pr > 0 {
 				nextLevel := currentEffectiveLevel + 1
-				if nextLevel <= len(percentages) {
-					pct := percentages[nextLevel-1]
-					if pct > 0 {
-						bonus := 0.0
-						if pr <= TopePuntos {
-							bonus = pr * pct
-						} else {
-							bonus = (TopePuntos * pct) + ((pr - TopePuntos) * (pct * ReduccionExceso))
-						}
-
-						if bonus > 0 {
-							if e.Logger != nil {
-								e.Logger.LogResidual("   Nivel %d: %s %s (PR: %.2f) → %.2f", nextLevel, child.Name, child.LastName, pr, bonus)
-							}
-							total += bonus
-							results = append(results, models.Transaction{
-								Type:          "in",
-								Value:         bonus,
-								Name:          "residual bonus",
-								Desc:          fmt.Sprintf("Bono residual nivel %d - %s %s", nextLevel, child.Name, child.LastName),
-								FromUserID:    child.ID,
-								Level:         nextLevel,
-								AffiliateName: child.Name + " " + child.LastName,
-								AffiliateDNI:  child.DNI,
-								PR:            pr,
-								Percentage:    pct,
-							})
-						}
-					}
-					collect(childID, nextLevel)
+				// No pagar ni bajar por esta pierna si ya se superó el tope del rango (p. ej. BRONCE = 4 niveles).
+				if nextLevel > maxDepth {
+					continue
 				}
+				if nextLevel > len(percentages) {
+					continue
+				}
+				pct := percentages[nextLevel-1]
+				if pct > 0 {
+					bonus := 0.0
+					if pr <= TopePuntos {
+						bonus = pr * pct
+					} else {
+						bonus = (TopePuntos * pct) + ((pr - TopePuntos) * (pct * ReduccionExceso))
+					}
+
+					if bonus > 0 {
+						if e.Logger != nil {
+							e.Logger.LogResidual("   Nivel %d: %s %s (PR: %.2f) → %.2f", nextLevel, child.Name, child.LastName, pr, bonus)
+						}
+						total += bonus
+						results = append(results, models.Transaction{
+							Type:          "in",
+							Value:         bonus,
+							Name:          "residual bonus",
+							Desc:          fmt.Sprintf("Bono residual nivel %d - %s %s", nextLevel, child.Name, child.LastName),
+							FromUserID:    child.ID,
+							Level:         nextLevel,
+							AffiliateName: child.Name + " " + child.LastName,
+							AffiliateDNI:  child.DNI,
+							PR:            pr,
+							Percentage:    pct,
+						})
+					}
+				}
+				collect(childID, nextLevel)
 			} else {
 				// Compression: skip this level, pass current level down
 				collect(childID, currentEffectiveLevel)

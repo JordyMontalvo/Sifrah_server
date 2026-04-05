@@ -205,8 +205,8 @@ func main() {
 		rank := ce.CalculateRank(user.ID)
 		calculatedTotalPoints := ce.MemoPoints[user.ID]
 
-		// B. Residual Bonus
-		resTxs, resTotal := ce.CalculateResidualBonus(user.ID)
+		// B. Residual Bonus (mismo `rank` que el preview, no el rank histórico en BD)
+		resTxs, resTotal := ce.CalculateResidualBonus(user.ID, rank)
 		for j := range resTxs {
 			resTxs[j].UserID = user.ID
 			resTxs[j].Date = time.Now()

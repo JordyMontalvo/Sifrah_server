@@ -1,6 +1,8 @@
 package engine
 
 import (
+	"strings"
+
 	"sifrah/cierre_engine/models"
 )
 
@@ -146,6 +148,9 @@ var Ranks = []Rank{
 	},
 }
 
+// ResidualPercentagesByRank — Bono regalías (N1–N9 como fracción 1.0 = 100%).
+// Alineado con tabla oficial SIFRAH: ACTIVO 2 niveles; BRONCE 4 (último 5%); PLATA 5; ORO 6;
+// RUBÍ 7; ESMERALDA/DIAMANTE/DOBLE/TRIPLE/IMPERIAL 9; tope = EMBAJADOR SIFRAH (tabla “DIAMANTE CORONA”, N9 5%).
 var ResidualPercentagesByRank = map[string][]float64{
 	"ACTIVO":           {0.15, 0.15, 0, 0, 0, 0, 0, 0, 0},
 	"BRONCE":           {0.15, 0.15, 0.15, 0.05, 0, 0, 0, 0, 0},
@@ -158,12 +163,14 @@ var ResidualPercentagesByRank = map[string][]float64{
 	"TRIPLE DIAMANTE":  {0.15, 0.15, 0.15, 0.15, 0.10, 0.075, 0.05, 0.025, 0.025},
 	"DIAMANTE IMPERIAL": {0.15, 0.15, 0.15, 0.15, 0.10, 0.075, 0.05, 0.05, 0.025},
 	"EMBAJADOR SIFRAH": {0.15, 0.15, 0.15, 0.15, 0.10, 0.075, 0.05, 0.05, 0.05},
+	// Mismo plan que EMBAJADOR SIFRAH (nombre en material comercial “DIAMANTE CORONA”).
+	"DIAMANTE CORONA": {0.15, 0.15, 0.15, 0.15, 0.10, 0.075, 0.05, 0.05, 0.05},
 }
 
 var MaxDepthByRank = map[string]int{
 	"none":              0,
 	"ACTIVO":            2,
-	"BRONCE":            4,
+	"BRONCE":            4, // exactamente 4 niveles (alineado con los 4 % > 0 en ResidualPercentagesByRank)
 	"PLATA":             5,
 	"ORO":               6,
 	"RUBÍ":              7,
@@ -173,6 +180,7 @@ var MaxDepthByRank = map[string]int{
 	"TRIPLE DIAMANTE":   9,
 	"DIAMANTE IMPERIAL": 9,
 	"EMBAJADOR SIFRAH":  9,
+	"DIAMANTE CORONA":   9,
 }
 
 var RankAchievementBonuses = []models.Pay{
@@ -192,3 +200,62 @@ const (
 	TopePuntos       = 160.0
 	ReduccionExceso = 0.6
 )
+
+// NormalizeRankKeyForResidual alinea el string de Mongo con las claves de los mapas (mayúsculas, RUBÍ).
+func NormalizeRankKeyForResidual(rank string) string {
+	r := strings.TrimSpace(rank)
+	if r == "" || strings.EqualFold(r, "none") {
+		return ""
+	}
+	if strings.EqualFold(r, "RUBI") {
+		return "RUBÍ"
+	}
+	// Tabla comercial “DIAMANTE CORONA” = mismo residual que EMBAJADOR SIFRAH en motor.
+	if strings.EqualFold(r, "DIAMANTE CORONA") {
+		return "DIAMANTE CORONA"
+	}
+	if _, ok := MaxDepthByRank[r]; ok {
+		return r
+	}
+	u := strings.ToUpper(r)
+	if _, ok := MaxDepthByRank[u]; ok {
+		return u
+	}
+	if _, ok := ResidualPercentagesByRank[r]; ok {
+		return r
+	}
+	if _, ok := ResidualPercentagesByRank[u]; ok {
+		return u
+	}
+	return ""
+}
+
+// ResidualMaxDepth niveles máximos de pago residual: el menor entre el tope del rango y los niveles con % > 0.
+// BRONCE: 4 niveles (15%, 15%, 15%, 5%); no puede exceder aunque un mapa esté desalineado.
+func ResidualMaxDepth(rank string) int {
+	key := NormalizeRankKeyForResidual(rank)
+	if key == "" {
+		return 0
+	}
+	maxD, ok := MaxDepthByRank[key]
+	if !ok {
+		return 0
+	}
+	pcts, ok := ResidualPercentagesByRank[key]
+	if !ok || len(pcts) == 0 {
+		return 0
+	}
+	lastPay := 0
+	for i, p := range pcts {
+		if p > 0 {
+			lastPay = i + 1
+		}
+	}
+	if lastPay == 0 {
+		return 0
+	}
+	if maxD < lastPay {
+		return maxD
+	}
+	return lastPay
+}
