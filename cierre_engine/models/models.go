@@ -79,6 +79,7 @@ type ResidualLineEntry struct {
 type ClosedUserEntry struct {
 	UserID            string              `bson:"user_id" json:"user_id"`
 	Name              string              `bson:"name" json:"name"`
+	DNI               string              `bson:"dni,omitempty" json:"dni,omitempty"`
 	Rank              string              `bson:"rank" json:"rank"`
 	Points            float64             `bson:"points" json:"points"`
 	TotalPoints       float64             `bson:"total_points" json:"total_points"`

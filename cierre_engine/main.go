@@ -300,6 +300,7 @@ func main() {
 			usersSummary = append(usersSummary, models.ClosedUserEntry{
 				UserID:            u.ID,
 				Name:              u.Name + " " + u.LastName,
+				DNI:               u.DNI,
 				Rank:              u.Rank,
 				Points:            u.LastTotalPoints,
 				TotalPoints:       u.LastTotalPoints,
