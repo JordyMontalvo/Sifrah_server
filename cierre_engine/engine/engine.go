@@ -17,7 +17,10 @@ type CierreEngine struct {
 func NewCierreEngine(users []models.User, treeNodes []models.TreeNode, logger *CierreLogger) *CierreEngine {
 	userMap := make(map[string]*models.User)
 	for i := range users {
-		userMap[users[i].ID] = &users[i]
+		// Copia del usuario para que los resets del loop principal en main.go
+		// (user.Points=0, etc.) no corrompan los datos del engine durante el cálculo.
+		u := users[i]
+		userMap[u.ID] = &u
 	}
 
 	treeMap := make(map[string]*models.TreeNode)
@@ -186,10 +189,13 @@ func (e *CierreEngine) CalculateResidualBonus(id string, closedRank string) ([]m
 	var results []models.Transaction
 	var total float64
 
-	// Recursive helper for compression logic
-	var collect func(nodeID string, currentEffectiveLevel int)
-	collect = func(nodeID string, currentEffectiveLevel int) {
-		if currentEffectiveLevel >= maxDepth {
+	// Recursive helper: nivel comprimido dinámicamente.
+	// Si un nodo intermedio tiene PR=0, se salta (no cuenta como nivel).
+	// Esto permite que un afiliado a nivel 5 del árbol sea nivel 3 efectivo
+	// si hay 2 nodos intermedios con PR=0.
+	var collect func(nodeID string, currentLevel int)
+	collect = func(nodeID string, currentLevel int) {
+		if currentLevel >= maxDepth {
 			return
 		}
 
@@ -204,16 +210,21 @@ func (e *CierreEngine) CalculateResidualBonus(id string, closedRank string) ([]m
 				continue
 			}
 
-			pr := child.Points // Reconsumption points only
+			pr := child.Points
+
+			// Compresión dinámica: solo se incrementa el nivel si el hijo tiene PR > 0.
+			// Si PR = 0, el nodo se salta y sus hijos heredan el nivel actual.
+			nextLevel := currentLevel
 			if pr > 0 {
-				nextLevel := currentEffectiveLevel + 1
-				// No pagar ni bajar por esta pierna si ya se superó el tope del rango (p. ej. BRONCE = 4 niveles).
-				if nextLevel > maxDepth {
-					continue
-				}
-				if nextLevel > len(percentages) {
-					continue
-				}
+				nextLevel = currentLevel + 1
+			}
+
+			// Respetar tope del rango (p. ej. BRONCE = 4 niveles).
+			if nextLevel > maxDepth {
+				continue
+			}
+
+			if pr > 0 && nextLevel <= len(percentages) {
 				pct := percentages[nextLevel-1]
 				if pct > 0 {
 					bonus := 0.0
@@ -242,11 +253,9 @@ func (e *CierreEngine) CalculateResidualBonus(id string, closedRank string) ([]m
 						})
 					}
 				}
-				collect(childID, nextLevel)
-			} else {
-				// Compression: skip this level, pass current level down
-				collect(childID, currentEffectiveLevel)
 			}
+
+			collect(childID, nextLevel)
 		}
 	}
 
