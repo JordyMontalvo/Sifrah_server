@@ -20,6 +20,7 @@ const U = [
   "department",
   "affiliated",
   "activated",
+  "_activated",
   "token",
   "points",
   "balance",
