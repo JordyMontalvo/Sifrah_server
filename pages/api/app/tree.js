@@ -1,10 +1,28 @@
 import db  from "../../../components/db"
 import lib from "../../../components/lib"
 
-const { User, Session, Tree, Activation } = db
+const { User, Session, Tree, Activation, Closed } = db
 const { error, success, midd, map } = lib
 
 let tree, nodes
+
+function getClosedUsersList(lastClosed) {
+  if (!lastClosed) return []
+  if (Array.isArray(lastClosed.users)) return lastClosed.users
+  const dataUsers =
+    lastClosed.data && Array.isArray(lastClosed.data.users) ? lastClosed.data.users : []
+  return dataUsers
+}
+
+function getUserIdFromClosedEntry(u) {
+  if (!u) return null
+  return u.user_id || u.userId || u.id || null
+}
+
+function normalizeRankFromClosedEntry(u) {
+  const r = u && u.rank != null ? String(u.rank).trim() : ""
+  return r || null
+}
 
 const pos = {
   'none':             -1,
@@ -205,6 +223,21 @@ export default async (req, res) => {
   // Traer datos de usuario para el nodo
   const nodeUser = await User.findOne({ id: node.id })
 
+  // Tomar el último cierre para reflejar el rango “real” (según cierre)
+  let lastClosed = null
+  try {
+    lastClosed = await Closed.findOne({}, { sort: { date: -1 } })
+  } catch (e) {
+    lastClosed = null
+  }
+  const closedUsers = getClosedUsersList(lastClosed)
+  const lastClosedRankByUserId = new Map()
+  for (const cu of closedUsers) {
+    const uid = getUserIdFromClosedEntry(cu)
+    const rnk = normalizeRankFromClosedEntry(cu)
+    if (uid && rnk) lastClosedRankByUserId.set(String(uid), rnk)
+  }
+
   // Leer el total_points ya almacenado
   const total_points = nodeUser.total_points || 0
 
@@ -222,6 +255,10 @@ export default async (req, res) => {
     // Mapear hijos con datos de usuario
     children = childNodesOrdered.map((childNode, idx) => {
       const childUser = childUsersOrdered[idx] || {}
+      const closedRank =
+        childUser && childUser.id
+          ? lastClosedRankByUserId.get(String(childUser.id))
+          : null
       return {
         id: childNode.id,
         childs: childNode.childs,
@@ -236,7 +273,10 @@ export default async (req, res) => {
         dni: childUser.dni,
         phone: childUser.phone,
         email: childUser.email,
-        _rank: childUser.rank,
+        // `_rank` = rango del último cierre (fuente de verdad). Fallback a rank actual.
+        _rank: closedRank || childUser.rank,
+        // `rank` para compatibilidad con pantallas que lean `rank`.
+        rank: closedRank || childUser.rank,
       }
     })
     // Calcular los puntos grupales de cada hijo directo en el mismo orden
@@ -258,7 +298,8 @@ export default async (req, res) => {
     dni: nodeUser.dni,
     phone: nodeUser.phone,
     email: nodeUser.email,
-    _rank: nodeUser.rank,
+    _rank: lastClosedRankByUserId.get(String(nodeUser.id)) || nodeUser.rank,
+    rank: lastClosedRankByUserId.get(String(nodeUser.id)) || nodeUser.rank,
     total_points,
   }
 

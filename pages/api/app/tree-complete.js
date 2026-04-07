@@ -1,10 +1,30 @@
 import db from "../../../components/db"
 import lib from "../../../components/lib"
 
-const { User, Session, Tree } = db
+const { User, Session, Tree, Closed } = db
 const { error, success, midd } = lib
 
 let tree, users
+
+function getClosedUsersList(lastClosed) {
+  if (!lastClosed) return []
+  if (Array.isArray(lastClosed.users)) return lastClosed.users
+  const dataUsers =
+    lastClosed.data && Array.isArray(lastClosed.data.users) ? lastClosed.data.users : []
+  return dataUsers
+}
+
+function getUserIdFromClosedEntry(u) {
+  if (!u) return null
+  return u.user_id || u.userId || u.id || null
+}
+
+function normalizeRankFromClosedEntry(u) {
+  const r = u && u.rank != null ? String(u.rank).trim() : ""
+  return r || null
+}
+
+let lastClosedRankByUserId = new Map()
 
 function find(id, n) {
   if(n == 100) return
@@ -36,7 +56,9 @@ function find(id, n) {
         _node.dni = user.dni
         _node.phone = user.phone
         _node.email = user.email
-        _node._rank = user.rank
+        const closedRank = lastClosedRankByUserId.get(String(user.id)) || null
+        _node._rank = closedRank || user.rank
+        _node.rank = closedRank || user.rank
         _node.total_points = user.total_points || 0
       }
       node._childs.push(_node)
@@ -66,6 +88,21 @@ export default async (req, res) => {
     // Cargar TODOS los usuarios de una vez
     users = await User.find({ tree: true })
 
+    // Tomar el último cierre y mapear rangos por usuario
+    let lastClosed = null
+    try {
+      lastClosed = await Closed.findOne({}, { sort: { date: -1 } })
+    } catch (e) {
+      lastClosed = null
+    }
+    const closedUsers = getClosedUsersList(lastClosed)
+    lastClosedRankByUserId = new Map()
+    for (const cu of closedUsers) {
+      const uid = getUserIdFromClosedEntry(cu)
+      const rnk = normalizeRankFromClosedEntry(cu)
+      if (uid && rnk) lastClosedRankByUserId.set(String(uid), rnk)
+    }
+
     // Encontrar el nodo raíz
     const rootNode = tree.find(e => e.id == id)
     if (!rootNode) return res.json(error('node not found'))
@@ -84,7 +121,9 @@ export default async (req, res) => {
       rootNode.dni = rootUser.dni
       rootNode.phone = rootUser.phone
       rootNode.email = rootUser.email
-      rootNode._rank = rootUser.rank
+      const closedRank = lastClosedRankByUserId.get(String(rootUser.id)) || null
+      rootNode._rank = closedRank || rootUser.rank
+      rootNode.rank = closedRank || rootUser.rank
       rootNode.total_points = rootUser.total_points || 0
     }
 
