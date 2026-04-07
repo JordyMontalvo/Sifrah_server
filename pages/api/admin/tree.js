@@ -6,6 +6,13 @@ const { success, midd, map, error } = lib
 
 let tree, users, is_found
 
+async function fetchLastClosed() {
+  const all = await Closed.find({})
+  if (!all || !all.length) return null
+  all.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+  return all[0]
+}
+
 function getClosedUsersList(lastClosed) {
   if (!lastClosed) return []
   if (Array.isArray(lastClosed.users)) return lastClosed.users
@@ -68,7 +75,7 @@ export default async (req, res) => {
   // Nota: el cierre puede guardar `users` en raíz o dentro de `data.users` según implementación.
   let lastClosed = null
   try {
-    lastClosed = await Closed.findOne({}, { sort: { date: -1 } })
+    lastClosed = await fetchLastClosed()
   } catch (e) {
     lastClosed = null
   }

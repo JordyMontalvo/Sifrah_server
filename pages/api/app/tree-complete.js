@@ -6,6 +6,13 @@ const { error, success, midd } = lib
 
 let tree, users
 
+async function fetchLastClosed() {
+  const all = await Closed.find({})
+  if (!all || !all.length) return null
+  all.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+  return all[0]
+}
+
 function getClosedUsersList(lastClosed) {
   if (!lastClosed) return []
   if (Array.isArray(lastClosed.users)) return lastClosed.users
@@ -19,12 +26,19 @@ function getUserIdFromClosedEntry(u) {
   return u.user_id || u.userId || u.id || null
 }
 
+function getUserDniFromClosedEntry(u) {
+  if (!u) return null
+  const d = u.dni != null ? String(u.dni).trim() : ""
+  return d || null
+}
+
 function normalizeRankFromClosedEntry(u) {
   const r = u && u.rank != null ? String(u.rank).trim() : ""
   return r || null
 }
 
 let lastClosedRankByUserId = new Map()
+let lastClosedRankByDni = new Map()
 
 function find(id, n) {
   if(n == 100) return
@@ -57,8 +71,11 @@ function find(id, n) {
         _node.phone = user.phone
         _node.email = user.email
         const closedRank = lastClosedRankByUserId.get(String(user.id)) || null
-        _node._rank = closedRank || user.rank
-        _node.rank = closedRank || user.rank
+        const closedRankByDni = !closedRank && user.dni
+          ? lastClosedRankByDni.get(String(user.dni))
+          : null
+        _node._rank = closedRank || closedRankByDni || user.rank
+        _node.rank = closedRank || closedRankByDni || user.rank
         _node.total_points = user.total_points || 0
       }
       node._childs.push(_node)
@@ -91,16 +108,19 @@ export default async (req, res) => {
     // Tomar el último cierre y mapear rangos por usuario
     let lastClosed = null
     try {
-      lastClosed = await Closed.findOne({}, { sort: { date: -1 } })
+      lastClosed = await fetchLastClosed()
     } catch (e) {
       lastClosed = null
     }
     const closedUsers = getClosedUsersList(lastClosed)
     lastClosedRankByUserId = new Map()
+    lastClosedRankByDni = new Map()
     for (const cu of closedUsers) {
       const uid = getUserIdFromClosedEntry(cu)
+      const dni = getUserDniFromClosedEntry(cu)
       const rnk = normalizeRankFromClosedEntry(cu)
       if (uid && rnk) lastClosedRankByUserId.set(String(uid), rnk)
+      if (dni && rnk) lastClosedRankByDni.set(String(dni), rnk)
     }
 
     // Encontrar el nodo raíz
@@ -122,8 +142,11 @@ export default async (req, res) => {
       rootNode.phone = rootUser.phone
       rootNode.email = rootUser.email
       const closedRank = lastClosedRankByUserId.get(String(rootUser.id)) || null
-      rootNode._rank = closedRank || rootUser.rank
-      rootNode.rank = closedRank || rootUser.rank
+      const closedRankByDni = !closedRank && rootUser.dni
+        ? lastClosedRankByDni.get(String(rootUser.dni))
+        : null
+      rootNode._rank = closedRank || closedRankByDni || rootUser.rank
+      rootNode.rank = closedRank || closedRankByDni || rootUser.rank
       rootNode.total_points = rootUser.total_points || 0
     }
 

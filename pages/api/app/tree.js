@@ -6,6 +6,13 @@ const { error, success, midd, map } = lib
 
 let tree, nodes
 
+async function fetchLastClosed() {
+  const all = await Closed.find({})
+  if (!all || !all.length) return null
+  all.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+  return all[0]
+}
+
 function getClosedUsersList(lastClosed) {
   if (!lastClosed) return []
   if (Array.isArray(lastClosed.users)) return lastClosed.users
@@ -17,6 +24,12 @@ function getClosedUsersList(lastClosed) {
 function getUserIdFromClosedEntry(u) {
   if (!u) return null
   return u.user_id || u.userId || u.id || null
+}
+
+function getUserDniFromClosedEntry(u) {
+  if (!u) return null
+  const d = u.dni != null ? String(u.dni).trim() : ""
+  return d || null
 }
 
 function normalizeRankFromClosedEntry(u) {
@@ -226,16 +239,19 @@ export default async (req, res) => {
   // Tomar el último cierre para reflejar el rango “real” (según cierre)
   let lastClosed = null
   try {
-    lastClosed = await Closed.findOne({}, { sort: { date: -1 } })
+    lastClosed = await fetchLastClosed()
   } catch (e) {
     lastClosed = null
   }
   const closedUsers = getClosedUsersList(lastClosed)
   const lastClosedRankByUserId = new Map()
+  const lastClosedRankByDni = new Map()
   for (const cu of closedUsers) {
     const uid = getUserIdFromClosedEntry(cu)
+    const dni = getUserDniFromClosedEntry(cu)
     const rnk = normalizeRankFromClosedEntry(cu)
     if (uid && rnk) lastClosedRankByUserId.set(String(uid), rnk)
+    if (dni && rnk) lastClosedRankByDni.set(String(dni), rnk)
   }
 
   // Leer el total_points ya almacenado
@@ -259,6 +275,10 @@ export default async (req, res) => {
         childUser && childUser.id
           ? lastClosedRankByUserId.get(String(childUser.id))
           : null
+      const closedRankByDni =
+        !closedRank && childUser && childUser.dni
+          ? lastClosedRankByDni.get(String(childUser.dni))
+          : null
       return {
         id: childNode.id,
         childs: childNode.childs,
@@ -274,9 +294,9 @@ export default async (req, res) => {
         phone: childUser.phone,
         email: childUser.email,
         // `_rank` = rango del último cierre (fuente de verdad). Fallback a rank actual.
-        _rank: closedRank || childUser.rank,
+        _rank: closedRank || closedRankByDni || childUser.rank,
         // `rank` para compatibilidad con pantallas que lean `rank`.
-        rank: closedRank || childUser.rank,
+        rank: closedRank || closedRankByDni || childUser.rank,
       }
     })
     // Calcular los puntos grupales de cada hijo directo en el mismo orden
@@ -298,8 +318,14 @@ export default async (req, res) => {
     dni: nodeUser.dni,
     phone: nodeUser.phone,
     email: nodeUser.email,
-    _rank: lastClosedRankByUserId.get(String(nodeUser.id)) || nodeUser.rank,
-    rank: lastClosedRankByUserId.get(String(nodeUser.id)) || nodeUser.rank,
+    _rank:
+      lastClosedRankByUserId.get(String(nodeUser.id)) ||
+      lastClosedRankByDni.get(String(nodeUser.dni)) ||
+      nodeUser.rank,
+    rank:
+      lastClosedRankByUserId.get(String(nodeUser.id)) ||
+      lastClosedRankByDni.get(String(nodeUser.dni)) ||
+      nodeUser.rank,
     total_points,
   }
 
