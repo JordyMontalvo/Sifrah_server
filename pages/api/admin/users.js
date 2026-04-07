@@ -44,6 +44,24 @@ function periodFromDate(dateValue) {
   return `${y}-${m}`;
 }
 
+/** Identifica un registro de rank_history para borrar (primer coincidencia). */
+function matchesRankHistoryEntry(entry, { rank, date, period }) {
+  if (!entry || String(entry.rank) !== String(rank)) return false;
+  const eTime = new Date(entry.date).getTime();
+  const tTime = new Date(date).getTime();
+  if (isNaN(eTime) || isNaN(tTime)) return false;
+  if (eTime !== tTime) return false;
+  const ePeriod =
+    entry.period != null && String(entry.period).trim() !== ""
+      ? String(entry.period).trim()
+      : periodFromDate(entry.date);
+  const tPeriod =
+    period != null && String(period).trim() !== ""
+      ? String(period).trim()
+      : periodFromDate(date);
+  return ePeriod === tPeriod;
+}
+
 const handler = async (req, res) => {
   if (req.method == "GET") {
     console.log("GET ...");
@@ -528,6 +546,26 @@ const handler = async (req, res) => {
 
       rankHistory.sort((a, b) => new Date(b.date) - new Date(a.date));
 
+      await User.update({ id }, { rank_history: rankHistory });
+    }
+
+    if (action == "remove_rank_history") {
+      const user = await User.findOne({ id });
+      if (!user) return res.json(error("user not found"));
+
+      const { rank, date, period } = req.body.data || {};
+      if (!rank || date == null || date === "")
+        return res.json(error("rank and date are required"));
+
+      const rankHistory = Array.isArray(user.rank_history)
+        ? [...user.rank_history]
+        : [];
+      const idx = rankHistory.findIndex((e) =>
+        matchesRankHistoryEntry(e, { rank, date, period })
+      );
+      if (idx === -1) return res.json(error("rank history entry not found"));
+
+      rankHistory.splice(idx, 1);
       await User.update({ id }, { rank_history: rankHistory });
     }
 
