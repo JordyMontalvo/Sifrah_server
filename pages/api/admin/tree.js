@@ -1,10 +1,27 @@
 import db from "../../../components/db"
 import lib from "../../../components/lib"
 
-const { Tree, User } = db
+const { Tree, User, Closed } = db
 const { success, midd, map, error } = lib
 
 let tree, users, is_found
+
+function getClosedUsersList(lastClosed) {
+  if (!lastClosed) return []
+  if (Array.isArray(lastClosed.users)) return lastClosed.users
+  const dataUsers = lastClosed.data && Array.isArray(lastClosed.data.users) ? lastClosed.data.users : []
+  return dataUsers
+}
+
+function getUserIdFromClosedEntry(u) {
+  if (!u) return null
+  return u.user_id || u.userId || u.id || null
+}
+
+function normalizeRankFromClosedEntry(u) {
+  const r = u && u.rank != null ? String(u.rank).trim() : ""
+  return r || null
+}
 
 
 function find(id, n) {
@@ -47,11 +64,37 @@ export default async (req, res) => {
 
   users = await User.find({ tree: true })
 
+  // Tomar el último cierre para reflejar el rango “real” (según cierre) en la red.
+  // Nota: el cierre puede guardar `users` en raíz o dentro de `data.users` según implementación.
+  let lastClosed = null
+  try {
+    lastClosed = await Closed.findOne({}, { sort: { date: -1 } })
+  } catch (e) {
+    lastClosed = null
+  }
+  const closedUsers = getClosedUsersList(lastClosed)
+  const lastClosedRankByUserId = new Map()
+  for (const cu of closedUsers) {
+    const id = getUserIdFromClosedEntry(cu)
+    const rank = normalizeRankFromClosedEntry(cu)
+    if (id && rank) lastClosedRankByUserId.set(String(id), rank)
+  }
+
   tree.forEach(node => {
     const user = users.find(e => e.id == node.id)
     // node.name = user.name + ' ' + user.lastName
-    node.name = user.name
-    node.dni  = user.dni
+    if (user) {
+      node.name = user.name
+      node.lastName = user.lastName
+      node.dni  = user.dni
+      node.affiliated = user.affiliated
+      node.activated = user.activated
+      node._activated = user._activated
+      node.points = user.points
+      node.affiliation_points = user.affiliation_points
+      // Priorizar rango del último cierre; fallback al rango del usuario.
+      node.rank = lastClosedRankByUserId.get(String(user.id)) || user.rank || "none"
+    }
   })
 
   if(req.method == 'GET') {
