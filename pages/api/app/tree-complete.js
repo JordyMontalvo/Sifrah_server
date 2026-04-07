@@ -29,6 +29,7 @@ function find(id, n) {
         _node.lastName = user.lastName
         _node.affiliated = user.affiliated
         _node.activated = user.activated
+        _node._activated = user._activated
         _node.points = Number(user.points) || 0
         _node.affiliation_points = user.affiliation_points || 0
         _node.photo = user.photo
@@ -77,6 +78,7 @@ export default async (req, res) => {
       rootNode.lastName = rootUser.lastName
       rootNode.affiliated = rootUser.affiliated
       rootNode.activated = rootUser.activated
+      rootNode._activated = rootUser._activated
       rootNode.points = Number(rootUser.points) || 0
       rootNode.affiliation_points = rootUser.affiliation_points || 0
       rootNode.photo = rootUser.photo
