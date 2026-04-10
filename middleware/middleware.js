@@ -22,7 +22,7 @@ export function middleware(request) {
   // Headers básicos de CORS
   response.headers.set('Access-Control-Allow-Credentials', 'true');
   response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-  response.headers.set('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization');
+  response.headers.set('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization, sentry-trace, baggage');
   
   // Configurar origen permitido
   if (isAllowedOrigin) {
