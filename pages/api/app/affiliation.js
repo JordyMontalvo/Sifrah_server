@@ -215,20 +215,22 @@ export default async (req, res) => {
     let transactions = [];
     let amounts;
 
-    // Ya no existe lógica de upgrade. Toda afiliación/migración se cobra completa.
-    if (!check) {
-      const price = plan.amount;
+    // Toda afiliación se cobra completa. Si el usuario marca "usar saldo" (check),
+    // se descuenta primero del saldo no disponible (_balance) y luego del saldo disponible (balance).
+    // El resto queda como "pendiente" y se cubre con voucher/efectivo según pay_method.
+    const price = plan.amount;
+    let a = 0; // saldo no disponible (virtual)
+    let b = 0; // saldo disponible
+    let c = price; // faltante
 
-      const a = _balance < price ? _balance : price;
-      const r = price - _balance > 0 ? price - _balance : 0;
-      const b = balance < r ? balance : r;
-      const c = price - a - b;
-      console.log({ a, b, c });
+    if (check) {
+      a = _balance < price ? _balance : price;
+      const r = price - a > 0 ? price - a : 0;
+      b = balance < r ? balance : r;
+      c = price - a - b;
 
       const id1 = rand();
       const id2 = rand();
-
-      amounts = [a, b, c];
 
       if (a) {
         transactions.push(id1);
@@ -255,7 +257,13 @@ export default async (req, res) => {
           virtual: false,
         });
       }
+    } else {
+      // No usar saldo: todo el monto queda como faltante a cubrir por el método externo
+      c = price;
     }
+
+    amounts = [a, b, c];
+    console.log({ a, b, c, price, check });
 
     const period = await getOrCreateOpenPeriod(new Date());
     await Affiliation.insert({

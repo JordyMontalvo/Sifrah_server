@@ -324,7 +324,23 @@ const handler = async (req, res) => {
         let u = users.get(a.userId);
         a = model(a, A);
         u = model(u, U);
-        return { ...a, ...u };
+        // amounts: [paid_virtual, paid_balance, due_or_external]
+        const amounts = Array.isArray(a.amounts) ? a.amounts : null;
+        const paid_virtual = amounts ? Number(amounts[0] || 0) : 0;
+        const paid_balance = amounts ? Number(amounts[1] || 0) : 0;
+        const due = amounts ? Number(amounts[2] || 0) : 0;
+        const total = (a.plan && a.plan.amount) ? Number(a.plan.amount) : (paid_virtual + paid_balance + due);
+
+        return {
+          ...a,
+          ...u,
+          payment_breakdown: {
+            total,
+            paid_virtual,
+            paid_balance,
+            due,
+          },
+        };
       });
 
       let parents = await User.find({ id: { $in: parent_ids(affiliations) } });
@@ -471,6 +487,81 @@ const handler = async (req, res) => {
         for (let transactionId of affiliation.transactions) {
           await Transaction.delete({ id: transactionId });
         }
+      }
+    }
+
+    if (action == "cancel") {
+      // Marcar como anulada. Si estaba aprobada, revertir efectos (usuario/stock/bonos).
+      if (affiliation.status == "cancelled") {
+        return res.json(error("already cancelled"));
+      }
+
+      const wasApproved = affiliation.status === "approved";
+      await Affiliation.update(
+        { id },
+        {
+          status: "cancelled",
+          cancelled_at: new Date(),
+        }
+      );
+
+      if (wasApproved) {
+        const user = await User.findOne({ id: affiliation.userId });
+
+        // Revertir BONOS: en approve() se guarda `transactions: pays` (ids de bonos)
+        if (affiliation.transactions && affiliation.transactions.length) {
+          for (let transactionId of affiliation.transactions) {
+            await Transaction.delete({ id: transactionId });
+          }
+        }
+
+        // Revertir STOCK: al aprobar se descontó, al anular se devuelve
+        const office_id = affiliation.office;
+        const products = affiliation.products || [];
+        const office = await Office.findOne({ id: office_id });
+        if (office && office.products && products.length) {
+          products.forEach((p, i) => {
+            if (office.products[i]) office.products[i].total += products[i].total;
+          });
+          await Office.update({ id: office_id }, { products: office.products });
+        }
+
+        // Revertir estado del USUARIO: volver a la última afiliación aprobada (excluyendo esta)
+        const prevApproved = await Affiliation.findOne(
+          { userId: user.id, status: "approved", id: { $ne: affiliation.id } },
+          { sort: { date: -1 } }
+        );
+
+        if (prevApproved) {
+          await User.update(
+            { id: user.id },
+            {
+              affiliated: true,
+              _activated: true,
+              activated: true,
+              plan: prevApproved.plan.id,
+              n: prevApproved.plan.n,
+              affiliation_points: prevApproved.plan.affiliation_points,
+              affiliation_date: prevApproved.date,
+            }
+          );
+        } else {
+          await User.update(
+            { id: user.id },
+            {
+              affiliated: false,
+              _activated: false,
+              activated: false,
+              plan: "default",
+              n: 0,
+              affiliation_points: 0,
+              affiliation_date: null,
+            }
+          );
+        }
+
+        // Recalcular total_points
+        await lib.updateTotalPointsCascade(User, Tree, user.id);
       }
     }
 
