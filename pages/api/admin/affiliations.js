@@ -169,6 +169,7 @@ const A = [
   "voucher_date",
   "voucher_number",
   "amounts",
+  "use_balance",
   "products",
   "transactions",
   "type",
@@ -325,11 +326,44 @@ const handler = async (req, res) => {
         a = model(a, A);
         u = model(u, U);
         // amounts: [paid_virtual, paid_balance, due_or_external]
-        const amounts = Array.isArray(a.amounts) ? a.amounts : null;
-        const paid_virtual = amounts ? Number(amounts[0] || 0) : 0;
-        const paid_balance = amounts ? Number(amounts[1] || 0) : 0;
-        const due = amounts ? Number(amounts[2] || 0) : 0;
-        const total = (a.plan && a.plan.amount) ? Number(a.plan.amount) : (paid_virtual + paid_balance + due);
+        const amounts = Array.isArray(a.amounts) && a.amounts.length >= 3 ? a.amounts : null;
+        const planAmt = a.plan && a.plan.amount != null ? Number(a.plan.amount) : 0;
+        let paid_virtual = 0;
+        let paid_balance = 0;
+        let due = 0;
+        let legacy_missing_amounts = false;
+
+        if (amounts) {
+          paid_virtual = Number(amounts[0] || 0);
+          paid_balance = Number(amounts[1] || 0);
+          due = Number(amounts[2] || 0);
+        } else {
+          // Registros viejos sin `amounts` o incompletos
+          if (a.use_balance === true) {
+            legacy_missing_amounts = true;
+            paid_virtual = 0;
+            paid_balance = 0;
+            due = 0;
+          } else {
+            // Sin casilla de saldo o sin dato: se asume pago 100% por método externo (voucher/banco/etc.)
+            paid_virtual = 0;
+            paid_balance = 0;
+            due = planAmt;
+          }
+        }
+
+        const total =
+          planAmt || paid_virtual + paid_balance + due;
+
+        let mode = "external_only";
+        if (a.use_balance === true) {
+          if (due <= 0.0001) mode = "balance_only";
+          else mode = "mixed";
+        } else if (amounts && (paid_virtual > 0 || paid_balance > 0)) {
+          // Registros antiguos sin use_balance guardado pero con amounts (p. ej. solo saldo o mixto)
+          if (due <= 0.0001) mode = "balance_only";
+          else mode = "mixed";
+        }
 
         return {
           ...a,
@@ -339,6 +373,9 @@ const handler = async (req, res) => {
             paid_virtual,
             paid_balance,
             due,
+            legacy_missing_amounts,
+            mode,
+            use_balance: !!a.use_balance,
           },
         };
       });

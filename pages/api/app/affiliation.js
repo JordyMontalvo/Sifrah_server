@@ -281,6 +281,8 @@ export default async (req, res) => {
       delivered: false,
       transactions,
       amounts,
+      /** Si marcó "usar saldo disponible" en el checkout (true = aplica abono con saldo; puede ser solo saldo o mixto con voucher) */
+      use_balance: !!check,
       pay_method,
       bank,
       voucher_date: date,
