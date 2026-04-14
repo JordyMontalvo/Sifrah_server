@@ -103,158 +103,80 @@ export default async (req, res) => {
 
     return res.json(error("invalid action"));
   }
-
   if (req.method === "GET") {
     const { filter = "pending", kind = "all" } = req.query;
-    
-    const validFilters = ["all", "pending", "approved", "rejected", "cancelled", "verified"];
-    if (!validFilters.includes(filter)) return res.json(error("invalid filter"));
-    const validKinds = ["all", "affiliation", "activation"];
-    if (!validKinds.includes(kind)) return res.json(error("invalid kind"));
-
-    // Simplificar la consulta al máximo para asegurar que traemos datos
-    const query = {
-      $or: [
-        { voucher: { $exists: true, $ne: null, $ne: "" } },
-        { voucher2: { $exists: true, $ne: null, $ne: "" } }
-      ]
-    };
-
-    let affsRaw = [];
-    let actsRaw = [];
+    console.log(`[Payment Validations] GET request - filter: ${filter}, kind: ${kind}`);
 
     try {
+      const query = {
+        $or: [
+          { voucher: { $exists: true, $ne: null, $ne: "" } },
+          { voucher2: { $exists: true, $ne: null, $ne: "" } }
+        ]
+      };
+
+      let affsRaw = [];
+      let actsRaw = [];
+
       if (kind === "all" || kind === "affiliation") {
         affsRaw = await Affiliation.find(query) || [];
       }
       if (kind === "all" || kind === "activation") {
         actsRaw = await Activation.find(query) || [];
       }
-    } catch (err) {
-      console.error("[Payment Validations] DB Error:", err);
-    }
 
-    // Optimizacion: Pre-cargar combinaciones para evitar N+1 queries
-    const [existingActivations, existingAffiliations] = await Promise.all([
-      Activation.find({ 
-        $or: [
-          { voucher_number: { $exists: true, $ne: null, $ne: "" } },
-          { voucher: { $exists: true, $ne: null, $ne: "" } }
-        ],
-        status: { $ne: 'rejected' } 
-      }),
-      Affiliation.find({ 
-        $or: [
-          { voucher_number: { $exists: true, $ne: null, $ne: "" } },
-          { voucher: { $exists: true, $ne: null, $ne: "" } }
-        ],
-        status: { $ne: 'rejected' } 
-      })
-    ]);
-
-    const activeVouchers = new Set([
-      ...existingActivations.map(a => `${String(a.bank || '').toLowerCase()}::${String(a.voucher_number || '').toLowerCase().trim()}`),
-      ...existingAffiliations.map(a => `${String(a.bank || '').toLowerCase()}::${String(a.voucher_number || '').toLowerCase().trim()}`)
-    ]);
-
-    // Mapeo y filtrado por status en memoria
-    const affs = affsRaw
-      .filter(a => filter === "all" || a.status === filter)
-      .map((a) => {
+      const mappedAffs = affsRaw.map(a => {
         const x = model(a, AFF_MODEL);
         const total = x.plan && x.plan.amount != null ? Number(x.plan.amount) : 0;
-        const payment_breakdown = buildPaymentBreakdown({
-          amounts: x.amounts,
-          total,
-          use_balance: x.use_balance,
-        });
-        const key = `${String(x.bank || '').toLowerCase()}::${String(x.voucher_number || '').toLowerCase().trim()}`;
         return {
-          kind: "affiliation",
           ...x,
+          kind: "affiliation",
           total,
-          payment_breakdown,
-          possibleDuplicate: activeVouchers.has(key)
+          payment_breakdown: buildPaymentBreakdown({ amounts: x.amounts, total, use_balance: x.use_balance }),
+          date: x.date || new Date().toISOString()
         };
       });
 
-    const acts = actsRaw
-      .filter(a => filter === "all" || a.status === filter)
-      .map((a) => {
+      const mappedActs = actsRaw.map(a => {
         const x = model(a, ACT_MODEL);
         const total = x.price != null ? Number(x.price) : 0;
-        const payment_breakdown = buildPaymentBreakdown({
-          amounts: x.amounts,
-          total,
-          use_balance: false,
-        });
-        const key = `${String(x.bank || '').toLowerCase()}::${String(x.voucher_number || '').toLowerCase().trim()}`;
         return {
-          kind: "activation",
           ...x,
+          kind: "activation",
           total,
-          payment_breakdown,
-          possibleDuplicate: activeVouchers.has(key)
+          payment_breakdown: buildPaymentBreakdown({ amounts: x.amounts, total, use_balance: false }),
+          date: x.date || new Date().toISOString()
         };
       });
 
-    const items = [...affs, ...acts].sort((a, b) => new Date(b.date) - new Date(a.date));
+      let allItems = [...mappedAffs, ...mappedActs];
+      if (filter !== "all") {
+        allItems = allItems.filter(i => i.status === filter);
+      }
 
-    // Enriquecer usuarios
-    const userIds = items.map((i) => i.userId).filter(Boolean);
-    const usersRaw = await User.find({ id: { $in: userIds } });
-    const users = map(usersRaw || []);
+      const userIds = [...new Set(allItems.map(i => i.userId).filter(Boolean))];
+      const usersRaw = userIds.length > 0 ? await User.find({ id: { $in: userIds } }) : [];
+      const userMap = new Map(usersRaw.map(u => [u.id, u]));
 
-    const enriched = items.map((i) => {
-      const u = users.get(i.userId);
-      return {
-        ...i,
-        user: u ? model(u, USER_MODEL) : null,
-      };
-    });
-
-    // --- CHEQUEO DE DUPLICADOS EN BASE DE DATOS ---
-    const voucherNumbers = enriched
-      .map((i) => String(i.voucher_number || "").trim())
-      .filter((v) => v.length > 3);
-
-    let globalDuplicates = new Set();
-    if (voucherNumbers.length > 0) {
-      const qDuplicated = {
-        voucher_number: { $in: voucherNumbers },
-        status: { $in: ["approved", "verified", "pending"] },
-      };
-
-      const [dupAffs, dupActs] = await Promise.all([
-        Affiliation.find(qDuplicated),
-        Activation.find(qDuplicated),
-      ]);
-
-      const counts = {};
-      [...dupAffs, ...dupActs].forEach((d) => {
-        const vn = String(d.voucher_number || "").trim();
-        counts[vn] = (counts[vn] || 0) + 1;
+      const items = allItems.map(i => {
+        const u = userMap.get(i.userId);
+        return {
+          ...i,
+          user: {
+            name: u ? u.name : "N/A",
+            lastName: u ? u.lastName : "",
+            dni: u ? u.dni : "-",
+          }
+        };
       });
 
-      Object.keys(counts).forEach((vn) => {
-        if (counts[vn] > 1) globalDuplicates.add(vn);
-      });
+      items.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+      return res.status(200).json({ items });
+    } catch (err) {
+      console.error("[Payment Validations] GET Error:", err);
+      return res.status(500).json(error("Error loading validations"));
     }
-
-    const finalized = enriched.map((i) => {
-      const vn = String(i.voucher_number || "").trim();
-      return {
-        ...i,
-        possibleDuplicate: vn ? globalDuplicates.has(vn) : false,
-      };
-    });
-
-    return res.json(
-      success({
-        items: finalized,
-        total: finalized.length,
-      })
-    );
   }
 
   return res.json(error("invalid method"));
