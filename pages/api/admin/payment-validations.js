@@ -92,24 +92,36 @@ export default async (req, res) => {
   const validKinds = ["all", "affiliation", "activation"];
   if (!validKinds.includes(kind)) return res.json(error("invalid kind"));
 
-  const baseQ = filter === "all" ? {} : { status: filter };
-
-  // Solo items que tengan intención de pago bancario o tengan comprobante
-  const voucherQ = {
-    ...baseQ,
+  // Simplificar la consulta al máximo para asegurar que traemos datos
+  // Filtramos por status en memoria para depurar si hay discrepancias de nombres
+  const query = {
     $or: [
-      { pay_method: "bank" },
       { voucher: { $exists: true, $ne: null, $ne: "" } },
-      { voucher_number: { $exists: true, $ne: "" } }
+      { voucher2: { $exists: true, $ne: null, $ne: "" } },
+      { voucher_number: { $exists: true, $ne: null, $ne: "" } }
     ]
   };
 
-  let affs = [];
-  let acts = [];
+  let affsRaw = [];
+  let actsRaw = [];
 
-  if (kind === "all" || kind === "affiliation") {
-    const raw = await Affiliation.find(voucherQ);
-    affs = (raw || []).map((a) => {
+  try {
+    if (kind === "all" || kind === "affiliation") {
+      affsRaw = await Affiliation.find(query) || [];
+    }
+    if (kind === "all" || kind === "activation") {
+      actsRaw = await Activation.find(query) || [];
+    }
+  } catch (err) {
+    console.error("[Payment Validations] DB Error:", err);
+  }
+
+  console.log(`[Payment Validations] Raw found - Affs: ${affsRaw.length}, Acts: ${actsRaw.length}`);
+
+  // Mapeo y filtrado por status en memoria
+  const affs = affsRaw
+    .filter(a => filter === "all" || a.status === filter)
+    .map((a) => {
       const x = model(a, AFF_MODEL);
       const total = x.plan && x.plan.amount != null ? Number(x.plan.amount) : 0;
       const payment_breakdown = buildPaymentBreakdown({
@@ -124,11 +136,10 @@ export default async (req, res) => {
         payment_breakdown,
       };
     });
-  }
 
-  if (kind === "all" || kind === "activation") {
-    const raw = await Activation.find(voucherQ);
-    acts = (raw || []).map((a) => {
+  const acts = actsRaw
+    .filter(a => filter === "all" || a.status === filter)
+    .map((a) => {
       const x = model(a, ACT_MODEL);
       const total = x.price != null ? Number(x.price) : 0;
       const payment_breakdown = buildPaymentBreakdown({
@@ -143,9 +154,8 @@ export default async (req, res) => {
         payment_breakdown,
       };
     });
-  }
 
-  console.info(`[Payment Validations] filter: ${filter}, kind: ${kind}, query:`, JSON.stringify(voucherQ));
+  console.info(`[Payment Validations] filter: ${filter}, kind: ${kind}, query:`, JSON.stringify(query));
   const items = [...affs, ...acts].sort((a, b) => new Date(b.date) - new Date(a.date));
 
   // Enriquecer usuarios
