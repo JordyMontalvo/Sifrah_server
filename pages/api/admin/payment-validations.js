@@ -94,11 +94,14 @@ export default async (req, res) => {
 
   const baseQ = filter === "all" ? {} : { status: filter };
 
-  // Solo items con voucher/banco para validar
+  // Solo items que tengan intención de pago bancario o tengan comprobante
   const voucherQ = {
     ...baseQ,
-    pay_method: "bank",
-    voucher: { $ne: null },
+    $or: [
+      { pay_method: "bank" },
+      { voucher: { $exists: true, $ne: null, $ne: "" } },
+      { voucher_number: { $exists: true, $ne: "" } }
+    ]
   };
 
   let affs = [];
