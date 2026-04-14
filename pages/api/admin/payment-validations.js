@@ -105,7 +105,11 @@ export default async (req, res) => {
   }
   if (req.method === "GET") {
     const { filter = "pending", kind = "all" } = req.query;
-    console.log(`[Payment Validations] GET request - filter: ${filter}, kind: ${kind}`);
+    const normFilter = String(filter || "pending").toLowerCase();
+    const normKind = String(kind || "all").toLowerCase();
+    console.log(
+      `[Payment Validations] GET request - filter: ${normFilter}, kind: ${normKind}`
+    );
 
     try {
       // Intentar traer los datos de manera individual para capturar errores
@@ -113,14 +117,32 @@ export default async (req, res) => {
       let actsRaw = [];
       
       try {
-        if (kind === "all" || kind === "affiliation") {
-          affsRaw = await Affiliation.find({}) || [];
+        if (normKind === "all" || normKind === "affiliation") {
+          // Traer registros con evidencia de voucher/operación.
+          // Nota: en registros antiguos puede faltar `pay_method`, así que no lo usamos como filtro duro.
+          const q = {
+            $or: [
+              { voucher: { $exists: true, $ne: null } },
+              { voucher2: { $exists: true, $ne: null } },
+              { voucher_number: { $exists: true, $ne: null } },
+            ],
+          };
+          if (normFilter !== "all") q.status = normFilter;
+          affsRaw = (await Affiliation.find(q)) || [];
         }
       } catch (e1) { console.error("Error fetching affs:", e1); }
 
       try {
-        if (kind === "all" || kind === "activation") {
-          actsRaw = await Activation.find({}) || [];
+        if (normKind === "all" || normKind === "activation") {
+          const q = {
+            $or: [
+              { voucher: { $exists: true, $ne: null } },
+              { voucher2: { $exists: true, $ne: null } },
+              { voucher_number: { $exists: true, $ne: null } },
+            ],
+          };
+          if (normFilter !== "all") q.status = normFilter;
+          actsRaw = (await Activation.find(q)) || [];
         }
       } catch (e2) { console.error("Error fetching acts:", e2); }
 
@@ -152,10 +174,20 @@ export default async (req, res) => {
       });
 
       let items = [...mappedAffs, ...mappedActs];
-      
-      // Filtrar por status
-      if (filter !== "all") {
-        items = items.filter(i => i.status === filter);
+      // Si el driver no soporta $exists/$or en find(), el filtro de arriba podría fallar silenciosamente.
+      // Reforzamos aquí el filtro (y lo hacemos tolerante a mayúsculas/minúsculas).
+      const looksLikeBankPayment = (i) => {
+        const pm = (i.pay_method || "").toLowerCase();
+        if (pm === "bank") return true;
+        // Fallback para históricos: si guardó `bank` o `voucher_number`, lo tratamos como banco.
+        return !!(i.bank || i.voucher_number);
+      };
+
+      items = items.filter(hasVoucher).filter(looksLikeBankPayment);
+      if (normFilter !== "all") {
+        items = items.filter(
+          (i) => String(i.status || "pending").toLowerCase() === normFilter
+        );
       }
 
       // Enriquecer usuarios de forma segura
