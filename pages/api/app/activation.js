@@ -1,7 +1,7 @@
 import db from "../../../components/db"
 import lib from "../../../components/lib"
 
-const { User, Session, Product, Activation, Office, Transaction } = db
+const { User, Session, Product, Activation, Affiliation, Office, Transaction } = db
 const { error, success, midd, map, rand, acum } = lib
 
 const MONTHS_ES = [
@@ -175,6 +175,16 @@ export default async (req, res) => {
   if (req.method == 'POST') {
 
     let { products, office, check, voucher, voucher2, pay_method, bank, bank_info, date, voucher_number, deliveryMethod, deliveryInfo } = req.body;
+
+    // Validación de duplicidad de voucher
+    if (pay_method === 'bank' && voucher_number) {
+      const vn = String(voucher_number).trim();
+      const dupAct = await Activation.findOne({ voucher_number: vn, status: { $in: ['approved', 'pending'] } });
+      const dupAff = await Affiliation.findOne({ voucher_number: vn, status: { $in: ['approved', 'pending'] } });
+      if (dupAct || dupAff) {
+        return res.json(error(`El número de operación "${vn}" ya ha sido registrado previamente. Por favor, verifica los datos.`));
+      }
+    }
 
     console.log('Activation POST - voucher:', voucher ? 'existe' : 'null');
     console.log('Activation POST - voucher2:', voucher2 ? voucher2 : 'null');

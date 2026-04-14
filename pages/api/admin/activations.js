@@ -253,6 +253,28 @@ export default async (req, res) => {
     }
 
     if (action == "approve") {
+      // Validar duplicado de voucher antes de proceder
+      if (activation.pay_method === "bank" && activation.voucher_number) {
+        const vn = String(activation.voucher_number).trim();
+        const dupAct = await Activation.findOne({
+          voucher_number: vn,
+          status: "approved",
+          id: { $ne: id },
+        });
+        const dupAff = await Affiliation.findOne({
+          voucher_number: vn,
+          status: "approved",
+        });
+
+        if (dupAct || dupAff) {
+          return res.json(
+            error(
+              `El número de operación "${vn}" ya ha sido utilizado en otro pago aprobado.`
+            )
+          );
+        }
+      }
+
       console.log("1");
       // approve activation
       // Calcular el periodo correcto según el momento exacto de la aprobación

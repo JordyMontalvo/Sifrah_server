@@ -414,6 +414,28 @@ const handler = async (req, res) => {
     }
 
     if (action == "approve") {
+      // Validar duplicado de voucher antes de proceder
+      if (affiliation.pay_method === "bank" && affiliation.voucher_number) {
+        const vn = String(affiliation.voucher_number).trim();
+        const dupAct = await Activation.findOne({
+          voucher_number: vn,
+          status: "approved",
+        });
+        const dupAff = await Affiliation.findOne({
+          voucher_number: vn,
+          status: "approved",
+          id: { $ne: id },
+        });
+
+        if (dupAct || dupAff) {
+          return res.json(
+            error(
+              `El número de operación "${vn}" ya ha sido utilizado en otro pago aprobado.`
+            )
+          );
+        }
+      }
+
       // approve AFFILIATION - Sin lógica de upgrade
       const approvedAt = new Date();
       const resolvedPeriod = await resolvePeriodAtApproval(approvedAt);

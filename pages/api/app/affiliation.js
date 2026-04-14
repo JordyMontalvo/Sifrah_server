@@ -1,7 +1,7 @@
 import db from "../../../components/db";
 import lib from "../../../components/lib";
 
-const { User, Session, Plan, Product, Affiliation, Office, Tree, Transaction, Period } =
+const { User, Session, Plan, Product, Affiliation, Activation, Office, Tree, Transaction, Period } =
   db;
 const { error, success, midd, rand, acum } = lib;
 
@@ -195,10 +195,34 @@ export default async (req, res) => {
       check,
       pay_method,
       bank,
+      bank_info,
       date,
       voucher_number,
+      deliveryMethod,
+      deliveryInfo
     } = req.body;
-    
+
+    // Validación de duplicidad de voucher
+    if (pay_method === "bank" && voucher_number) {
+      const vn = String(voucher_number).trim();
+      const dupAct = await Activation.findOne({
+        voucher_number: vn,
+        status: { $in: ["approved", "pending"] },
+      });
+      const dupAff = await Affiliation.findOne({
+        voucher_number: vn,
+        status: { $in: ["approved", "pending"] },
+        id: { $ne: req.body.id },
+      });
+      if (dupAct || dupAff) {
+        return res.json(
+          error(
+            `El número de operación "${vn}" ya ha sido registrado previamente. Por favor, verifica los datos.`
+          )
+        );
+      }
+    }
+
     console.log('Affiliation POST - voucher:', voucher ? 'existe' : 'null');
     console.log('Affiliation POST - voucher2:', voucher2 ? voucher2 : 'null');
 

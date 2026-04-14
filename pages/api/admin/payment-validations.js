@@ -157,10 +157,50 @@ export default async (req, res) => {
     };
   });
 
+  // --- CHEQUEO DE DUPLICADOS EN BASE DE DATOS ---
+  const voucherNumbers = enriched
+    .map((i) => String(i.voucher_number || "").trim())
+    .filter((v) => v.length > 3); // Solo voucher numbers con longitud razonable
+
+  let globalDuplicates = new Set();
+  if (voucherNumbers.length > 0) {
+    const qDuplicated = {
+      voucher_number: { $in: voucherNumbers },
+      status: { $in: ["approved", "pending"] },
+    };
+
+    const [dupAffs, dupActs] = await Promise.all([
+      Affiliation.find(qDuplicated),
+      Activation.find(qDuplicated),
+    ]);
+
+    // Contar ocurrencias globales por voucher_number
+    const counts = {};
+    [...dupAffs, ...dupActs].forEach((d) => {
+      const vn = String(d.voucher_number || "").trim();
+      counts[vn] = (counts[vn] || 0) + 1;
+    });
+
+    // Marcar como duplicado si aparece más de una vez en total en la DB
+    // O si aparece al menos una vez y es un approved previo.
+    // Pero aquí simplificamos: si aparece más de una vez sumando pending + approved, es riesgo.
+    Object.keys(counts).forEach((vn) => {
+      if (counts[vn] > 1) globalDuplicates.add(vn);
+    });
+  }
+
+  const finalized = enriched.map((i) => {
+    const vn = String(i.voucher_number || "").trim();
+    return {
+      ...i,
+      possibleDuplicate: vn ? globalDuplicates.has(vn) : false,
+    };
+  });
+
   return res.json(
     success({
-      items: enriched,
-      total: enriched.length,
+      items: finalized,
+      total: finalized.length,
     })
   );
 };
