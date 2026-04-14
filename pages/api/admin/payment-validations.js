@@ -108,24 +108,26 @@ export default async (req, res) => {
     console.log(`[Payment Validations] GET request - filter: ${filter}, kind: ${kind}`);
 
     try {
-      const query = {
-        $or: [
-          { voucher: { $exists: true, $ne: null, $ne: "" } },
-          { voucher2: { $exists: true, $ne: null, $ne: "" } }
-        ]
-      };
-
+      // Intentar traer los datos de manera individual para capturar errores
       let affsRaw = [];
       let actsRaw = [];
+      
+      try {
+        if (kind === "all" || kind === "affiliation") {
+          affsRaw = await Affiliation.find({}) || [];
+        }
+      } catch (e1) { console.error("Error fetching affs:", e1); }
 
-      if (kind === "all" || kind === "affiliation") {
-        affsRaw = await Affiliation.find(query) || [];
-      }
-      if (kind === "all" || kind === "activation") {
-        actsRaw = await Activation.find(query) || [];
-      }
+      try {
+        if (kind === "all" || kind === "activation") {
+          actsRaw = await Activation.find({}) || [];
+        }
+      } catch (e2) { console.error("Error fetching acts:", e2); }
 
-      const mappedAffs = affsRaw.map(a => {
+      // Filtrar por voucher en JS para máxima seguridad
+      const hasVoucher = (x) => !!(x.voucher || x.voucher2 || x.voucher_number);
+
+      const mappedAffs = affsRaw.filter(hasVoucher).map(a => {
         const x = model(a, AFF_MODEL);
         const total = x.plan && x.plan.amount != null ? Number(x.plan.amount) : 0;
         return {
@@ -137,7 +139,7 @@ export default async (req, res) => {
         };
       });
 
-      const mappedActs = actsRaw.map(a => {
+      const mappedActs = actsRaw.filter(hasVoucher).map(a => {
         const x = model(a, ACT_MODEL);
         const total = x.price != null ? Number(x.price) : 0;
         return {
@@ -149,33 +151,44 @@ export default async (req, res) => {
         };
       });
 
-      let allItems = [...mappedAffs, ...mappedActs];
+      let items = [...mappedAffs, ...mappedActs];
+      
+      // Filtrar por status
       if (filter !== "all") {
-        allItems = allItems.filter(i => i.status === filter);
+        items = items.filter(i => i.status === filter);
       }
 
-      const userIds = [...new Set(allItems.map(i => i.userId).filter(Boolean))];
-      const usersRaw = userIds.length > 0 ? await User.find({ id: { $in: userIds } }) : [];
-      const userMap = new Map(usersRaw.map(u => [u.id, u]));
-
-      const items = allItems.map(i => {
-        const u = userMap.get(i.userId);
-        return {
-          ...i,
-          user: {
-            name: u ? u.name : "N/A",
-            lastName: u ? u.lastName : "",
-            dni: u ? u.dni : "-",
-          }
-        };
-      });
+      // Enriquecer usuarios de forma segura
+      try {
+        const userIds = [...new Set(items.map(i => i.userId).filter(Boolean))];
+        if (userIds.length > 0) {
+          const usersRaw = await User.find({ id: { $in: userIds } }) || [];
+          const userMap = new Map((usersRaw || []).map(u => [u.id, u]));
+          items = items.map(i => {
+            const u = userMap.get(i.userId);
+            return {
+              ...i,
+              user: {
+                name: u ? u.name : "N/A",
+                lastName: u ? u.lastName : "",
+                dni: u ? u.dni : "-",
+              }
+            };
+          });
+        } else {
+          items = items.map(i => ({ ...i, user: { name: "N/A", lastName: "", dni: "-" } }));
+        }
+      } catch (ue) {
+        console.error("Error enriching users:", ue);
+        items = items.map(i => ({ ...i, user: { name: "N/A", lastName: "", dni: "-" } }));
+      }
 
       items.sort((a, b) => new Date(b.date) - new Date(a.date));
 
       return res.status(200).json({ items });
     } catch (err) {
-      console.error("[Payment Validations] GET Error:", err);
-      return res.status(500).json(error("Error loading validations"));
+      console.error("[Payment Validations] GET General Error:", err);
+      return res.status(500).json(error(err.message));
     }
   }
 
