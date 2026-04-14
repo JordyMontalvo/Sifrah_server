@@ -116,8 +116,7 @@ export default async (req, res) => {
     const query = {
       $or: [
         { voucher: { $exists: true, $ne: null, $ne: "" } },
-        { voucher2: { $exists: true, $ne: null, $ne: "" } },
-        { voucher_number: { $exists: true, $ne: null, $ne: "" } }
+        { voucher2: { $exists: true, $ne: null, $ne: "" } }
       ]
     };
 
@@ -135,6 +134,29 @@ export default async (req, res) => {
       console.error("[Payment Validations] DB Error:", err);
     }
 
+    // Optimizacion: Pre-cargar combinaciones para evitar N+1 queries
+    const [existingActivations, existingAffiliations] = await Promise.all([
+      Activation.find({ 
+        $or: [
+          { voucher_number: { $exists: true, $ne: null, $ne: "" } },
+          { voucher: { $exists: true, $ne: null, $ne: "" } }
+        ],
+        status: { $ne: 'rejected' } 
+      }),
+      Affiliation.find({ 
+        $or: [
+          { voucher_number: { $exists: true, $ne: null, $ne: "" } },
+          { voucher: { $exists: true, $ne: null, $ne: "" } }
+        ],
+        status: { $ne: 'rejected' } 
+      })
+    ]);
+
+    const activeVouchers = new Set([
+      ...existingActivations.map(a => `${String(a.bank || '').toLowerCase()}::${String(a.voucher_number || '').toLowerCase().trim()}`),
+      ...existingAffiliations.map(a => `${String(a.bank || '').toLowerCase()}::${String(a.voucher_number || '').toLowerCase().trim()}`)
+    ]);
+
     // Mapeo y filtrado por status en memoria
     const affs = affsRaw
       .filter(a => filter === "all" || a.status === filter)
@@ -146,11 +168,13 @@ export default async (req, res) => {
           total,
           use_balance: x.use_balance,
         });
+        const key = `${String(x.bank || '').toLowerCase()}::${String(x.voucher_number || '').toLowerCase().trim()}`;
         return {
           kind: "affiliation",
           ...x,
           total,
           payment_breakdown,
+          possibleDuplicate: activeVouchers.has(key)
         };
       });
 
@@ -164,11 +188,13 @@ export default async (req, res) => {
           total,
           use_balance: false,
         });
+        const key = `${String(x.bank || '').toLowerCase()}::${String(x.voucher_number || '').toLowerCase().trim()}`;
         return {
           kind: "activation",
           ...x,
           total,
           payment_breakdown,
+          possibleDuplicate: activeVouchers.has(key)
         };
       });
 
