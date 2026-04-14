@@ -145,6 +145,7 @@ export default async (req, res) => {
     });
   }
 
+  console.info(`[Payment Validations] filter: ${filter}, kind: ${kind}, query:`, JSON.stringify(voucherQ));
   const items = [...affs, ...acts].sort((a, b) => new Date(b.date) - new Date(a.date));
 
   // Enriquecer usuarios
