@@ -108,7 +108,17 @@ async function sendSifrahWelcomeEmail({ email, name, lastName, dni }) {
   return info;
 }
 
-const { Affiliation, User, Tree, Token, Transaction, Office, Closed, Period } = db;
+const {
+  Affiliation,
+  User,
+  Tree,
+  Token,
+  Transaction,
+  Office,
+  Closed,
+  Period,
+  Activation,
+} = db;
 const { error, success, midd, ids, parent_ids, map, model, rand } = lib;
 
 /**
