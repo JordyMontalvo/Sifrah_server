@@ -302,9 +302,6 @@ export default async (req, res) => {
       const points_total = user.points + activation.points;
       console.log({ points_total });
 
-      const _activated = user._activated ? true : points_total >= 40;
-      console.log({ _activated });
-
       // Verificar si el usuario estaba activado ANTES de esta aprobación
       const wasActivatedBefore = user.activated;
       
@@ -317,7 +314,6 @@ export default async (req, res) => {
         { id: user.id },
         {
           activated,
-          _activated,
           points: points_total,
         }
       );
@@ -552,15 +548,12 @@ export default async (req, res) => {
       user.points = user.points - activation.points;
 
       await User.update({ id: user.id }, { points: user.points });
-
-      const _activated = user._activated ? true : user.points >= 40;
       const activated = user.activated ? true : user.points >= 120;
 
       await User.update(
         { id: user.id },
         {
           activated,
-          _activated,
         }
       );
 
@@ -613,7 +606,6 @@ export default async (req, res) => {
         console.log(`Revirtiendo puntos: ${user.points} - ${activation.points} = ${new_points}`);
         
         // Recalcular estados de activación
-        const _activated = user._activated ? (new_points >= 40) : false;
         const activated = user.activated ? (new_points >= 120) : false;
         
         await User.update(
@@ -621,7 +613,6 @@ export default async (req, res) => {
           {
             points: new_points,
             activated,
-            _activated,
           }
         );
         
