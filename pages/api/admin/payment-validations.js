@@ -95,19 +95,25 @@ export default async (req, res) => {
     if (!id || !kind) return res.json(error("missing params"));
 
     if (action === "approve") {
-      // En producción se reportó que el "approve" no se refleja y queda como pendiente.
-      // Para que la UI refleje el estado real del comprobante, actualizamos aquí el status.
-      // Nota: este endpoint es "validación de comprobantes"; la aprobación completa
-      // (puntos/bonos/stock) sigue estando en /admin/affiliations y /admin/activations.
-      await Coll.update(
-        { id },
-        {
-          status: "approved",
-          delivered: false,
-          approved_at: new Date(),
+      // CRÍTICO: al aprobar el comprobante se debe ACTIVAR la compra inmediatamente
+      // (puntos/bonos/stock/red). Delegamos al endpoint "real" de aprobación.
+      //
+      // Reparación segura: durante un fix previo se marcó "approved" sin ejecutar lógica de negocio.
+      // En afiliaciones eso deja la compra aprobada pero sin `transactions` (bonos). Si detectamos
+      // ese caso, reponemos a "pending" y re-ejecutamos approve.
+      const doc = await Coll.findOne({ id });
+      if (!doc) return res.json(error("not found"));
+
+      if (kind === "affiliation") {
+        const alreadyApproved = String(doc.status || "").toLowerCase() === "approved";
+        const hasBonusTx = Array.isArray(doc.transactions) && doc.transactions.length > 0;
+        if (alreadyApproved && !hasBonusTx) {
+          await Coll.update({ id }, { status: "pending" });
         }
-      );
-      return res.json(success({ action: "approved" }));
+      }
+
+      req.body = { id, action: "approve" };
+      return kind === "affiliation" ? affiliationsApi(req, res) : activationsApi(req, res);
     }
 
     if (action === "reject") {
