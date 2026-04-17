@@ -5,7 +5,7 @@ import { MongoClient } from "mongodb";
 const URL = process.env.DB_URL; // Asegúrate de que esta variable esté definida correctamente
 const name = process.env.DB_NAME;
 
-const { Activation, User, Tree, Token, Office, Transaction, Closed, Period } = db;
+const { Activation, Affiliation, User, Tree, Token, Office, Transaction, Closed, Period } = db;
 const { error, success, midd, ids, map, model, rand } = lib;
 
 /**

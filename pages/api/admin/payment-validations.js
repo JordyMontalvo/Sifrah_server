@@ -1,6 +1,10 @@
 import db from "../../../components/db";
 import lib from "../../../components/lib";
 
+// Reusar la lógica "real" de aprobación (activa compra/usuario)
+import affiliationsApi from "./affiliations";
+import activationsApi from "./activations";
+
 const { Activation, Affiliation, User } = db;
 const { error, success, midd, map, model } = lib;
 
@@ -91,9 +95,19 @@ export default async (req, res) => {
     if (!id || !kind) return res.json(error("missing params"));
 
     if (action === "approve") {
-      // Establecer como 'verified' en lugar de 'approved' para el flujo de 2 pasos
-      const result = await Coll.update({ id }, { status: "verified", verifiedAt: new Date() });
-      return res.json(success({ action: "verified" }));
+      // En producción se reportó que el "approve" no se refleja y queda como pendiente.
+      // Para que la UI refleje el estado real del comprobante, actualizamos aquí el status.
+      // Nota: este endpoint es "validación de comprobantes"; la aprobación completa
+      // (puntos/bonos/stock) sigue estando en /admin/affiliations y /admin/activations.
+      await Coll.update(
+        { id },
+        {
+          status: "approved",
+          delivered: false,
+          approved_at: new Date(),
+        }
+      );
+      return res.json(success({ action: "approved" }));
     }
 
     if (action === "reject") {
@@ -155,6 +169,8 @@ export default async (req, res) => {
         return {
           ...x,
           kind: "affiliation",
+          // `verified` ya no existe: normalizamos para que vuelva a fluir como pendiente.
+          status: String(x.status || "pending").toLowerCase() === "verified" ? "pending" : x.status,
           total,
           payment_breakdown: buildPaymentBreakdown({ amounts: x.amounts, total, use_balance: x.use_balance }),
           date: x.date || new Date().toISOString()
@@ -167,6 +183,8 @@ export default async (req, res) => {
         return {
           ...x,
           kind: "activation",
+          // `verified` ya no existe: normalizamos para que vuelva a fluir como pendiente.
+          status: String(x.status || "pending").toLowerCase() === "verified" ? "pending" : x.status,
           total,
           payment_breakdown: buildPaymentBreakdown({ amounts: x.amounts, total, use_balance: false }),
           date: x.date || new Date().toISOString()
