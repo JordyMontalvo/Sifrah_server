@@ -202,7 +202,19 @@ export default async (req, res) => {
       // Reforzamos aquí el filtro (y lo hacemos tolerante a mayúsculas/minúsculas).
       const looksLikeBankPayment = (i) => {
         const pm = (i.pay_method || "").toLowerCase();
+        // Imagen / URL de comprobante: debe entrar a validación aunque falten `bank` o N° operación
+        if (i.voucher || i.voucher2) return true;
         if (pm === "bank") return true;
+        if (
+          pm.includes("bank") ||
+          pm.includes("banco") ||
+          pm.includes("transferencia") ||
+          pm.includes("yape") ||
+          pm.includes("plin") ||
+          pm.includes("efectivo")
+        ) {
+          return true;
+        }
         // Fallback para históricos: si guardó `bank` o `voucher_number`, lo tratamos como banco.
         return !!(i.bank || i.voucher_number);
       };
