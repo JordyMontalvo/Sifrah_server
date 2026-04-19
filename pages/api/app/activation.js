@@ -175,6 +175,11 @@ export default async (req, res) => {
   if (req.method == 'POST') {
 
     let { products, office, check, voucher, voucher2, pay_method, bank, bank_info, date, voucher_number, deliveryMethod, deliveryInfo } = req.body;
+    const useCheck = check === true || check === "true";
+
+    if (!Array.isArray(products) || !products.length) {
+      return res.json(error("No hay productos en la orden."));
+    }
 
     // Validación de duplicidad de voucher
     if (pay_method === 'bank' && voucher_number) {
@@ -233,6 +238,12 @@ export default async (req, res) => {
     // console.log({ _total })
 
     let price = products.reduce((a, b) => a + b.price * b.total, 0)
+    // Incluir delivery en el monto a cobrar (debe coincidir con checkout finalTotal)
+    let deliveryCharge = 0;
+    if (deliveryMethod === "delivery" && deliveryInfo) {
+      deliveryCharge = Number(deliveryInfo.deliveryPrice) || 0;
+    }
+    price = price + deliveryCharge;
 
     // let __total = _total
     // if(__total % 2) {
@@ -246,7 +257,7 @@ export default async (req, res) => {
     let transactions = []
     let amounts
 
-    if (check) {
+    if (useCheck) {
 
       const a = _balance < price ? _balance : price
       const r = (price - _balance) > 0 ? price - _balance : 0
@@ -290,8 +301,9 @@ export default async (req, res) => {
     // save new activation
     const { Period } = db
     const period = await getOrCreateOpenPeriod(Period, new Date())
+    const activationId = rand();
     await Activation.insert({
-      id: rand(),
+      id: activationId,
       date: new Date(),
       userId: user.id,
       products,
@@ -301,7 +313,7 @@ export default async (req, res) => {
       period_key: period.key,
       period_label: period.label,
       // _total,
-      check,
+      check: useCheck,
       voucher,
       voucher2,
       transactions,
@@ -365,7 +377,7 @@ export default async (req, res) => {
       }
     })
 
-    // response
-    return res.json(success())
+    // response (orderNumber para el checkout y trazabilidad)
+    return res.json(success({ orderNumber: activationId, id: activationId }))
   }
 }

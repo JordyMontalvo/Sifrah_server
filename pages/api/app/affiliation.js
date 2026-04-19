@@ -201,6 +201,7 @@ export default async (req, res) => {
       deliveryMethod,
       deliveryInfo
     } = req.body;
+    const useCheck = check === true || check === "true";
 
     // Validación de duplicidad de voucher
     if (pay_method === "bank" && voucher_number) {
@@ -247,7 +248,7 @@ export default async (req, res) => {
     let b = 0; // saldo disponible
     let c = price; // faltante
 
-    if (check) {
+    if (useCheck) {
       a = _balance < price ? _balance : price;
       const r = price - a > 0 ? price - a : 0;
       b = balance < r ? balance : r;
@@ -290,8 +291,9 @@ export default async (req, res) => {
     console.log({ a, b, c, price, check });
 
     const period = await getOrCreateOpenPeriod(new Date());
+    const affiliationId = rand();
     await Affiliation.insert({
-      id: rand(),
+      id: affiliationId,
       date: new Date(),
       userId: user.id,
       products,
@@ -306,7 +308,7 @@ export default async (req, res) => {
       transactions,
       amounts,
       /** Si marcó "usar saldo disponible" en el checkout (true = aplica abono con saldo; puede ser solo saldo o mixto con voucher) */
-      use_balance: !!check,
+      use_balance: useCheck,
       pay_method,
       bank,
       voucher_date: date,
@@ -314,6 +316,6 @@ export default async (req, res) => {
       type: "affiliation",
     });
 
-    return res.json(success());
+    return res.json(success({ orderNumber: affiliationId, id: affiliationId }));
   }
 };
