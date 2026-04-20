@@ -18,6 +18,7 @@ const A = [
   "account",
   "account_type",
   "amount",
+  "desc",
   "office",
   "status",
 ];
@@ -81,6 +82,7 @@ const handler = async (req, res) => {
         account: a.account || "",
         account_type: a.account_type || "",
         amount: a.amount || 0,
+        desc: a.desc || "",
         office: a.office || "",
         status: a.status || "",
       };
