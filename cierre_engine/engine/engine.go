@@ -266,6 +266,93 @@ func (e *CierreEngine) CalculateResidualBonus(id string, closedRank string) ([]m
 	return results, total
 }
 
+func (e *CierreEngine) CalculateGenerationalBonus(id string, closedRank string, closedRanksMap map[string]string) ([]models.Transaction, float64) {
+	_, ok := e.Users[id]
+	if !ok || closedRank == "none" || closedRank == "" {
+		return nil, 0
+	}
+
+	normRank := NormalizeRankKeyForResidual(closedRank)
+	config, hasConfig := GenerationalBonusByRank[normRank]
+	if !hasConfig {
+		return nil, 0
+	}
+
+	var results []models.Transaction
+	var total float64
+
+	var collect func(nodeID string, currentGen int)
+	collect = func(nodeID string, currentGen int) {
+		if currentGen > config.MaxGenerations {
+			return
+		}
+
+		node, ok := e.TreeNodes[nodeID]
+		if !ok {
+			return
+		}
+
+		for _, childID := range node.Childs {
+			child, childOk := e.Users[childID]
+			if !childOk {
+				continue
+			}
+
+			childRank := closedRanksMap[childID]
+			childRankPos := GetRankPos(childRank)
+
+			// El hijo pertenece a la generación actual
+			genToPay := currentGen
+			if genToPay > 0 && genToPay <= config.MaxGenerations && genToPay <= len(config.Percentages) {
+				pr := child.Points
+				if pr > 0 {
+					pct := config.Percentages[genToPay-1]
+					bonus := 0.0
+					if pr <= TopePuntos {
+						bonus = pr * pct
+					} else {
+						bonus = (TopePuntos * pct) + ((pr - TopePuntos) * (pct * ReduccionExceso))
+					}
+
+					if bonus > 0 {
+						if e.Logger != nil {
+							e.Logger.LogResidual("   Gen VIP %d: %s %s (PR: %.2f) → %.2f", genToPay, child.Name, child.LastName, pr, bonus)
+						}
+						total += bonus
+						results = append(results, models.Transaction{
+							Type:          "in",
+							Value:         bonus,
+							Name:          "generational bonus vip",
+							Desc:          fmt.Sprintf("Bono generacional VIP G%d - %s %s", genToPay, child.Name, child.LastName),
+							FromUserID:    child.ID,
+							Level:         genToPay, // Guardamos la generación en Level
+							AffiliateName: child.Name + " " + child.LastName,
+							AffiliateDNI:  child.DNI,
+							PR:            pr,
+							Percentage:    pct,
+						})
+					}
+				}
+			}
+
+			// Regla de corte: si el hijo tiene rango >= al de corte, sus hijos inician la siguiente generación
+			nextGen := currentGen
+			if childRankPos >= config.CutOffRankPos {
+				nextGen = currentGen + 1
+			}
+
+			collect(childID, nextGen)
+		}
+	}
+
+	collect(id, 1)
+
+	if e.Logger != nil && total > 0 {
+		e.Logger.LogResidual("   💎 Total bono generacional VIP: %.2f", total)
+	}
+	return results, total
+}
+
 func (e *CierreEngine) CalculateExcedentBonus(id string) []models.Transaction {
 	user, ok := e.Users[id]
 	if !ok {

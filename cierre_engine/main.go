@@ -33,16 +33,18 @@ type PreviewResult struct {
 }
 
 type PreviewNode struct {
-	ID             string                   `json:"id"`
-	Name           string                   `json:"name"`
-	Points         float64                  `json:"points"`
-	Total          float64                  `json:"_total"`
-	Rank           string                   `json:"rank"`
-	ResidualBonus  float64                  `json:"residual_bonus"`
-	ResidualLines  []models.ResidualLineEntry `json:"residual_lines,omitempty"`
-	Activated      bool                     `json:"activated"`
-	ActivatedInt   bool                     `json:"_activated"`
-	Pays           []models.Pay             `json:"_pays"`
+	ID                string                       `json:"id"`
+	Name              string                       `json:"name"`
+	Points            float64                      `json:"points"`
+	Total             float64                      `json:"_total"`
+	Rank              string                       `json:"rank"`
+	ResidualBonus     float64                      `json:"residual_bonus"`
+	ResidualLines     []models.ResidualLineEntry   `json:"residual_lines,omitempty"`
+	GenerationalBonus float64                      `json:"generational_bonus"`
+	GenerationalLines []models.GenerationalLineEntry `json:"generational_lines,omitempty"`
+	Activated         bool                         `json:"activated"`
+	ActivatedInt      bool                         `json:"_activated"`
+	Pays              []models.Pay                 `json:"_pays"`
 }
 
 func residualLinesFromTxs(txs []models.Transaction) []models.ResidualLineEntry {
@@ -56,6 +58,25 @@ func residualLinesFromTxs(txs []models.Transaction) []models.ResidualLineEntry {
 			Name:       tx.AffiliateName,
 			DNI:        tx.AffiliateDNI,
 			Level:      tx.Level,
+			PR:         tx.PR,
+			Percentage: tx.Percentage,
+			Amount:     tx.Value,
+		})
+	}
+	return out
+}
+
+func generationalLinesFromTxs(txs []models.Transaction) []models.GenerationalLineEntry {
+	if len(txs) == 0 {
+		return nil
+	}
+	out := make([]models.GenerationalLineEntry, 0, len(txs))
+	for _, tx := range txs {
+		out = append(out, models.GenerationalLineEntry{
+			FromUserID: tx.FromUserID,
+			Name:       tx.AffiliateName,
+			DNI:        tx.AffiliateDNI,
+			Generation: tx.Level,
 			PR:         tx.PR,
 			Percentage: tx.Percentage,
 			Amount:     tx.Value,
@@ -198,14 +219,22 @@ func main() {
 	var totalBonusTransactions []models.Transaction
 	var previewNodes []PreviewNode
 
+	// PASS 1: Calculate Ranks
+	closedRanks := make(map[string]string)
+	for i := range users {
+		user := &users[i]
+		rank := ce.CalculateRank(user.ID)
+		closedRanks[user.ID] = rank
+	}
+
+	// PASS 2: Calculate Bonuses
 	for i := range users {
 		user := &users[i]
 		
-		// A. Rank
-		rank := ce.CalculateRank(user.ID)
+		rank := closedRanks[user.ID]
 		calculatedTotalPoints := ce.MemoPoints[user.ID]
 
-		// B. Residual Bonus (mismo `rank` que el preview, no el rank histórico en BD)
+		// B. Residual Bonus
 		resTxs, resTotal := ce.CalculateResidualBonus(user.ID, rank)
 		for j := range resTxs {
 			resTxs[j].UserID = user.ID
@@ -214,19 +243,30 @@ func main() {
 		totalBonusTransactions = append(totalBonusTransactions, resTxs...)
 		resLines := residualLinesFromTxs(resTxs)
 
+		// C. Generational Bonus VIP
+		genTxs, genTotal := ce.CalculateGenerationalBonus(user.ID, rank, closedRanks)
+		for j := range genTxs {
+			genTxs[j].UserID = user.ID
+			genTxs[j].Date = time.Now()
+		}
+		totalBonusTransactions = append(totalBonusTransactions, genTxs...)
+		genLines := generationalLinesFromTxs(genTxs)
+
 		// Collect preview data BEFORE resetting
-		if rank != "none" || calculatedTotalPoints > 0 || resTotal > 0 {
+		if rank != "none" || calculatedTotalPoints > 0 || resTotal > 0 || genTotal > 0 {
 			previewNodes = append(previewNodes, PreviewNode{
-				ID:             user.ID,
-				Name:           user.Name + " " + user.LastName,
-				Points:         user.Points,
-				Total:          calculatedTotalPoints,
-				Rank:           rank,
-				ResidualBonus:  resTotal,
-				ResidualLines:  resLines,
-				Activated:      user.Activated,
-				ActivatedInt:   user.ActivatedInternal,
-				Pays:           []models.Pay{}, // Can be populated if needed
+				ID:                user.ID,
+				Name:              user.Name + " " + user.LastName,
+				Points:            user.Points,
+				Total:             calculatedTotalPoints,
+				Rank:              rank,
+				ResidualBonus:     resTotal,
+				ResidualLines:     resLines,
+				GenerationalBonus: genTotal,
+				GenerationalLines: genLines,
+				Activated:         user.Activated,
+				ActivatedInt:      user.ActivatedInternal,
+				Pays:              []models.Pay{}, // Can be populated if needed
 			})
 		}
 
@@ -254,8 +294,9 @@ func main() {
 		}
 
 		// Store for history BEFORE resetting
-		user.LastTotalPoints   = calculatedTotalPoints
-		user.LastResidualBonus = resTotal
+		user.LastTotalPoints       = calculatedTotalPoints
+		user.LastResidualBonus     = resTotal
+		user.LastGenerationalBonus = genTotal
 
 		// Update for DB (cycle reset as per users.js)
 		user.Rank              = rank
@@ -284,17 +325,30 @@ func main() {
 	for _, u := range updatedUsers {
 		if u.Rank != "none" && u.Rank != "" {
 			var resLines []models.ResidualLineEntry
+			var genLines []models.GenerationalLineEntry
 			for _, tx := range totalBonusTransactions {
-				if tx.UserID == u.ID && tx.Name == "residual bonus" {
-					resLines = append(resLines, models.ResidualLineEntry{
-						FromUserID: tx.FromUserID,
-						Name:       tx.AffiliateName,
-						DNI:        tx.AffiliateDNI,
-						Level:      tx.Level,
-						PR:         tx.PR,
-						Percentage: tx.Percentage,
-						Amount:     tx.Value,
-					})
+				if tx.UserID == u.ID {
+					if tx.Name == "residual bonus" {
+						resLines = append(resLines, models.ResidualLineEntry{
+							FromUserID: tx.FromUserID,
+							Name:       tx.AffiliateName,
+							DNI:        tx.AffiliateDNI,
+							Level:      tx.Level,
+							PR:         tx.PR,
+							Percentage: tx.Percentage,
+							Amount:     tx.Value,
+						})
+					} else if tx.Name == "generational bonus vip" {
+						genLines = append(genLines, models.GenerationalLineEntry{
+							FromUserID: tx.FromUserID,
+							Name:       tx.AffiliateName,
+							DNI:        tx.AffiliateDNI,
+							Generation: tx.Level,
+							PR:         tx.PR,
+							Percentage: tx.Percentage,
+							Amount:     tx.Value,
+						})
+					}
 				}
 			}
 			usersSummary = append(usersSummary, models.ClosedUserEntry{
@@ -306,6 +360,8 @@ func main() {
 				TotalPoints:       u.LastTotalPoints,
 				ResidualBonus:     u.LastResidualBonus,
 				ResidualLines:     resLines,
+				GenerationalBonus: u.LastGenerationalBonus,
+				GenerationalLines: genLines,
 				GroupedPointsLegs: legsByUserID[u.ID],
 			})
 		}

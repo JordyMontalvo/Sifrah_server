@@ -1,0 +1,172 @@
+DEBUG PUNTOS - NORMA RAMOS FERNANDEZ : total_points (RAW)=150.00, piernas=[16757 345 200]
+ ✅ RANGO ALCANZADO: ACTIVO para NORMA RAMOS FERNANDEZ (Points with VMP: 17452.00)
+DEBUG PUNTOS - VILMA CAMPOS GALINDO : total_points (RAW)=160.00, piernas=[6806 4312 1193 40]
+ ✅ RANGO ALCANZADO: ORO para VILMA CAMPOS GALINDO (Points with VMP: 4093.00)
+DEBUG PUNTOS - Miker Neymar  Montoya Campos  : total_points (RAW)=127.00, piernas=[4932 1460 287]
+ ✅ RANGO ALCANZADO: ACTIVO para Miker Neymar  Montoya Campos  (Points with VMP: 6806.00)
+DEBUG PUNTOS - SALVADOR RICARDO HUAMAN POMA : total_points (RAW)=170.00, piernas=[12511 4076]
+ ✅ RANGO ALCANZADO: BRONCE para SALVADOR RICARDO HUAMAN POMA (Points with VMP: 600.00)
+DEBUG PUNTOS - MARIBEL VILMA ARTEAGA SANCHEZ : total_points (RAW)=159.00, piernas=[544 490]
+ ✅ RANGO ALCANZADO: ACTIVO para MARIBEL VILMA ARTEAGA SANCHEZ (Points with VMP: 1193.00)
+DEBUG PUNTOS - Antonia Maria Reyes Gil : total_points (RAW)=120.00, piernas=[167]
+ ✅ RANGO ALCANZADO: ACTIVO para Antonia Maria Reyes Gil (Points with VMP: 287.00)
+DEBUG PUNTOS - Vilma Esther Bernuy Carrión : total_points (RAW)=249.00, piernas=[3518 370 310 255 120 110]
+ ✅ RANGO ALCANZADO: PLATA para Vilma Esther Bernuy Carrión (Points with VMP: 2014.00)
+DEBUG PUNTOS - Ermencia Ulloa Pizan : total_points (RAW)=310.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Ermencia Ulloa Pizan (Points with VMP: 310.00)
+DEBUG PUNTOS - Hugo Hernández Cabrera : total_points (RAW)=167.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Hugo Hernández Cabrera (Points with VMP: 167.00)
+DEBUG PUNTOS - Mario Luis  crespo palomino : total_points (RAW)=170.00, piernas=[175]
+ ✅ RANGO ALCANZADO: ACTIVO para Mario Luis  crespo palomino (Points with VMP: 345.00)
+DEBUG PUNTOS - Elvis Dany  Villanueva  : total_points (RAW)=130.00, piernas=[240 120]
+ ✅ RANGO ALCANZADO: ACTIVO para Elvis Dany  Villanueva  (Points with VMP: 490.00)
+DEBUG PUNTOS - Lupita jessenia Altamirano Asuncion : total_points (RAW)=240.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Lupita jessenia Altamirano Asuncion (Points with VMP: 240.00)
+DEBUG PUNTOS - Aida Quintana Granizo : total_points (RAW)=175.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Aida Quintana Granizo (Points with VMP: 175.00)
+DEBUG PUNTOS - BRYAN ALEXANDER ARIAS MAMANI : total_points (RAW)=169.00, piernas=[2497 1410]
+ ✅ RANGO ALCANZADO: BRONCE para BRYAN ALEXANDER ARIAS MAMANI (Points with VMP: 600.00)
+DEBUG PUNTOS - Gregoria  Escobar enrriquez  : total_points (RAW)=160.00, piernas=[1370 1097 580 560 230 120 120 75]
+ ✅ RANGO ALCANZADO: ORO para Gregoria  Escobar enrriquez  (Points with VMP: 4292.00)
+DEBUG PUNTOS - Anali Esther  Luis Bernuy  : total_points (RAW)=175.00, piernas=[80]
+ ✅ RANGO ALCANZADO: ACTIVO para Anali Esther  Luis Bernuy  (Points with VMP: 255.00)
+DEBUG PUNTOS - Brigida Fritz Manihuare  : total_points (RAW)=330.00, piernas=[1872 160 135]
+ ✅ RANGO ALCANZADO: BRONCE para Brigida Fritz Manihuare  (Points with VMP: 760.00)
+DEBUG PUNTOS - Dan Fritz Manihuari : total_points (RAW)=135.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Dan Fritz Manihuari (Points with VMP: 135.00)
+DEBUG PUNTOS - Monica Leonor  Cueto vivanco  : total_points (RAW)=160.00, piernas=[1260 40]
+ ✅ RANGO ALCANZADO: BRONCE para Monica Leonor  Cueto vivanco  (Points with VMP: 500.00)
+DEBUG PUNTOS - Maria Trinidad Bernuy Carrión : total_points (RAW)=160.00, piernas=[1035 1030 400 343 205 160 160 25]
+ ✅ RANGO ALCANZADO: ORO para Maria Trinidad Bernuy Carrión (Points with VMP: 3518.00)
+DEBUG PUNTOS - Yehosua Kewin  Gamarra Fritz  : total_points (RAW)=125.00, piernas=[1590 157]
+ ✅ RANGO ALCANZADO: ACTIVO para Yehosua Kewin  Gamarra Fritz  (Points with VMP: 1872.00)
+DEBUG PUNTOS - Maruja  Huayllas Huayllas  : total_points (RAW)=780.00, piernas=[810]
+ ✅ RANGO ALCANZADO: ACTIVO para Maruja  Huayllas Huayllas  (Points with VMP: 1590.00)
+DEBUG PUNTOS - Jazmín Mileth Vilca arteaga  : total_points (RAW)=160.00, piernas=[144 120 120]
+ ✅ RANGO ALCANZADO: BRONCE para Jazmín Mileth Vilca arteaga  (Points with VMP: 544.00)
+DEBUG PUNTOS - Nelly  Pastrana Mercado  : total_points (RAW)=160.00, piernas=[900 200]
+ ✅ RANGO ALCANZADO: BRONCE para Nelly  Pastrana Mercado  (Points with VMP: 600.00)
+DEBUG PUNTOS - Naysha Adriana  Torres Pareja : total_points (RAW)=190.00, piernas=[370 120 120 120 40]
+ ✅ RANGO ALCANZADO: BRONCE para Naysha Adriana  Torres Pareja (Points with VMP: 890.00)
+DEBUG PUNTOS - Digna Enma Gervacio oruna : total_points (RAW)=120.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Digna Enma Gervacio oruna (Points with VMP: 120.00)
+DEBUG PUNTOS - Eunise Condor : total_points (RAW)=280.00, piernas=[422 388 160 120]
+ ✅ RANGO ALCANZADO: BRONCE para Eunise Condor (Points with VMP: 1060.00)
+DEBUG PUNTOS - Lucero  Capcha Pacheco  : total_points (RAW)=160.00, piernas=[400]
+ ✅ RANGO ALCANZADO: ACTIVO para Lucero  Capcha Pacheco  (Points with VMP: 560.00)
+DEBUG PUNTOS - Francisco  Acebedo águilas  : total_points (RAW)=160.00, piernas=[160 80]
+ ✅ RANGO ALCANZADO: ACTIVO para Francisco  Acebedo águilas  (Points with VMP: 400.00)
+DEBUG PUNTOS - Antonieta Elizabeth  Lopez pizan  : total_points (RAW)=190.00, piernas=[15]
+ ✅ RANGO ALCANZADO: ACTIVO para Antonieta Elizabeth  Lopez pizan  (Points with VMP: 205.00)
+DEBUG PUNTOS - Nadiesca Esquivel Sifuentes  : total_points (RAW)=157.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Nadiesca Esquivel Sifuentes  (Points with VMP: 157.00)
+DEBUG PUNTOS - José Luis  Galarza Beserra : total_points (RAW)=330.00, piernas=[480]
+ ✅ RANGO ALCANZADO: ACTIVO para José Luis  Galarza Beserra (Points with VMP: 810.00)
+DEBUG PUNTOS - Ricardo  Escalante De La Vega : total_points (RAW)=450.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Ricardo  Escalante De La Vega (Points with VMP: 450.00)
+DEBUG PUNTOS - Veronica Escobedo Ruiz : total_points (RAW)=200.00, piernas=[240 220 185 160 30]
+ ✅ RANGO ALCANZADO: BRONCE para Veronica Escobedo Ruiz (Points with VMP: 1035.00)
+DEBUG PUNTOS - OLGA castro cueto : total_points (RAW)=197.00, piernas=[900]
+ ✅ RANGO ALCANZADO: ACTIVO para OLGA castro cueto (Points with VMP: 1097.00)
+DEBUG PUNTOS - ANALY ROSA CANTO DE LA CRUZ  : total_points (RAW)=215.00, piernas=[185]
+ ✅ RANGO ALCANZADO: ACTIVO para ANALY ROSA CANTO DE LA CRUZ  (Points with VMP: 400.00)
+DEBUG PUNTOS - Sixto Martin  Acebedo Bernui  : total_points (RAW)=160.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Sixto Martin  Acebedo Bernui  (Points with VMP: 160.00)
+DEBUG PUNTOS - Rosa Bendezu Albina : total_points (RAW)=200.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Rosa Bendezu Albina (Points with VMP: 200.00)
+DEBUG PUNTOS - Marcionila Escobedo Ruiz : total_points (RAW)=220.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Marcionila Escobedo Ruiz (Points with VMP: 220.00)
+DEBUG PUNTOS - Juanita  Ccencho Escobar  : total_points (RAW)=220.00, piernas=[240 120]
+ ✅ RANGO ALCANZADO: BRONCE para Juanita  Ccencho Escobar  (Points with VMP: 540.00)
+DEBUG PUNTOS - Bonifacio Valera  Escobedo Ruiz  : total_points (RAW)=160.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Bonifacio Valera  Escobedo Ruiz  (Points with VMP: 160.00)
+DEBUG PUNTOS - Candelario  Polo Garcia  : total_points (RAW)=120.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Candelario  Polo Garcia  (Points with VMP: 120.00)
+DEBUG PUNTOS - HERMIMDA FLOR ASEVEDO RUIZ : total_points (RAW)=144.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para HERMIMDA FLOR ASEVEDO RUIZ (Points with VMP: 144.00)
+DEBUG PUNTOS - Lourdes Dina  Mendoza Aire : total_points (RAW)=422.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Lourdes Dina  Mendoza Aire (Points with VMP: 422.00)
+DEBUG PUNTOS - Domingo Oswaldo  La torre Abanto  : total_points (RAW)=370.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Domingo Oswaldo  La torre Abanto  (Points with VMP: 370.00)
+DEBUG PUNTOS - Delmira Yolanda Chavez Acebedo  : total_points (RAW)=520.00, piernas=[150 120 120 120]
+ ✅ RANGO ALCANZADO: BRONCE para Delmira Yolanda Chavez Acebedo  (Points with VMP: 690.00)
+DEBUG PUNTOS - María  Acebedo Orbegoso : total_points (RAW)=160.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para María  Acebedo Orbegoso (Points with VMP: 160.00)
+DEBUG PUNTOS - GUILLERMINA  TARAPAQUI LEON  : total_points (RAW)=120.00, piernas=[40]
+ ✅ RANGO ALCANZADO: ACTIVO para GUILLERMINA  TARAPAQUI LEON  (Points with VMP: 160.00)
+DEBUG PUNTOS - Marcelina Giovana  Mamani carmargo  : total_points (RAW)=160.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Marcelina Giovana  Mamani carmargo  (Points with VMP: 160.00)
+DEBUG PUNTOS - Waldir Valderrama del aguila : total_points (RAW)=135.00, piernas=[160]
+ ✅ RANGO ALCANZADO: ACTIVO para Waldir Valderrama del aguila (Points with VMP: 295.00)
+DEBUG PUNTOS - Valentina  Chavez Luna : total_points (RAW)=160.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Valentina  Chavez Luna (Points with VMP: 160.00)
+DEBUG PUNTOS - Darly  Saavedra Obando : total_points (RAW)=160.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Darly  Saavedra Obando (Points with VMP: 160.00)
+DEBUG PUNTOS - Angélica  Escobedo Vilca  : total_points (RAW)=240.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Angélica  Escobedo Vilca  (Points with VMP: 240.00)
+DEBUG PUNTOS - Tania Yanina  Fabián cruz  : total_points (RAW)=120.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Tania Yanina  Fabián cruz  (Points with VMP: 120.00)
+DEBUG PUNTOS - Maribel Doris  Gervacio Romero  : total_points (RAW)=185.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Maribel Doris  Gervacio Romero  (Points with VMP: 185.00)
+DEBUG PUNTOS - Maite zamira  Chupayo cóndor  : total_points (RAW)=388.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Maite zamira  Chupayo cóndor  (Points with VMP: 388.00)
+DEBUG PUNTOS - Epifania Juana Cruz Arias : total_points (RAW)=200.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Epifania Juana Cruz Arias (Points with VMP: 200.00)
+DEBUG PUNTOS - Floricielo  Huaman Ruiz  : total_points (RAW)=126.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Floricielo  Huaman Ruiz  (Points with VMP: 126.00)
+DEBUG PUNTOS - Teodora  Enrriquez Quinto : total_points (RAW)=120.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Teodora  Enrriquez Quinto (Points with VMP: 120.00)
+DEBUG PUNTOS - Jose Luis Martinez Anticona : total_points (RAW)=370.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Jose Luis Martinez Anticona (Points with VMP: 370.00)
+DEBUG PUNTOS - ROBERT ROJAS CHAVEZ : total_points (RAW)=120.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para ROBERT ROJAS CHAVEZ (Points with VMP: 120.00)
+DEBUG PUNTOS - Martha Mariela  Silupu silva : total_points (RAW)=120.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Martha Mariela  Silupu silva (Points with VMP: 120.00)
+DEBUG PUNTOS - Karla Maricela Cortez Sanchez : total_points (RAW)=900.00, piernas=[1205 900 120]
+ ✅ RANGO ALCANZADO: PLATA para Karla Maricela Cortez Sanchez (Points with VMP: 1800.00)
+DEBUG PUNTOS - Angel Gabriel  Vivas castro  : total_points (RAW)=900.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Angel Gabriel  Vivas castro  (Points with VMP: 900.00)
+DEBUG PUNTOS - katty Marisol Peña Chumbe : total_points (RAW)=1085.00, piernas=[120]
+ ✅ RANGO ALCANZADO: ACTIVO para katty Marisol Peña Chumbe (Points with VMP: 1205.00)
+DEBUG PUNTOS - Santos Eusebia  Rodríguez Gormas  : total_points (RAW)=480.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Santos Eusebia  Rodríguez Gormas  (Points with VMP: 480.00)
+DEBUG PUNTOS - Juan Manuel  Huertas Remigio : total_points (RAW)=900.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Juan Manuel  Huertas Remigio (Points with VMP: 900.00)
+DEBUG PUNTOS - Gladys Sonia Ortiz Quispe : total_points (RAW)=900.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Gladys Sonia Ortiz Quispe (Points with VMP: 900.00)
+DEBUG PUNTOS - Javier  Quispe Otiniano : total_points (RAW)=120.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Javier  Quispe Otiniano (Points with VMP: 120.00)
+DEBUG PUNTOS - violeta Elvira Mamani chamorro  : total_points (RAW)=120.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para violeta Elvira Mamani chamorro  (Points with VMP: 120.00)
+DEBUG PUNTOS - Dora Chicchón Terán  : total_points (RAW)=120.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Dora Chicchón Terán  (Points with VMP: 120.00)
+DEBUG PUNTOS - Mileni Marilin domiguez arquinigo : total_points (RAW)=120.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Mileni Marilin domiguez arquinigo (Points with VMP: 120.00)
+DEBUG PUNTOS - Benjamín  Chavez Acevedo : total_points (RAW)=120.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Benjamín  Chavez Acevedo (Points with VMP: 120.00)
+DEBUG PUNTOS - Betty Edith Cornelio romero  : total_points (RAW)=120.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Betty Edith Cornelio romero  (Points with VMP: 120.00)
+DEBUG PUNTOS - Carmen Escobar Enrriquez  : total_points (RAW)=120.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Carmen Escobar Enrriquez  (Points with VMP: 120.00)
+DEBUG PUNTOS - Julisa Escobar Quinchco : total_points (RAW)=120.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Julisa Escobar Quinchco (Points with VMP: 120.00)
+DEBUG PUNTOS - Anadela  Ulloa Quiliche  : total_points (RAW)=120.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Anadela  Ulloa Quiliche  (Points with VMP: 120.00)
+DEBUG PUNTOS - Yerson David Enrriquez  Ccencho : total_points (RAW)=120.00, piernas=[120]
+ ✅ RANGO ALCANZADO: ACTIVO para Yerson David Enrriquez  Ccencho (Points with VMP: 240.00)
+DEBUG PUNTOS - Modesto  Ccencho Gamboa  : total_points (RAW)=120.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Modesto  Ccencho Gamboa  (Points with VMP: 120.00)
+DEBUG PUNTOS - Santos Cecilia Ulloa Joaquin : total_points (RAW)=120.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Santos Cecilia Ulloa Joaquin (Points with VMP: 120.00)
+DEBUG PUNTOS - Alicia   Ayala  Escobar  : total_points (RAW)=120.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Alicia   Ayala  Escobar  (Points with VMP: 120.00)
+DEBUG PUNTOS - Mariquita Acebedo Orbegoso  : total_points (RAW)=150.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Mariquita Acebedo Orbegoso  (Points with VMP: 150.00)
+DEBUG PUNTOS - Santos Rosas Ruiz Chuquimango  : total_points (RAW)=120.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Santos Rosas Ruiz Chuquimango  (Points with VMP: 120.00)
+DEBUG PUNTOS - LOURDES DINA  CÓNDOR MENDOZA  : total_points (RAW)=120.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para LOURDES DINA  CÓNDOR MENDOZA  (Points with VMP: 120.00)
+DEBUG PUNTOS - pruebabono bono : total_points (RAW)=120.00, piernas=[120]
+ ✅ RANGO ALCANZADO: ACTIVO para pruebabono bono (Points with VMP: 240.00)
+DEBUG PUNTOS - Public p : total_points (RAW)=120.00, piernas=[]
+ ✅ RANGO ALCANZADO: ACTIVO para Public p (Points with VMP: 120.00)

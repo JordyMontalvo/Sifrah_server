@@ -167,6 +167,26 @@ var ResidualPercentagesByRank = map[string][]float64{
 	"DIAMANTE CORONA": {0.15, 0.15, 0.15, 0.15, 0.10, 0.075, 0.05, 0.05, 0.05},
 }
 
+type GenerationalConfig struct {
+	CutOffRankPos  int
+	MaxGenerations int
+	Percentages    []float64
+}
+
+// Generational percentages by rank (G1, G2, etc.) for the VIP Generational Bonus.
+var GenerationalBonusByRank = map[string]GenerationalConfig{
+	"PLATA":             {CutOffRankPos: 1, MaxGenerations: 2, Percentages: []float64{0.02, 0.01}}, 
+	"ORO":               {CutOffRankPos: 2, MaxGenerations: 3, Percentages: []float64{0.02, 0.02, 0.01}}, 
+	"RUBÍ":              {CutOffRankPos: 3, MaxGenerations: 4, Percentages: []float64{0.02, 0.02, 0.02, 0.01}}, 
+	"ESMERALDA":         {CutOffRankPos: 4, MaxGenerations: 5, Percentages: []float64{0.02, 0.02, 0.02, 0.01, 0.01}}, 
+	"DIAMANTE":          {CutOffRankPos: 5, MaxGenerations: 5, Percentages: []float64{0.02, 0.02, 0.02, 0.01, 0.01}}, 
+	"DOBLE DIAMANTE":    {CutOffRankPos: 6, MaxGenerations: 6, Percentages: []float64{0.02, 0.02, 0.02, 0.01, 0.01, 0.01}}, 
+	"TRIPLE DIAMANTE":   {CutOffRankPos: 7, MaxGenerations: 6, Percentages: []float64{0.02, 0.02, 0.02, 0.01, 0.01, 0.01}}, 
+	"DIAMANTE IMPERIAL": {CutOffRankPos: 8, MaxGenerations: 7, Percentages: []float64{0.02, 0.02, 0.02, 0.01, 0.01, 0.01, 0.01}}, 
+	"EMBAJADOR SIFRAH":  {CutOffRankPos: 9, MaxGenerations: 7, Percentages: []float64{0.02, 0.02, 0.02, 0.01, 0.01, 0.01, 0.01}}, 
+	"DIAMANTE CORONA":   {CutOffRankPos: 9, MaxGenerations: 7, Percentages: []float64{0.02, 0.02, 0.02, 0.01, 0.01, 0.01, 0.01}}, 
+}
+
 var MaxDepthByRank = map[string]int{
 	"none":              0,
 	"ACTIVO":            2,
@@ -230,6 +250,22 @@ func NormalizeRankKeyForResidual(rank string) string {
 	return ""
 }
 
+func GetRankPos(rank string) int {
+	norm := NormalizeRankKeyForResidual(rank)
+	if norm == "ACTIVO" {
+		return 0
+	}
+	for _, r := range Ranks {
+		if r.Rank == norm {
+			return r.Pos
+		}
+	}
+	if norm == "DIAMANTE CORONA" {
+		return 10
+	}
+	return 0
+}
+
 // ResidualMaxDepth niveles máximos de pago residual: el menor entre el tope del rango y los niveles con % > 0.
 // BRONCE: 4 niveles (15%, 15%, 15%, 5%); no puede exceder aunque un mapa esté desalineado.
 func ResidualMaxDepth(rank string) int {
@@ -259,3 +295,4 @@ func ResidualMaxDepth(rank string) int {
 	}
 	return lastPay
 }
+ 
