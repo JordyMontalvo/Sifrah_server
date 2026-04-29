@@ -20,6 +20,6 @@ case "$ARCH" in
   *) echo "Uso: $0 [amd64|arm64]"; exit 1 ;;
 esac
 
-CGO_ENABLED=0 GOOS=linux "GOARCH=$ARCH" go build -trimpath -ldflags="-s -w" -o engine_linux .
+CGO_ENABLED=0 GOOS=linux GOARCH="$ARCH" go build -trimpath -ldflags="-s -w" -o engine_linux .
 echo "OK: $(pwd)/engine_linux"
 if command -v file >/dev/null 2>&1; then file engine_linux; fi
