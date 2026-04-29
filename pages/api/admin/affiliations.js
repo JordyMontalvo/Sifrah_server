@@ -260,6 +260,8 @@ async function pay_bonus(
   );
 }
 
+const processingAffiliations = new Set();
+
 const handler = async (req, res) => {
   if (req.method == "GET") {
     // Obtener parámetros de paginación
@@ -410,7 +412,16 @@ const handler = async (req, res) => {
   if (req.method == "POST") {
     const { id, action } = req.body;
 
-    // get affiliation
+    if (id && ["approve", "reject", "cancel", "revert"].includes(action)) {
+      if (processingAffiliations.has(id)) {
+        console.warn(`[Affiliations] Bloqueado intento duplicado para id: ${id}, action: ${action}`);
+        return res.json(error("Esta acción ya está en curso. Por favor, evite hacer doble clic."));
+      }
+      processingAffiliations.add(id);
+    }
+
+    try {
+      // get affiliation
     let affiliation = await Affiliation.findOne({ id });
 
     // validate affiliation
@@ -711,6 +722,11 @@ const handler = async (req, res) => {
     }
 
     return res.json(success());
+    } finally {
+      if (id) {
+        processingAffiliations.delete(id);
+      }
+    }
   }
 };
 
