@@ -7,6 +7,7 @@ const { User, Session } = db;
 const { rand, error, success, midd } = lib;
 
 const handler = async (req, res) => {
+  if (req.method === "OPTIONS") return res.status(200).send("ok");
   if (req.method !== "POST") return res.status(405).json(error("method not allowed"));
 
   const { emailOrDni, password } = req.body || {};
