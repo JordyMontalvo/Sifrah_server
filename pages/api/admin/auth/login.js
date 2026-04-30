@@ -16,18 +16,18 @@ const handler = async (req, res) => {
     ? { email: String(emailOrDni).trim() }
     : { dni: String(emailOrDni).trim() };
 
-  // Buscar primero por email, luego por DNI como fallback
-  let user = await User.findOne(q);
-  if (!user && !String(emailOrDni).includes('@')) {
-    // intentar búsqueda case-insensitive por DNI
-    user = await User.findOne({ dni: String(emailOrDni).trim().toUpperCase() });
-  }
-  if (!user && String(emailOrDni).includes('@')) {
-    // fallback: buscar por DNI si el email falló
-    user = await User.findOne({ dni: String(emailOrDni).trim() });
-  }
+  // Buscar por email, dni o id simultáneamente
+  const identifier = String(emailOrDni).trim();
+  const user = await User.findOne({
+    $or: [
+      { email: identifier },
+      { email: identifier.toLowerCase() },
+      { dni: identifier },
+      { dni: identifier.toUpperCase() },
+      { id: identifier },
+    ]
+  });
   if (!user || user.type !== "admin") return res.json(error("invalid account"));
-
 
   const ok = await bcrypt.compare(String(password), String(user.password || ""));
   if (!ok) return res.json(error("invalid password"));
