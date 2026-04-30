@@ -32,7 +32,7 @@ const GeneralPassword = async (req, res) => {
         updated_at: new Date().toISOString()
       })
     }
-    return res.json(success('Password updated'))
+    return res.json(success({ msg: 'Password updated' }))
   }
 }
 
