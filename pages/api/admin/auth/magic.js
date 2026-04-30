@@ -32,28 +32,16 @@ const handler = async (req, res) => {
     ip: (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
   })
 
-  const account = JSON.stringify({
+  const account = encodeURIComponent(JSON.stringify({
     id: user.id,
     dni: user.dni,
     name: user.name,
     email: user.email,
     type: user.type
-  })
+  }))
 
-  // Devuelve HTML que guarda la sesión y redirige al admin
-  res.setHeader('Content-Type', 'text/html')
-  return res.send(`<!DOCTYPE html>
-<html>
-<head><title>Entrando al admin...</title></head>
-<body>
-<p>Iniciando sesión...</p>
-<script>
-  localStorage.setItem('adminSession', '${sessionValue}');
-  localStorage.setItem('adminAccount', '${account.replace(/'/g, "\\'")}');
-  window.location.href = 'https://sifrah-admin.vercel.app/dashboard';
-</script>
-</body>
-</html>`)
+  // Redirigir al admin con el token en la URL
+  return res.redirect(`https://sifrah-admin.vercel.app/login?token=${sessionValue}&account=${account}`)
 }
 
 export default async (req, res) => { await midd(req, res); return handler(req, res) }
