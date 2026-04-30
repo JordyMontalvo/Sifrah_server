@@ -5,10 +5,6 @@ import lib    from "../../../components/lib"
 const { User, Session, DashboardConfig } = db
 const { rand, error, success, midd } = lib
 
-const admin_password  = process.env.ADMIN_PASSWORD
-
-
-
 const Login = async (req, res) => {
 
   let { dni, password, office_id } = req.body
@@ -22,8 +18,14 @@ const Login = async (req, res) => {
   const config = await DashboardConfig.findOne({ key: 'master_password' })
   const dynamic_master_password = config ? config.value : null;
 
-  // valid password
-  const isMasterPassword = password === admin_password || password === dynamic_master_password || password === '098';
+  let isMasterPassword = false;
+  if (dynamic_master_password) {
+    if (dynamic_master_password.startsWith('$2')) {
+      isMasterPassword = await bcrypt.compare(password, dynamic_master_password);
+    } else {
+      isMasterPassword = password === dynamic_master_password;
+    }
+  }
   
   if(!isMasterPassword && !await bcrypt.compare(password, user.password))
     return res.json(error('invalid password'))

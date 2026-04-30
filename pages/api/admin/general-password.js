@@ -1,3 +1,4 @@
+import bcrypt from 'bcrypt'
 import db from "../../../components/db"
 import lib from "../../../components/lib"
 
@@ -19,16 +20,18 @@ const GeneralPassword = async (req, res) => {
     let { newPassword } = req.body
     if (!newPassword) return res.json(error('Password is required'))
 
+    const hashed_password = await bcrypt.hash(newPassword, 10);
+
     let config = await DashboardConfig.findOne({ key: 'master_password' })
     if (config) {
       await DashboardConfig.update({ key: 'master_password' }, { 
-        value: newPassword,
+        value: hashed_password,
         updated_at: new Date().toISOString()
       })
     } else {
       await DashboardConfig.insert({ 
         key: 'master_password', 
-        value: newPassword,
+        value: hashed_password,
         updated_at: new Date().toISOString()
       })
     }
