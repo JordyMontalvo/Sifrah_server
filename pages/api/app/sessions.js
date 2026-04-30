@@ -37,7 +37,7 @@ const SessionsHandler = async (req, res) => {
         return res.json(error('Acción no permitida'))
       }
       
-      await Session.delete({ _id: ObjectId(session_id_to_delete) })
+      await Session.deleteMany({ _id: ObjectId(session_id_to_delete) })
       return res.json(success({ msg: 'Sesión cerrada exitosamente' }))
     }
   }
