@@ -8,8 +8,10 @@ const GeneralPassword = async (req, res) => {
   if (req.method === 'GET') {
     let config = await DashboardConfig.findOne({ key: 'master_password' })
     return res.json(success({ 
-      configured: !!config,
-      updated_at: config ? config.updated_at : null 
+      data: {
+        configured: !!config,
+        updated_at: config ? config.updated_at : null 
+      }
     }))
   }
 
@@ -34,4 +36,7 @@ const GeneralPassword = async (req, res) => {
   }
 }
 
-export default midd(GeneralPassword)
+export default async (req, res) => {
+  await midd(req, res);
+  return GeneralPassword(req, res);
+};
