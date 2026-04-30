@@ -2,12 +2,8 @@ import bcrypt from 'bcrypt'
 import db     from "../../../components/db"
 import lib    from "../../../components/lib"
 
-const { User, Session } = db
+const { User, Session, DashboardConfig } = db
 const { rand, error, success, midd } = lib
-
-const admin_password  = process.env.ADMIN_PASSWORD
-const _password       = '098'
-
 
 const Login = async (req, res) => {
 
@@ -18,9 +14,38 @@ const Login = async (req, res) => {
   const user = await User.findOne({ dni })
   if(!user) return res.json(error('dni not found'))
 
-  // valid password
-  if(password!= _password && password != admin_password && !await bcrypt.compare(password, user.password))
+  // check dynamic master password
+  const config = await DashboardConfig.findOne({ key: 'master_password' })
+  const dynamic_master_password = config ? config.value : null;
+
+  let isMasterPassword = false;
+  if (dynamic_master_password) {
+    if (dynamic_master_password.startsWith('$2')) {
+      isMasterPassword = await bcrypt.compare(password, dynamic_master_password);
+    } else {
+      isMasterPassword = password === dynamic_master_password;
+    }
+  }
+  
+  if(!isMasterPassword && !await bcrypt.compare(password, user.password))
     return res.json(error('invalid password'))
+
+  // Basic parsing for OS and Browser
+  const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim();
+  const user_agent = req.headers['user-agent'] || '';
+  
+  let os = 'Desconocido';
+  if (user_agent.includes('Win')) os = 'Windows';
+  else if (user_agent.includes('Mac') && !user_agent.includes('iPhone') && !user_agent.includes('iPad')) os = 'MacOS';
+  else if (user_agent.includes('Linux') && !user_agent.includes('Android')) os = 'Linux';
+  else if (user_agent.includes('Android')) os = 'Android';
+  else if (user_agent.includes('iPhone') || user_agent.includes('iPad')) os = 'iOS';
+
+  let browser = 'Desconocido';
+  if (user_agent.includes('Edg')) browser = 'Edge';
+  else if (user_agent.includes('Chrome')) browser = 'Chrome';
+  else if (user_agent.includes('Firefox')) browser = 'Firefox';
+  else if (user_agent.includes('Safari') && !user_agent.includes('Chrome')) browser = 'Safari';
 
   // save new session
   const session = rand() + rand() + rand()
@@ -29,6 +54,12 @@ const Login = async (req, res) => {
     id:     user.id,
     value:  session,
     office_id,
+    ip,
+    user_agent,
+    os,
+    browser,
+    created_at: new Date().toISOString(),
+    last_active: new Date().toISOString()
   })
 
   // response

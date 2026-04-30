@@ -133,6 +133,7 @@ class Session {
     client.close();
     return session;
   }
+<<<<<<< HEAD
   async find(query = {}, opts = {}) {
     const client = new Client(URL, { useUnifiedTopology: true });
     const conn = await client.connect();
@@ -141,6 +142,13 @@ class Session {
     if (opts.sort) cursor = cursor.sort(opts.sort);
     if (opts.limit) cursor = cursor.limit(opts.limit);
     const sessions = await cursor.toArray();
+=======
+  async find(query) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    const sessions = await db.collection("sessions").find(query).toArray();
+>>>>>>> 9686cbd6c9065a30906d7e7b309c3057af6afe40
     client.close();
     return sessions;
   }
