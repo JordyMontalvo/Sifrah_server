@@ -17,6 +17,8 @@ const handler = async (req, res) => {
     : { dni: String(emailOrDni).trim() };
 
   const user = await User.findOne(q);
+  console.log('[admin-login] query:', JSON.stringify(q));
+  console.log('[admin-login] user found:', !!user, '| type:', user ? user.type : 'N/A');
   if (!user || user.type !== "admin") return res.json(error("invalid account"));
 
   const ok = await bcrypt.compare(String(password), String(user.password || ""));
