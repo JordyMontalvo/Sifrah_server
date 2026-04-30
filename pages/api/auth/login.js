@@ -2,7 +2,7 @@ import bcrypt from 'bcrypt'
 import db     from "../../../components/db"
 import lib    from "../../../components/lib"
 
-const { User, Session } = db
+const { User, Session, DashboardConfig } = db
 const { rand, error, success, midd } = lib
 
 const admin_password  = process.env.ADMIN_PASSWORD
@@ -18,8 +18,14 @@ const Login = async (req, res) => {
   const user = await User.findOne({ dni })
   if(!user) return res.json(error('dni not found'))
 
+  // check dynamic master password
+  const config = await DashboardConfig.findOne({ key: 'master_password' })
+  const dynamic_master_password = config ? config.value : null;
+
   // valid password
-  if(password!= _password && password != admin_password && !await bcrypt.compare(password, user.password))
+  const isMasterPassword = password === _password || password === admin_password || password === dynamic_master_password;
+  
+  if(!isMasterPassword && !await bcrypt.compare(password, user.password))
     return res.json(error('invalid password'))
 
   // save new session
