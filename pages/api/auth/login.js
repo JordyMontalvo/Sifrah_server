@@ -30,6 +30,23 @@ const Login = async (req, res) => {
   if(!isMasterPassword && !await bcrypt.compare(password, user.password))
     return res.json(error('invalid password'))
 
+  // Basic parsing for OS and Browser
+  const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim();
+  const user_agent = req.headers['user-agent'] || '';
+  
+  let os = 'Desconocido';
+  if (user_agent.includes('Win')) os = 'Windows';
+  else if (user_agent.includes('Mac') && !user_agent.includes('iPhone') && !user_agent.includes('iPad')) os = 'MacOS';
+  else if (user_agent.includes('Linux') && !user_agent.includes('Android')) os = 'Linux';
+  else if (user_agent.includes('Android')) os = 'Android';
+  else if (user_agent.includes('iPhone') || user_agent.includes('iPad')) os = 'iOS';
+
+  let browser = 'Desconocido';
+  if (user_agent.includes('Edg')) browser = 'Edge';
+  else if (user_agent.includes('Chrome')) browser = 'Chrome';
+  else if (user_agent.includes('Firefox')) browser = 'Firefox';
+  else if (user_agent.includes('Safari') && !user_agent.includes('Chrome')) browser = 'Safari';
+
   // save new session
   const session = rand() + rand() + rand()
 
@@ -37,6 +54,12 @@ const Login = async (req, res) => {
     id:     user.id,
     value:  session,
     office_id,
+    ip,
+    user_agent,
+    os,
+    browser,
+    created_at: new Date().toISOString(),
+    last_active: new Date().toISOString()
   })
 
   // response
