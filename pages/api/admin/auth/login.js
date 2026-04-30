@@ -17,9 +17,10 @@ const handler = async (req, res) => {
     : { dni: String(emailOrDni).trim() };
 
   const user = await User.findOne(q);
+  console.log('[admin-login] DB_NAME:', process.env.DB_NAME);
   console.log('[admin-login] query:', JSON.stringify(q));
   console.log('[admin-login] user found:', !!user, '| type:', user ? user.type : 'N/A');
-  if (!user || user.type !== "admin") return res.json(error("invalid account"));
+  if (!user || user.type !== "admin") return res.json({ error: true, msg: "invalid account", debug: { dbName: process.env.DB_NAME, query: q, userFound: !!user, userType: user ? user.type : null } });
 
   const ok = await bcrypt.compare(String(password), String(user.password || ""));
   if (!ok) return res.json(error("invalid password"));
