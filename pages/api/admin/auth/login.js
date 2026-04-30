@@ -12,25 +12,18 @@ const handler = async (req, res) => {
   const { emailOrDni, password } = req.body || {};
   if (!emailOrDni || !password) return res.json(error("missing credentials"));
 
-  // Trace para ver qué llega del formulario
-  console.log('[admin-login] body:', JSON.stringify(req.body));
-  
-  const identifier = String(emailOrDni).trim();
-  
-  // Buscador ultra-robusto (como el del magic link)
-  const user = await User.findOne({
-    $or: [
-      { dni: identifier },
-      { dni: identifier.toUpperCase() },
-      { email: identifier },
-      { email: identifier.toLowerCase() },
-      { id: identifier.toLowerCase() }
-    ]
-  });
+  // Limpiar el identificador (ADMIN, admin, email, etc)
+  const iden = String(emailOrDni).trim();
 
-  console.log('[admin-login] user found:', !!user, '| type:', user ? user.type : 'none');
+  // Búsqueda secuencial para máxima compatibilidad
+  let user = await User.findOne({ dni: iden.toUpperCase() });
+  if (!user) user = await User.findOne({ email: iden.toLowerCase() });
+  if (!user) user = await User.findOne({ email: iden });
+  if (!user) user = await User.findOne({ id: iden.toLowerCase() });
 
-  if (!user || user.type !== "admin") return res.json(error("invalid account"));
+  if (!user || user.type !== "admin") {
+    return res.json(error("invalid account"));
+  }
 
   const ok = await bcrypt.compare(String(password), String(user.password || ""));
   if (!ok) return res.json(error("invalid password"));
@@ -63,4 +56,3 @@ export default async (req, res) => {
   await midd(req, res);
   return handler(req, res);
 };
-
