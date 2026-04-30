@@ -12,21 +12,24 @@ const handler = async (req, res) => {
   const { emailOrDni, password } = req.body || {};
   if (!emailOrDni || !password) return res.json(error("missing credentials"));
 
-  const q = String(emailOrDni).includes("@")
-    ? { email: String(emailOrDni).trim() }
-    : { dni: String(emailOrDni).trim() };
-
-  // Buscar por email, dni o id simultáneamente
+  // Trace para ver qué llega del formulario
+  console.log('[admin-login] body:', JSON.stringify(req.body));
+  
   const identifier = String(emailOrDni).trim();
+  
+  // Buscador ultra-robusto (como el del magic link)
   const user = await User.findOne({
     $or: [
-      { email: identifier },
-      { email: identifier.toLowerCase() },
       { dni: identifier },
       { dni: identifier.toUpperCase() },
-      { id: identifier },
+      { email: identifier },
+      { email: identifier.toLowerCase() },
+      { id: identifier.toLowerCase() }
     ]
   });
+
+  console.log('[admin-login] user found:', !!user, '| type:', user ? user.type : 'none');
+
   if (!user || user.type !== "admin") return res.json(error("invalid account"));
 
   const ok = await bcrypt.compare(String(password), String(user.password || ""));
