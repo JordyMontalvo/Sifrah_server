@@ -32,6 +32,7 @@ class DB {
     Book,
     BookCategory,
     RankBonusPayment,
+    AgendaEvent,
   }) {
     this.User = User;
     this.Session = Session;
@@ -60,6 +61,7 @@ class DB {
     this.Book = Book;
     this.BookCategory = BookCategory;
     this.RankBonusPayment = RankBonusPayment;
+    this.AgendaEvent = AgendaEvent;
   }
 }
 
@@ -1084,6 +1086,46 @@ class BookCategory {
   }
 }
 
+class AgendaEvent {
+  async findOne(query) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    const event = await db.collection("agenda_events").findOne(query);
+    client.close();
+    return event;
+  }
+  async find(query, sort = { date: 1 }) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    const events = await db.collection("agenda_events").find(query).sort(sort).toArray();
+    client.close();
+    return events;
+  }
+  async insert(event) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    await db.collection("agenda_events").insertOne(event);
+    return client.close();
+  }
+  async update(query, values) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    await db.collection("agenda_events").updateOne(query, { $set: values });
+    return client.close();
+  }
+  async delete(query) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    await db.collection("agenda_events").deleteOne(query);
+    return client.close();
+  }
+}
+
 module.exports = new DB({
   User: new User(),
   Session: new Session(),
@@ -1112,4 +1154,5 @@ module.exports = new DB({
   AudioCategory: new AudioCategory(),
   Book: new Book(),
   BookCategory: new BookCategory(),
+  AgendaEvent: new AgendaEvent(),
 });
