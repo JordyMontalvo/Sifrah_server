@@ -6,7 +6,7 @@ const { User, Session, DashboardConfig } = db
 const { rand, error, success, midd } = lib
 
 const admin_password  = process.env.ADMIN_PASSWORD
-const _password       = '098'
+
 
 
 const Login = async (req, res) => {
