@@ -2,6 +2,7 @@ import db from "../../../components/db";
 import lib from "../../../components/lib";
 const nodemailer = require('nodemailer');
 require('dotenv').config();
+import { requireAdmin } from "../../../components/adminAuth";
 
 // Función inline para enviar el email de bienvenida SIFRAH
 async function sendSifrahWelcomeEmail({ email, name, lastName, dni }) {
@@ -732,5 +733,7 @@ const handler = async (req, res) => {
 
 export default async (req, res) => {
   await midd(req, res);
+  const auth = await requireAdmin(req, res);
+  if (!auth) return;
   return handler(req, res);
 };

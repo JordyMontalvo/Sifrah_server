@@ -1,5 +1,6 @@
 import db from "../../../components/db"
 import lib from "../../../components/lib"
+import { requireAdmin } from "../../../components/adminAuth";
 
 const { Office, Product, Recharge } = db
 const { success, midd } = lib
@@ -7,6 +8,8 @@ const { success, midd } = lib
 
 export default async (req, res) => {
   await midd(req, res)
+  const auth = await requireAdmin(req, res);
+  if (!auth) return;
 
   let offices   = await Office.find({}) // Admin ve todas las oficinas
   let products  = await Product.find({})

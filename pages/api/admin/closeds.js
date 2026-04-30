@@ -3,6 +3,7 @@ import lib from "../../../components/lib"
 import path from "path"
 import dotenv from "dotenv"
 import fs from "fs"
+import { requireAdmin } from "../../../components/adminAuth";
 
 dotenv.config({ path: path.resolve(process.cwd(), "../db/.env") })
 dotenv.config({ path: path.resolve(process.cwd(), "./.env.local") })
@@ -489,6 +490,8 @@ function pay_residual(id, n, user) {
 
 export default async (req, res) => {
   await midd(req, res)
+  const auth = await requireAdmin(req, res);
+  if (!auth) return;
 
   if(req.method == 'GET') {
 

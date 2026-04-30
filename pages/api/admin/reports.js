@@ -1,5 +1,6 @@
 import db from "../../../components/db";
 import lib from "../../../components/lib";
+import { requireAdmin } from "../../../components/adminAuth";
 
 const { Affiliation, Activation, Collect, Promo } = db;
 const { error, success, midd } = lib;
@@ -8,6 +9,8 @@ export default async (req, res) => {
   try {
     // Aplicar CORS primero
     await midd(req, res);
+    const auth = await requireAdmin(req, res);
+    if (!auth) return;
 
     if (req.method == "GET") {
       const { filter } = req.query;

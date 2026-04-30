@@ -1,5 +1,6 @@
 import db from "../../../components/db";
 import lib from "../../../components/lib";
+import { requireAdmin } from "../../../components/adminAuth";
 
 // Reusar la lógica "real" de aprobación (activa compra/usuario)
 import affiliationsApi from "./affiliations";
@@ -87,6 +88,8 @@ function buildPaymentBreakdown({ amounts, total, use_balance }) {
 
 export default async (req, res) => {
   await midd(req, res);
+  const auth = await requireAdmin(req, res);
+  if (!auth) return;
 
   if (req.method === "POST") {
     const { action, id, kind } = req.body;

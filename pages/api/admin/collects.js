@@ -2,6 +2,7 @@ import db from "../../../components/db";
 import lib from "../../../components/lib";
 import Joi from "joi";
 import { validateBody, validateQuery } from "../../../components/validate";
+import { requireAdmin } from "../../../components/adminAuth";
 
 const { Collect, User } = db;
 const { error, success, midd, ids, map, model } = lib;
@@ -126,5 +127,7 @@ const handler = async (req, res) => {
 
 export default async (req, res) => {
   await midd(req, res);
+  const auth = await requireAdmin(req, res);
+  if (!auth) return;
   return handler(req, res);
 };

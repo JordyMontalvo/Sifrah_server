@@ -1,6 +1,7 @@
 import bcrypt from "bcrypt";
 import db from "../../../components/db";
 import lib from "../../../components/lib";
+import { requireAdmin } from "../../../components/adminAuth";
 
 const { User, Transaction, Closed } = db;
 const { error, success, midd, model } = lib;
@@ -576,5 +577,7 @@ const handler = async (req, res) => {
 
 export default async (req, res) => {
   await midd(req, res);
+  const auth = await requireAdmin(req, res);
+  if (!auth) return;
   return handler(req, res);
 };
