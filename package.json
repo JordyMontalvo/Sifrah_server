@@ -6,7 +6,7 @@
   },
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -H 0.0.0.0 -p 3000",
     "build": "next build",
     "start": "node server.js",
     "heroku-postbuild": "npm run build"
