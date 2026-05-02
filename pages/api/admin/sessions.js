@@ -173,6 +173,8 @@ function dedupeSessionsByDevice(rows, currentSessionValue) {
 
     const gk = deviceGroupKey(latest);
     const mergedCount = list.length;
+    const mergedIps = [...new Set(list.map((x) => String(x.ip || "").trim()).filter(Boolean))].sort();
+    const mergedIpCount = mergedIps.length;
     const activeSessionValues = [...new Set(list.filter((x) => x.status === "active").map((x) => x.session))];
     const anyActive = activeSessionValues.length > 0;
     const isCurrent = !!(cur && list.some((x) => sessionTokenEquals(x.session, cur)));
@@ -184,6 +186,8 @@ function dedupeSessionsByDevice(rows, currentSessionValue) {
       ...latestOut,
       createdAt: createdAtOut,
       mergedCount,
+      mergedIpCount,
+      mergedIps: mergedIps.slice(0, 16),
       activeSessionValues,
       _groupKey: gk,
       deviceShortId: deviceShortIdFromKey(gk),
