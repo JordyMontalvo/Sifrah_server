@@ -43,9 +43,37 @@ function parseUA(userAgent) {
 }
 
 function toTime(v) {
-  if (!v) return 0;
-  const t = new Date(v).getTime();
-  return Number.isNaN(t) ? 0 : t;
+  if (v == null || v === "") return 0;
+  if (typeof v === "number" && Number.isFinite(v)) {
+    return v < 1e11 ? v * 1000 : v;
+  }
+  if (v instanceof Date) {
+    const x = v.getTime();
+    return Number.isNaN(x) ? 0 : x;
+  }
+  const s = String(v).trim();
+  let t = new Date(s).getTime();
+  if (!Number.isNaN(t)) return t;
+  // dd/mm/yyyy o dd-mm-yyyy (datos legados / export)
+  const m = s.match(
+    /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})(?:[,\sT]+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?\s*(a\.?\s*m\.?|p\.?\s*m\.?)?)?/i
+  );
+  if (m) {
+    const dd = parseInt(m[1], 10);
+    const mm = parseInt(m[2], 10) - 1;
+    let yy = parseInt(m[3], 10);
+    if (String(m[3]).length <= 2) yy += 2000;
+    let hh = m[4] != null ? parseInt(m[4], 10) : 0;
+    const mi = m[5] != null ? parseInt(m[5], 10) : 0;
+    const ss = m[6] != null ? parseInt(m[6], 10) : 0;
+    const ap = m[7] && /p\.?\s*m/i.test(m[7]);
+    if (ap && hh < 12) hh += 12;
+    if (m[7] && /a\.?\s*m/i.test(m[7]) && hh === 12) hh = 0;
+    const d2 = new Date(yy, mm, dd, hh, mi, ss);
+    t = d2.getTime();
+    return Number.isNaN(t) ? 0 : t;
+  }
+  return 0;
 }
 
 /** Reduce “duplicados” cuando solo cambia la versión del navegador en el UA. */
@@ -75,12 +103,20 @@ function rawLoginMs(s) {
   return Math.max(toTime(s.createdAt), toTime(s.created_at), toTime(s.date));
 }
 
-/** Misma máquina/navegador: usuario + tipo + IP + UA normalizado (si no hay UA, OS+navegador+dispositivo). */
+/**
+ * App: mismo dispositivo = usuario + tipo + IP + UA.
+ * Admin: sin IP — si no, cada red (casa/oficina/datos) partía el grupo y “Tú” quedaba con fecha vieja
+ * mientras el último login aparecía en otra fila con otra IP.
+ */
 function deviceGroupKey(r) {
   const id = String(r.id || "");
   const kind = String(r.kind || "");
-  const ip = String(r.ip || "").trim();
   const ua = normalizeUaForGrouping(String(r.userAgent || "").trim());
+  if (kind === "admin") {
+    if (ua) return `admingrp:${id}\t${ua}`;
+    return `admingrp:${id}\t${r.os || ""}\t${r.browser || ""}\t${r.device || ""}`;
+  }
+  const ip = String(r.ip || "").trim();
   if (ua) return `${id}\t${kind}\t${ip}\t${ua}`;
   return `${id}\t${kind}\t${ip}\t${r.os || ""}\t${r.browser || ""}\t${r.device || ""}`;
 }
