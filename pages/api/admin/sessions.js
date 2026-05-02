@@ -237,9 +237,10 @@ export default async (req, res) => {
     if (k === "admin") {
       q.kind = "admin";
     } else if (k === "app") {
-      // Login app (`/auth/login`) no guarda `kind` en Mongo; solo admin setea `kind: "admin"`.
-      // Filtrar `{ kind: "app" }` dejaba la lista vacía.
-      q.$nor = [{ kind: "admin" }];
+      // Login app no guarda `kind`; solo admin usa `kind: "admin"`.
+      // `{ kind: "app" }` no coincide con documentos sin campo.
+      // `$ne` en Mongo incluye documentos donde el campo no existe (≠ admin).
+      q.kind = { $ne: "admin" };
     }
     if (String(onlyActive || "") === "1" || String(onlyActive || "") === "true") {
       q.closedAt = { $exists: false };
