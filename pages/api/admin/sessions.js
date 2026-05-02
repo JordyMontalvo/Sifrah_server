@@ -60,7 +60,7 @@ function normalizeUaForGrouping(ua) {
   return s.trim();
 }
 
-/** Momento de inicio / última actividad conocida (para orden y “último inicio”). */
+/** Momento de inicio / última actividad conocida (solo para ordenar documentos en bruto). */
 function rawSessionStartedMs(s) {
   return Math.max(
     toTime(s.createdAt),
@@ -68,6 +68,11 @@ function rawSessionStartedMs(s) {
     toTime(s.date),
     toTime(s.last_active)
   );
+}
+
+/** Solo “cuándo se creó / inició” la sesión (no last_active: eso no es un nuevo inicio). */
+function rawLoginMs(s) {
+  return Math.max(toTime(s.createdAt), toTime(s.created_at), toTime(s.date));
 }
 
 /** Misma máquina/navegador: usuario + tipo + IP + UA normalizado (si no hay UA, OS+navegador+dispositivo). */
@@ -99,9 +104,16 @@ function sessionTokenEquals(a, b) {
   return String(a || "").trim() === String(b || "").trim();
 }
 
+/** Para ordenar/agrupar: prioriza fecha de login real; si no hay, cae a la fecha “display” de la fila. */
+function rowLoginOrDisplayMs(x) {
+  const login = x.loginAtMs || 0;
+  if (login > 0) return login;
+  return toTime(x.createdAt);
+}
+
 function dedupeSessionsByDevice(rows, currentSessionValue) {
   const cur = currentSessionValue ? String(currentSessionValue).trim() : "";
-  const sorted = [...rows].sort((a, b) => toTime(b.createdAt) - toTime(a.createdAt));
+  const sorted = [...rows].sort((a, b) => rowLoginOrDisplayMs(b) - rowLoginOrDisplayMs(a));
   const groups = new Map();
   for (const r of sorted) {
     const k = deviceGroupKey(r);
@@ -111,14 +123,30 @@ function dedupeSessionsByDevice(rows, currentSessionValue) {
 
   const out = [];
   for (const [, list] of groups) {
-    const latest = [...list].sort((a, b) => toTime(b.createdAt) - toTime(a.createdAt))[0];
+    const groupLastLoginMs = Math.max(0, ...list.map((x) => x.loginAtMs || 0));
+    const groupFallbackMs = Math.max(0, ...list.map((x) => toTime(x.createdAt)));
+    const groupDisplayMs = groupLastLoginMs > 0 ? groupLastLoginMs : groupFallbackMs;
+
+    const latest = list.reduce((best, x) => {
+      const xMs = rowLoginOrDisplayMs(x);
+      const bMs = rowLoginOrDisplayMs(best);
+      if (xMs > bMs) return x;
+      if (xMs === bMs && toTime(x.createdAt) > toTime(best.createdAt)) return x;
+      return best;
+    }, list[0]);
+
     const gk = deviceGroupKey(latest);
     const mergedCount = list.length;
     const activeSessionValues = [...new Set(list.filter((x) => x.status === "active").map((x) => x.session))];
     const anyActive = activeSessionValues.length > 0;
     const isCurrent = !!(cur && list.some((x) => sessionTokenEquals(x.session, cur)));
+    const createdAtOut =
+      groupDisplayMs > 0 ? new Date(groupDisplayMs).toISOString() : latest.createdAt || null;
+
+    const { loginAtMs: _loginAtMsDrop, ...latestOut } = latest;
     out.push({
-      ...latest,
+      ...latestOut,
+      createdAt: createdAtOut,
       mergedCount,
       activeSessionValues,
       _groupKey: gk,
@@ -130,7 +158,7 @@ function dedupeSessionsByDevice(rows, currentSessionValue) {
       revokedAt: anyActive ? null : latest.revokedAt,
     });
   }
-  // Tu sesión arriba; luego por fecha (evita confusión con otras IPs/dispositivos).
+  // Tu sesión arriba; luego por último inicio de sesión (fecha mostrada).
   out.sort((a, b) => {
     const ca = a.isCurrent ? 1 : 0;
     const cb = b.isCurrent ? 1 : 0;
@@ -187,11 +215,11 @@ export default async (req, res) => {
     const rows = sessions.map((s) => {
       const u = users.find((x) => x.id === s.id);
       const userAgent = s.userAgent || s.user_agent || null;
-      const startedMs = rawSessionStartedMs(s);
+      const loginAtMs = rawLoginMs(s);
+      const activityMs = rawSessionStartedMs(s);
+      const displayMs = loginAtMs > 0 ? loginAtMs : activityMs;
       const createdAt =
-        startedMs > 0
-          ? new Date(startedMs).toISOString()
-          : s.createdAt || s.created_at || s.date || null;
+        displayMs > 0 ? new Date(displayMs).toISOString() : s.createdAt || s.created_at || s.date || null;
       const closedAt = s.closedAt || s.closed_at || null;
       const revokedAt = s.revokedAt || s.revoked_at || null;
       const parsed = parseUA(userAgent);
@@ -201,6 +229,7 @@ export default async (req, res) => {
         id: s.id,
         kind: s.kind || "app",
         session: String(s.value || "").trim(),
+        loginAtMs,
         createdAt,
         closedAt,
         revokedAt,
