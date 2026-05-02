@@ -89,7 +89,12 @@ function deviceShortIdFromKey(key) {
  * Una fila por dispositivo: la sesión con último inicio (createdAt).
  * Incluye activeSessionValues para cerrar todas las sesiones activas duplicadas del mismo dispositivo.
  */
+function sessionTokenEquals(a, b) {
+  return String(a || "").trim() === String(b || "").trim();
+}
+
 function dedupeSessionsByDevice(rows, currentSessionValue) {
+  const cur = currentSessionValue ? String(currentSessionValue).trim() : "";
   const sorted = [...rows].sort((a, b) => toTime(b.createdAt) - toTime(a.createdAt));
   const groups = new Map();
   for (const r of sorted) {
@@ -105,7 +110,7 @@ function dedupeSessionsByDevice(rows, currentSessionValue) {
     const mergedCount = list.length;
     const activeSessionValues = [...new Set(list.filter((x) => x.status === "active").map((x) => x.session))];
     const anyActive = activeSessionValues.length > 0;
-    const isCurrent = !!(currentSessionValue && list.some((x) => x.session === currentSessionValue));
+    const isCurrent = !!(cur && list.some((x) => sessionTokenEquals(x.session, cur)));
     out.push({
       ...latest,
       mergedCount,
@@ -119,7 +124,13 @@ function dedupeSessionsByDevice(rows, currentSessionValue) {
       revokedAt: anyActive ? null : latest.revokedAt,
     });
   }
-  out.sort((a, b) => toTime(b.createdAt) - toTime(a.createdAt));
+  // Tu sesión arriba; luego por fecha (evita confusión con otras IPs/dispositivos).
+  out.sort((a, b) => {
+    const ca = a.isCurrent ? 1 : 0;
+    const cb = b.isCurrent ? 1 : 0;
+    if (cb !== ca) return cb - ca;
+    return toTime(b.createdAt) - toTime(a.createdAt);
+  });
   return out;
 }
 
@@ -183,7 +194,7 @@ export default async (req, res) => {
       return {
         id: s.id,
         kind: s.kind || "app",
-        session: s.value,
+        session: String(s.value || "").trim(),
         createdAt,
         closedAt,
         revokedAt,
@@ -201,7 +212,14 @@ export default async (req, res) => {
     });
 
     const deduped = dedupeSessionsByDevice(rows, auth.value);
-    return res.json(success({ sessions: deduped }));
+
+    // Evita caché (CDN / navegador / proxy): en producción devolvía JSON viejo y "Tú" mal ubicado.
+    res.setHeader("Cache-Control", "private, no-store, no-cache, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+    res.setHeader("Vary", "Authorization");
+
+    return res.json(success({ sessions: deduped, serverTime: new Date().toISOString() }));
   }
 
   if (req.method === "POST") {
@@ -213,6 +231,7 @@ export default async (req, res) => {
       for (const v of list) {
         await revokeOneSession(auth, v);
       }
+      res.setHeader("Cache-Control", "private, no-store, no-cache, must-revalidate");
       return res.json(success({ ok: true, revoked: list.length }));
     }
 
@@ -221,6 +240,7 @@ export default async (req, res) => {
       const target = await Session.findOne({ value: String(session) });
       if (!target) return res.status(404).json(error("session not found"));
       await revokeOneSession(auth, session);
+      res.setHeader("Cache-Control", "private, no-store, no-cache, must-revalidate");
       return res.json(success({ ok: true }));
     }
 
