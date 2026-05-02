@@ -1,4 +1,3 @@
-import crypto from "crypto";
 import db from "../../../components/db";
 import lib from "../../../components/lib";
 import { requireAdmin } from "../../../components/adminAuth";
@@ -81,8 +80,15 @@ function deviceGroupKey(r) {
   return `${id}\t${kind}\t${ip}\t${r.os || ""}\t${r.browser || ""}\t${r.device || ""}`;
 }
 
+/** ID corto estable sin módulo `crypto` (evita fallos de bundle / runtime en API). */
 function deviceShortIdFromKey(key) {
-  return crypto.createHash("sha256").update(key).digest("hex").slice(0, 6).toUpperCase();
+  const s = String(key);
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0).toString(16).toUpperCase().padStart(8, "0").slice(0, 6);
 }
 
 /**

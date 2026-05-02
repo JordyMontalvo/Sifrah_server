@@ -14,6 +14,9 @@ class Lib {
         "X-Api-Version",
         "x-file-name",
         "x-dir",
+        // GET con anti-caché (admin/sessions, etc.): sin esto el preflight falla en producción (Vercel → Heroku)
+        "Cache-Control",
+        "Pragma",
         // Sentry browser SDK (tracing): sin esto el preflight falla en local/prod
         "sentry-trace",
         "baggage",
