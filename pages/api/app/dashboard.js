@@ -45,8 +45,11 @@ export default async (req, res) => {
   const transactions = await Transaction.find({ user_id: user.id, virtual: { $in: [null, false] } })
   const virtualTransactions = await Transaction.find({ user_id: user.id, virtual: true })
 
-  const ins = acum(transactions, { type: 'in' }, 'value')
-  const outs = acum(transactions, { type: 'out' }, 'value')
+  const ins = transactions.filter(t => t.type === 'in' && t.wallet_tipo !== 'BONO_AHORRO').reduce((sum, t) => sum + Number(t.value || 0), 0)
+  const outs = transactions.filter(t => t.type === 'out' && t.wallet_tipo !== 'BONO_AHORRO').reduce((sum, t) => sum + Number(t.value || 0), 0)
+  const sifrahIns = transactions.filter(t => t.type === 'in' && t.wallet_tipo === 'BONO_AHORRO').reduce((sum, t) => sum + Number(t.value || 0), 0)
+  const sifrahOuts = transactions.filter(t => t.type === 'out' && t.wallet_tipo === 'BONO_AHORRO').reduce((sum, t) => sum + Number(t.value || 0), 0)
+  
   const insVirtual = acum(virtualTransactions, { type: 'in' }, 'value')
   const outsVirtual = acum(virtualTransactions, { type: 'out' }, 'value')
 
@@ -162,6 +165,7 @@ export default async (req, res) => {
     insVirtual,
     outs,
     balance: (ins - outs),
+    sifrahBalance: (sifrahIns - sifrahOuts),
     _balance: (insVirtual - outsVirtual),
     rank: user.rank,
     points: user.points,

@@ -42,6 +42,7 @@ type PreviewNode struct {
 	ResidualLines     []models.ResidualLineEntry   `json:"residual_lines,omitempty"`
 	GenerationalBonus float64                      `json:"generational_bonus"`
 	GenerationalLines []models.GenerationalLineEntry `json:"generational_lines,omitempty"`
+	SavingsBonus      float64                      `json:"savings_bonus"`
 	Activated         bool                         `json:"activated"`
 	ActivatedInt      bool                         `json:"_activated"`
 	Pays              []models.Pay                 `json:"_pays"`
@@ -252,8 +253,16 @@ func main() {
 		totalBonusTransactions = append(totalBonusTransactions, genTxs...)
 		genLines := generationalLinesFromTxs(genTxs)
 
+		// D. Savings Bonus (Bono Ahorro)
+		savTxs, savTotal := ce.CalculateSavingsBonus(user.ID)
+		for j := range savTxs {
+			savTxs[j].UserID = user.ID
+			savTxs[j].Date = time.Now()
+		}
+		totalBonusTransactions = append(totalBonusTransactions, savTxs...)
+
 		// Collect preview data BEFORE resetting
-		if rank != "none" || calculatedTotalPoints > 0 || resTotal > 0 || genTotal > 0 {
+		if rank != "none" || calculatedTotalPoints > 0 || resTotal > 0 || genTotal > 0 || savTotal > 0 {
 			previewNodes = append(previewNodes, PreviewNode{
 				ID:                user.ID,
 				Name:              user.Name + " " + user.LastName,
@@ -264,6 +273,7 @@ func main() {
 				ResidualLines:     resLines,
 				GenerationalBonus: genTotal,
 				GenerationalLines: genLines,
+				SavingsBonus:      savTotal,
 				Activated:         user.Activated,
 				ActivatedInt:      user.ActivatedInternal,
 				Pays:              []models.Pay{}, // Can be populated if needed
@@ -297,6 +307,7 @@ func main() {
 		user.LastTotalPoints       = calculatedTotalPoints
 		user.LastResidualBonus     = resTotal
 		user.LastGenerationalBonus = genTotal
+		user.LastSavingsBonus      = savTotal
 
 		// Update for DB (cycle reset as per users.js)
 		user.Rank              = rank
@@ -362,6 +373,7 @@ func main() {
 				ResidualLines:     resLines,
 				GenerationalBonus: u.LastGenerationalBonus,
 				GenerationalLines: genLines,
+				SavingsBonus:      u.LastSavingsBonus,
 				GroupedPointsLegs: legsByUserID[u.ID],
 			})
 		}

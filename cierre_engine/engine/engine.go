@@ -401,3 +401,54 @@ func (e *CierreEngine) CalculateExcedentBonus(id string) []models.Transaction {
 
 	return txs
 }
+
+func (e *CierreEngine) CalculateSavingsBonus(id string) ([]models.Transaction, float64) {
+	user, ok := e.Users[id]
+	if !ok {
+		return nil, 0
+	}
+	
+	pct := 0.0
+	switch user.Plan {
+	case "basic": // Ejecutivo
+		pct = 0.21
+	case "standard": // Distribuidor
+		pct = 0.30
+	case "master": // Empresario
+		pct = 0.40
+	default:
+		return nil, 0
+	}
+
+	adicionales := 0.0
+	if user.AffiliationPoints > 0 {
+		adicionales = user.Points
+	} else {
+		adicionales = user.Points - 160
+	}
+
+	if adicionales <= 0 {
+		return nil, 0
+	}
+
+	bonus := adicionales * pct
+	if bonus <= 0 {
+		return nil, 0
+	}
+
+	if e.Logger != nil {
+		e.Logger.LogResidual("   Ahorro: %s %s (Pts Extras: %.2f) → %.2f", user.Name, user.LastName, adicionales, bonus)
+	}
+
+	tx := models.Transaction{
+		Type:       "in",
+		Value:      bonus,
+		Name:       "bono ahorro sifrah",
+		Desc:       fmt.Sprintf("Bono ahorro Sifrah (%.2f pts extra al %.0f%%)", adicionales, pct*100),
+		FromUserID: user.ID,
+		WalletType: "BONO_AHORRO",
+		Virtual:    false,
+	}
+
+	return []models.Transaction{tx}, bonus
+}

@@ -25,8 +25,8 @@ const U = [
   "token",
   "points",
   "balance",
-  "parent",
   "virtualbalance",
+  "sifrahbalance",
   "country",
   "rank",
   "rank_history",
@@ -106,10 +106,10 @@ const handler = async (req, res) => {
     if (showAvailable === "true") {
       allUsers = allUsers.filter((user) => {
         const ins = transaction
-          .filter((i) => i.user_id == user.id && i.type == "in")
+          .filter((i) => i.user_id == user.id && i.type == "in" && i.wallet_tipo !== "BONO_AHORRO")
           .reduce((a, b) => a + parseFloat(b.value), 0);
         const outs = transaction
-          .filter((i) => i.user_id == user.id && i.type == "out")
+          .filter((i) => i.user_id == user.id && i.type == "out" && i.wallet_tipo !== "BONO_AHORRO")
           .reduce((a, b) => a + parseFloat(b.value), 0);
         return ins - outs > 0; // Solo usuarios con saldo disponible
       });
@@ -281,10 +281,10 @@ const handler = async (req, res) => {
     // parse user
     const totalBalance = allUsers.reduce((total, user) => {
       const ins = transactions
-        .filter((i) => i.user_id == user.id && i.type == "in")
+        .filter((i) => i.user_id == user.id && i.type == "in" && i.wallet_tipo !== "BONO_AHORRO")
         .reduce((a, b) => a + parseFloat(b.value), 0);
       const outs = transactions
-        .filter((i) => i.user_id == user.id && i.type == "out")
+        .filter((i) => i.user_id == user.id && i.type == "out" && i.wallet_tipo !== "BONO_AHORRO")
         .reduce((a, b) => a + parseFloat(b.value), 0);
       return total + (ins - outs); // Sumar el saldo de cada usuario
     }, 0);
@@ -303,12 +303,20 @@ const handler = async (req, res) => {
     // Calcular el saldo para los usuarios que se están enviando
     users = users.map((user) => {
       const ins = transactions
-        .filter((i) => i.user_id == user.id && i.type == "in")
+        .filter((i) => i.user_id == user.id && i.type == "in" && i.wallet_tipo !== "BONO_AHORRO")
         .reduce((a, b) => a + parseFloat(b.value), 0);
       const outs = transactions
-        .filter((i) => i.user_id == user.id && i.type == "out")
+        .filter((i) => i.user_id == user.id && i.type == "out" && i.wallet_tipo !== "BONO_AHORRO")
         .reduce((a, b) => a + parseFloat(b.value), 0);
       user.balance = ins - outs;
+
+      const sifrahIns = transactions
+        .filter((i) => i.user_id == user.id && i.type == "in" && i.wallet_tipo === "BONO_AHORRO")
+        .reduce((a, b) => a + parseFloat(b.value), 0);
+      const sifrahOuts = transactions
+        .filter((i) => i.user_id == user.id && i.type == "out" && i.wallet_tipo === "BONO_AHORRO")
+        .reduce((a, b) => a + parseFloat(b.value), 0);
+      user.sifrahbalance = sifrahIns - sifrahOuts;
 
       const virtualIns = virtualTransactions
         .filter((i) => i.user_id == user.id && i.type == "in")
@@ -325,8 +333,9 @@ const handler = async (req, res) => {
     // parse user
     users = users.map((user) => {
       const u = model(user, U);
-      // Asegurar que virtualbalance siempre sea un número (no null/undefined)
+      // Asegurar que virtualbalance y sifrahbalance siempre sean un número
       u.virtualbalance = user.virtualbalance != null ? Number(user.virtualbalance) : 0;
+      u.sifrahbalance = user.sifrahbalance != null ? Number(user.sifrahbalance) : 0;
       return { ...u };
     });
     // Cambia esto para obtener todos los usuarios

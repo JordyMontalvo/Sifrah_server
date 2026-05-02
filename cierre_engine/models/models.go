@@ -31,6 +31,7 @@ type User struct {
 	// Computed fields (not persisted directly, used for history entry)
 	LastResidualBonus     float64   `bson:"-" json:"-"`
 	LastGenerationalBonus float64   `bson:"-" json:"-"`
+	LastSavingsBonus      float64   `bson:"-" json:"-"`
 	LastTotalPoints       float64   `bson:"-" json:"-"`
 }
 
@@ -56,6 +57,7 @@ type Transaction struct {
 	AffiliateDNI       string    `bson:"affiliate_dni,omitempty" json:"affiliate_dni,omitempty"`
 	PR                 float64   `bson:"pr,omitempty" json:"pr,omitempty"`
 	Percentage         float64   `bson:"percentage,omitempty" json:"percentage,omitempty"`
+	WalletType         string    `bson:"wallet_tipo,omitempty" json:"wallet_tipo,omitempty"`
 }
 
 type LegDetail struct {
@@ -99,6 +101,7 @@ type ClosedUserEntry struct {
 	ResidualLines     []ResidualLineEntry     `bson:"residual_lines,omitempty" json:"residual_lines,omitempty"`
 	GenerationalBonus float64                 `bson:"generational_bonus" json:"generational_bonus"`
 	GenerationalLines []GenerationalLineEntry `bson:"generational_lines,omitempty" json:"generational_lines,omitempty"`
+	SavingsBonus      float64                 `bson:"savings_bonus,omitempty" json:"savings_bonus,omitempty"`
 	GroupedPointsLegs []LegDetail             `bson:"grouped_points_legs,omitempty" json:"grouped_points_legs,omitempty"`
 }
 
