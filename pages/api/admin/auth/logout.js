@@ -11,7 +11,15 @@ export default async (req, res) => {
   const auth = await requireAdmin(req, res);
   if (!auth) return;
 
-  await Session.delete(auth.value);
+  const now = new Date();
+  await Session.updateOne(
+    { value: auth.value },
+    {
+      closedAt: now,
+      closed_at: now.toISOString(),
+      closedReason: "logout",
+    }
+  );
   return res.json(success({}));
 };
 

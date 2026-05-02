@@ -37,6 +37,11 @@ export async function requireAdmin(req, res) {
     res.json(error("invalid session"));
     return null;
   }
+  if (session.closedAt || session.closed_at || session.revokedAt || session.revoked_at) {
+    res.statusCode = 401;
+    res.json(error("invalid session"));
+    return null;
+  }
 
   const user = await User.findOne({ id: session.id });
   if (!user || user.type !== "admin") {

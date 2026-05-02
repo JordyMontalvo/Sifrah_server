@@ -152,6 +152,22 @@ class Session {
     await db.collection("sessions").insertOne(session);
     return client.close();
   }
+
+  async updateOne(query, values) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    await db.collection("sessions").updateOne(query, { $set: values });
+    return client.close();
+  }
+
+  async updateMany(query, values) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    await db.collection("sessions").updateMany(query, { $set: values });
+    return client.close();
+  }
   async delete(value) {
     const client = new Client(URL, { useUnifiedTopology: true });
     const conn = await client.connect();
