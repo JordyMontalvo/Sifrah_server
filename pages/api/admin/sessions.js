@@ -233,7 +233,14 @@ export default async (req, res) => {
     const { limit, kind, onlyActive } = req.query || {};
     const rawLimit = Math.min(1500, Math.max(50, Number(limit) || 800));
     const q = {};
-    if (kind) q.kind = String(kind);
+    const k = kind ? String(kind).toLowerCase().trim() : "";
+    if (k === "admin") {
+      q.kind = "admin";
+    } else if (k === "app") {
+      // Login app (`/auth/login`) no guarda `kind` en Mongo; solo admin setea `kind: "admin"`.
+      // Filtrar `{ kind: "app" }` dejaba la lista vacía.
+      q.$nor = [{ kind: "admin" }];
+    }
     if (String(onlyActive || "") === "1" || String(onlyActive || "") === "true") {
       q.closedAt = { $exists: false };
       q.revokedAt = { $exists: false };
