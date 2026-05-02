@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import db from "../../../components/db";
 import lib from "../../../components/lib";
 import { requireAdmin } from "../../../components/adminAuth";
@@ -42,6 +43,104 @@ function parseUA(userAgent) {
   return { os, browser, device };
 }
 
+function toTime(v) {
+  if (!v) return 0;
+  const t = new Date(v).getTime();
+  return Number.isNaN(t) ? 0 : t;
+}
+
+/** Reduce “duplicados” cuando solo cambia la versión del navegador en el UA. */
+function normalizeUaForGrouping(ua) {
+  let s = String(ua || "");
+  s = s.replace(/Chrome\/[\d.]+/gi, "Chrome/x");
+  s = s.replace(/Firefox\/[\d.]+/gi, "Firefox/x");
+  s = s.replace(/Version\/[\d.]+/gi, "Version/x");
+  s = s.replace(/Safari\/[\d.]+/gi, "Safari/x");
+  s = s.replace(/Edg\/[\d.]+/gi, "Edg/x");
+  s = s.replace(/OPR\/[\d.]+/gi, "OPR/x");
+  return s.trim();
+}
+
+/** Momento de inicio / última actividad conocida (para orden y “último inicio”). */
+function rawSessionStartedMs(s) {
+  return Math.max(
+    toTime(s.createdAt),
+    toTime(s.created_at),
+    toTime(s.date),
+    toTime(s.last_active)
+  );
+}
+
+/** Misma máquina/navegador: usuario + tipo + IP + UA normalizado (si no hay UA, OS+navegador+dispositivo). */
+function deviceGroupKey(r) {
+  const id = String(r.id || "");
+  const kind = String(r.kind || "");
+  const ip = String(r.ip || "").trim();
+  const ua = normalizeUaForGrouping(String(r.userAgent || "").trim());
+  if (ua) return `${id}\t${kind}\t${ip}\t${ua}`;
+  return `${id}\t${kind}\t${ip}\t${r.os || ""}\t${r.browser || ""}\t${r.device || ""}`;
+}
+
+function deviceShortIdFromKey(key) {
+  return crypto.createHash("sha256").update(key).digest("hex").slice(0, 6).toUpperCase();
+}
+
+/**
+ * Una fila por dispositivo: la sesión con último inicio (createdAt).
+ * Incluye activeSessionValues para cerrar todas las sesiones activas duplicadas del mismo dispositivo.
+ */
+function dedupeSessionsByDevice(rows, currentSessionValue) {
+  const sorted = [...rows].sort((a, b) => toTime(b.createdAt) - toTime(a.createdAt));
+  const groups = new Map();
+  for (const r of sorted) {
+    const k = deviceGroupKey(r);
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(r);
+  }
+
+  const out = [];
+  for (const [, list] of groups) {
+    const latest = [...list].sort((a, b) => toTime(b.createdAt) - toTime(a.createdAt))[0];
+    const gk = deviceGroupKey(latest);
+    const mergedCount = list.length;
+    const activeSessionValues = [...new Set(list.filter((x) => x.status === "active").map((x) => x.session))];
+    const anyActive = activeSessionValues.length > 0;
+    const isCurrent = !!(currentSessionValue && list.some((x) => x.session === currentSessionValue));
+    out.push({
+      ...latest,
+      mergedCount,
+      activeSessionValues,
+      _groupKey: gk,
+      deviceShortId: deviceShortIdFromKey(gk),
+      isCurrent,
+      // Si aún hay algún token activo en el grupo, el dispositivo sigue “en sesión”.
+      status: anyActive ? "active" : "closed",
+      closedAt: anyActive ? null : latest.closedAt,
+      revokedAt: anyActive ? null : latest.revokedAt,
+    });
+  }
+  out.sort((a, b) => toTime(b.createdAt) - toTime(a.createdAt));
+  return out;
+}
+
+async function revokeOneSession(auth, sessionValue) {
+  const target = await Session.findOne({ value: String(sessionValue) });
+  if (!target) return;
+  if (target.closedAt || target.closed_at || target.revokedAt || target.revoked_at) return;
+  const now = new Date();
+  await Session.updateOne(
+    { value: String(sessionValue) },
+    {
+      revokedAt: now,
+      revoked_at: now.toISOString(),
+      closedAt: now,
+      closed_at: now.toISOString(),
+      closedReason: "revoked_by_admin",
+      revokedBy: auth.user.id,
+    }
+  );
+}
+
 export default async (req, res) => {
   await midd(req, res);
 
@@ -49,7 +148,8 @@ export default async (req, res) => {
   if (!auth) return;
 
   if (req.method === "GET") {
-    const { limit = 200, kind, onlyActive } = req.query || {};
+    const { limit, kind, onlyActive } = req.query || {};
+    const rawLimit = Math.min(1500, Math.max(50, Number(limit) || 800));
     const q = {};
     if (kind) q.kind = String(kind);
     if (String(onlyActive || "") === "1" || String(onlyActive || "") === "true") {
@@ -60,7 +160,8 @@ export default async (req, res) => {
       q.revoked_at = { $exists: false };
     }
 
-    const sessions = await Session.find(q, { sort: { createdAt: -1 }, limit: Number(limit) || 200 });
+    const sessions = await Session.find(q, { limit: rawLimit });
+    sessions.sort((a, b) => rawSessionStartedMs(b) - rawSessionStartedMs(a));
 
     // Enriquecer con usuario (sin password)
     const ids = [...new Set(sessions.map((s) => s.id).filter(Boolean))];
@@ -69,7 +170,11 @@ export default async (req, res) => {
     const rows = sessions.map((s) => {
       const u = users.find((x) => x.id === s.id);
       const userAgent = s.userAgent || s.user_agent || null;
-      const createdAt = s.createdAt || s.created_at || s.date || null;
+      const startedMs = rawSessionStartedMs(s);
+      const createdAt =
+        startedMs > 0
+          ? new Date(startedMs).toISOString()
+          : s.createdAt || s.created_at || s.date || null;
       const closedAt = s.closedAt || s.closed_at || null;
       const revokedAt = s.revokedAt || s.revoked_at || null;
       const parsed = parseUA(userAgent);
@@ -95,36 +200,31 @@ export default async (req, res) => {
       };
     });
 
-    return res.json(success({ sessions: rows }));
+    const deduped = dedupeSessionsByDevice(rows, auth.value);
+    return res.json(success({ sessions: deduped }));
   }
 
   if (req.method === "POST") {
-    const { action, session } = req.body || {};
-    if (action !== "revoke") return res.status(400).json(error("invalid action"));
-    if (!session) return res.status(400).json(error("missing session"));
+    const { action, session, sessions: sessionList } = req.body || {};
 
-    const target = await Session.findOne({ value: String(session) });
-    if (!target) return res.status(404).json(error("session not found"));
+    if (action === "revoke_many") {
+      const list = Array.isArray(sessionList) ? sessionList.map(String).filter(Boolean) : [];
+      if (!list.length) return res.status(400).json(error("missing sessions"));
+      for (const v of list) {
+        await revokeOneSession(auth, v);
+      }
+      return res.json(success({ ok: true, revoked: list.length }));
+    }
 
-    // No permitir revocar una sesión ya cerrada
-    if (target.closedAt || target.closed_at || target.revokedAt || target.revoked_at) {
+    if (action === "revoke") {
+      if (!session) return res.status(400).json(error("missing session"));
+      const target = await Session.findOne({ value: String(session) });
+      if (!target) return res.status(404).json(error("session not found"));
+      await revokeOneSession(auth, session);
       return res.json(success({ ok: true }));
     }
 
-    const now = new Date();
-    await Session.updateOne(
-      { value: String(session) },
-      {
-        revokedAt: now,
-        revoked_at: now.toISOString(),
-        closedAt: now,
-        closed_at: now.toISOString(),
-        closedReason: "revoked_by_admin",
-        revokedBy: auth.user.id,
-      }
-    );
-
-    return res.json(success({ ok: true }));
+    return res.status(400).json(error("invalid action"));
   }
 
   return res.status(405).json(error("method not allowed"));
