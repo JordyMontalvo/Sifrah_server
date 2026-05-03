@@ -103,11 +103,13 @@ func (db *MongoDB) UpdateUserRanks(ctx context.Context, users []models.User) err
 		now := time.Now()
 
 		historyEntry := bson.M{
-			"rank":           user.Rank,
-			"date":           now,
-			"period":         now.Format("2006-01"),
-			"residual_bonus": user.LastResidualBonus,
-			"points":         user.LastTotalPoints,
+			"rank":               user.Rank,
+			"date":               now,
+			"period":             now.Format("2006-01"),
+			"residual_bonus":     user.LastResidualBonus,
+			"generational_bonus": user.LastGenerationalBonus,
+			"savings_bonus":      user.LastSavingsBonus,
+			"points":             user.LastTotalPoints,
 		}
 
 		update := bson.D{
