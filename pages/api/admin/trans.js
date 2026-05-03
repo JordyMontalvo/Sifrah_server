@@ -3,12 +3,15 @@ import lib from "../../../components/lib";
 import { MongoClient } from "mongodb";
 import { requireAdmin } from "../../../components/adminAuth";
 
-const URL =
+/** Misma resolución que `components/db.js` (Heroku suele exponer solo MONGODB_URI). */
+const mongoConnectionUrl =
   process.env.DB_URL ||
   process.env.MONGODB_URI ||
   "mongodb://localhost:27017";
-const name =
-  process.env.DB_NAME || process.env.DB_NAME_FALLBACK || "sifrah";
+const mongoDbName =
+  process.env.DB_NAME ||
+  process.env.DB_NAME_FALLBACK ||
+  "sifrah";
 
 const { Transaction } = db;
 const { midd, success, rand } = lib;
@@ -28,28 +31,31 @@ export default async (req, res) => {
 
     if (!(filter in q)) return res.json(lib.error("invalid filter"));
 
+    let client;
     try {
-      const client = new MongoClient(URL);
+      client = new MongoClient(mongoConnectionUrl, { useUnifiedTopology: true });
       await client.connect();
-      const db = client.db(name);
+      const database = client.db(mongoDbName);
 
       // Obtener todas las transacciones
-      let transactions = await db
+      let transactions = await database
         .collection("transactions")
         .find(q[filter])
         .toArray();
       console.log("Found transactions:", transactions.length);
 
-      // Obtener todos los IDs de usuarios únicos (sin undefined: Mongo $in puede fallar)
+      // IDs válidos para $in (evita undefined/null en el array)
       const userIds = [
         ...new Set(
-          transactions.flatMap((t) => [t.user_id, t._user_id]).filter(Boolean)
+          transactions
+            .flatMap((t) => [t.user_id, t._user_id])
+            .filter((id) => id != null && id !== "")
         ),
       ];
       console.log("Unique user IDs:", userIds.length);
 
       // Obtener información de usuarios
-      const users = await db
+      const users = await database
         .collection("users")
         .find({ id: { $in: userIds } })
         .toArray();
@@ -128,8 +134,6 @@ export default async (req, res) => {
       const skip = (pageNum - 1) * limitNum;
       const paginatedTransactions = transactions.slice(skip, skip + limitNum);
 
-      client.close();
-
       return res.json(
         success({
           transactions: paginatedTransactions,
@@ -141,6 +145,14 @@ export default async (req, res) => {
     } catch (error) {
       console.error("Database error:", error);
       return res.status(500).json(lib.error("Database error"));
+    } finally {
+      if (client) {
+        try {
+          await client.close();
+        } catch (closeErr) {
+          console.error("Error closing Mongo client (admin/trans):", closeErr);
+        }
+      }
     }
   }
 
