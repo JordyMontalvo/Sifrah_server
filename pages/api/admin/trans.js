@@ -1,19 +1,8 @@
 import db from "../../../components/db";
 import lib from "../../../components/lib";
-import { MongoClient } from "mongodb";
 import { requireAdmin } from "../../../components/adminAuth";
 
-/** Misma resolución que `components/db.js` (Heroku suele exponer solo MONGODB_URI). */
-const mongoConnectionUrl =
-  process.env.DB_URL ||
-  process.env.MONGODB_URI ||
-  "mongodb://localhost:27017";
-const mongoDbName =
-  process.env.DB_NAME ||
-  process.env.DB_NAME_FALLBACK ||
-  "sifrah";
-
-const { Transaction } = db;
+const { Transaction, User } = db;
 const { midd, success, rand } = lib;
 
 export default async (req, res) => {
@@ -26,25 +15,16 @@ export default async (req, res) => {
     console.log("Received request with page:", page, "and limit:", limit);
     console.log("Full query params:", req.query);
     const q = { all: {}, pending: { status: "pending" } };
-    const pageNum = parseInt(page, 10);
-    const limitNum = parseInt(limit, 10);
-
     if (!(filter in q)) return res.json(lib.error("invalid filter"));
 
-    let client;
-    try {
-      client = new MongoClient(mongoConnectionUrl, { useUnifiedTopology: true });
-      await client.connect();
-      const database = client.db(mongoDbName);
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.min(200, Math.max(1, parseInt(limit, 10) || 20));
 
-      // Obtener todas las transacciones
-      let transactions = await database
-        .collection("transactions")
-        .find(q[filter])
-        .toArray();
+    try {
+      // Misma capa de conexión que login / resto del admin (evita URI distinta a la de MongoClient manual).
+      let transactions = await Transaction.find(q[filter]);
       console.log("Found transactions:", transactions.length);
 
-      // IDs válidos para $in (evita undefined/null en el array)
       const userIds = [
         ...new Set(
           transactions
@@ -54,11 +34,10 @@ export default async (req, res) => {
       ];
       console.log("Unique user IDs:", userIds.length);
 
-      // Obtener información de usuarios
-      const users = await database
-        .collection("users")
-        .find({ id: { $in: userIds } })
-        .toArray();
+      const users =
+        userIds.length > 0
+          ? await User.find({ id: { $in: userIds } })
+          : [];
       console.log("Found users:", users.length);
       const userMap = new Map(users.map((u) => [u.id, u]));
 
@@ -145,14 +124,6 @@ export default async (req, res) => {
     } catch (error) {
       console.error("Database error:", error);
       return res.status(500).json(lib.error("Database error"));
-    } finally {
-      if (client) {
-        try {
-          await client.close();
-        } catch (closeErr) {
-          console.error("Error closing Mongo client (admin/trans):", closeErr);
-        }
-      }
     }
   }
 
