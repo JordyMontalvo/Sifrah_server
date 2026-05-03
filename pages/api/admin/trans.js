@@ -3,8 +3,12 @@ import lib from "../../../components/lib";
 import { MongoClient } from "mongodb";
 import { requireAdmin } from "../../../components/adminAuth";
 
-const URL = process.env.DB_URL;
-const name = process.env.DB_NAME;
+const URL =
+  process.env.DB_URL ||
+  process.env.MONGODB_URI ||
+  "mongodb://localhost:27017";
+const name =
+  process.env.DB_NAME || process.env.DB_NAME_FALLBACK || "sifrah";
 
 const { Transaction } = db;
 const { midd, success, rand } = lib;
@@ -36,9 +40,11 @@ export default async (req, res) => {
         .toArray();
       console.log("Found transactions:", transactions.length);
 
-      // Obtener todos los IDs de usuarios únicos
+      // Obtener todos los IDs de usuarios únicos (sin undefined: Mongo $in puede fallar)
       const userIds = [
-        ...new Set(transactions.map((t) => [t.user_id, t._user_id]).flat()),
+        ...new Set(
+          transactions.flatMap((t) => [t.user_id, t._user_id]).filter(Boolean)
+        ),
       ];
       console.log("Unique user IDs:", userIds.length);
 
