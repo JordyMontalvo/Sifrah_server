@@ -2,7 +2,7 @@ import db from "../../../components/db";
 import lib from "../../../components/lib";
 
 const { Audio } = db;
-const { success, error, midd } = lib;
+const { success, error, midd, rand } = lib;
 
 export default async (req, res) => {
     await midd(req, res);
