@@ -37,6 +37,21 @@ const U = [
   "affiliation_points",
 ];
 
+/** Campos del patrocinador expuestos al admin (evita filtrar `parent` con `model(user, U)`). */
+const PARENT_PUBLIC = ["id", "name", "lastName", "dni"];
+
+/** Incluye variantes número/string para `$in` en MongoDB (IDs inconsistentes entre colecciones). */
+function expandIdsForIn(ids) {
+  const out = new Set();
+  for (const id of ids) {
+    if (id == null || id === "") continue;
+    out.add(id);
+    const n = Number(id);
+    if (!Number.isNaN(n)) out.add(n);
+  }
+  return [...out];
+}
+
 function periodFromDate(dateValue) {
   const d = new Date(dateValue || new Date());
   if (isNaN(d.getTime())) return null;
@@ -259,8 +274,14 @@ const handler = async (req, res) => {
     let users = allUsers.slice(skip, skip + limitNum);
 
     // Obtener los padres antes de usarlos
-    const parentIds = users.filter((i) => i.parentId).map((i) => i.parentId);
-    const parents = await User.find({ id: { $in: parentIds } });
+    const rawParentIds = users
+      .filter((i) => i.parentId != null && i.parentId !== "")
+      .map((i) => i.parentId);
+    const parentIds = expandIdsForIn([...new Set(rawParentIds)]);
+    const parents =
+      parentIds.length > 0
+        ? await User.find({ id: { $in: parentIds } })
+        : [];
 
     // Asegúrate de que los padres se obtengan antes de usarlos
     users = users.map((user) => {
@@ -336,6 +357,8 @@ const handler = async (req, res) => {
       // Asegurar que virtualbalance y sifrahbalance siempre sean un número
       u.virtualbalance = user.virtualbalance != null ? Number(user.virtualbalance) : 0;
       u.sifrahbalance = user.sifrahbalance != null ? Number(user.sifrahbalance) : 0;
+      // `parent` no está en U; sin esto la API nunca envía patrocinador al admin.
+      if (user.parent) u.parent = model(user.parent, PARENT_PUBLIC);
       return { ...u };
     });
     // Cambia esto para obtener todos los usuarios
