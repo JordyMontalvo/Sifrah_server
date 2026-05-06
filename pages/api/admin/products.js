@@ -39,6 +39,10 @@ export default async (req, res) => {
         _plans,
         _weight,
         _prices,
+        is_savings_bonus = false,
+        savings_price = 0,
+        savings_description = "",
+        savings_img = "",
       } = req.body.data;
 
       // Get all plans from database
@@ -64,6 +68,10 @@ export default async (req, res) => {
           plans: plansObject,
           weight: _weight,
           prices: _prices,
+          is_savings_bonus,
+          savings_price,
+          savings_description,
+          savings_img,
         }
       );
     }
@@ -81,6 +89,10 @@ export default async (req, res) => {
         plans,
         weight,
         prices,
+        is_savings_bonus = false,
+        savings_price = 0,
+        savings_description = "",
+        savings_img = "",
       } = req.body.data;
 
       // Get all plans from database
@@ -105,6 +117,10 @@ export default async (req, res) => {
         plans: plansObject,
         weight,
         prices,
+        is_savings_bonus,
+        savings_price,
+        savings_description,
+        savings_img,
       });
     }
 
