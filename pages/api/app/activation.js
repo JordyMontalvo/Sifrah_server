@@ -95,9 +95,16 @@ export default async (req, res) => {
   console.log(user.plan)
 
   // get plans
-  let _products = await Product.find({})
+  const isSavingsBonusFilter = req.query.type === 'savings_bonus'
+  
+  const productFilter = {}
+  if (isSavingsBonusFilter) {
+    productFilter.is_savings_bonus = true
+  }
 
-  if (!user.activated) {
+  let _products = await Product.find(productFilter)
+
+  if (!user.activated && !isSavingsBonusFilter) {
     _products = _products.filter((p) => p.type != 'Promoción')
   }
 
