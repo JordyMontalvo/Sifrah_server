@@ -9,12 +9,11 @@ export function middleware(request) {
     'http://localhost:8081',  // Admin Vue.js
     'http://localhost:8080',  // Admin alternativo
     'http://localhost:3000',  // Servidor
-    'http://127.0.0.1:8081', // Admin IP local
-    'http://127.0.0.1:3000'  // Servidor IP local
   ];
 
-  // Verificar si el origen está permitido
-  const isAllowedOrigin = allowedOrigins.includes(origin) || origin === '';
+  // Solo permitir orígenes en desarrollo o si son explícitamente confiables
+  const isAllowedOrigin = allowedOrigins.includes(origin);
+  const isProduction = process.env.NODE_ENV === 'production';
 
   // Configurar headers de CORS
   const response = NextResponse.next();
@@ -24,12 +23,14 @@ export function middleware(request) {
   response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
   response.headers.set('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization, sentry-trace, baggage');
   
-  // Configurar origen permitido
-  if (isAllowedOrigin) {
-    response.headers.set('Access-Control-Allow-Origin', origin || '*');
-  } else {
+  // Configurar origen permitido de forma estricta
+  if (origin && isAllowedOrigin) {
+    response.headers.set('Access-Control-Allow-Origin', origin);
+  } else if (!isProduction) {
+    // En desarrollo, fallback a localhost
     response.headers.set('Access-Control-Allow-Origin', 'http://localhost:8081');
   }
+  // En producción, si no está en allowedOrigins, no se envía el header (bloqueo por CORS)
 
   // Manejar preflight requests
   if (request.method === 'OPTIONS') {

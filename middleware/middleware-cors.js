@@ -28,12 +28,8 @@ function corsMiddleware(req, res, next) {
   if (origin && allowedOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   } 
-  // En producción, permitir cualquier origen que venga en la request
-  else if (process.env.NODE_ENV === 'production' && origin) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-  } 
-  // En desarrollo, usar localhost:8081 por defecto
-  else {
+  // En desarrollo, usar localhost:8081 por defecto si no está en la lista
+  else if (process.env.NODE_ENV !== 'production') {
     res.setHeader('Access-Control-Allow-Origin', 'http://localhost:8081');
   }
   
@@ -58,12 +54,8 @@ function applyCORS(req, res) {
   if (origin && allowedOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   } 
-  // En producción, permitir cualquier origen que venga en la request
-  else if (process.env.NODE_ENV === 'production' && origin) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-  } 
-  // En desarrollo, usar localhost:8081 por defecto
-  else {
+  // En desarrollo, usar localhost:8081 por defecto si no está en la lista
+  else if (process.env.NODE_ENV !== 'production') {
     res.setHeader('Access-Control-Allow-Origin', 'http://localhost:8081');
   }
   
