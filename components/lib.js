@@ -91,6 +91,92 @@ class Lib {
     return ret;
   }
 
+  /** Misma ventana de periodo (period_key o mismo mes calendario de aprobación). */
+  isSameAffiliationPeriod(aff, periodKey, refDate) {
+    if (!aff) return false;
+    const affPeriod = aff.period_key;
+    const affDateRaw = aff.approved_at || aff.date;
+    const affDate = affDateRaw ? new Date(affDateRaw) : null;
+    const ref = refDate ? new Date(refDate) : null;
+
+    const sameCalendarMonth =
+      ref &&
+      affDate &&
+      !isNaN(ref.getTime()) &&
+      !isNaN(affDate.getTime()) &&
+      affDate.getFullYear() === ref.getFullYear() &&
+      affDate.getMonth() === ref.getMonth();
+
+    if (periodKey && affPeriod) {
+      return affPeriod === periodKey || sameCalendarMonth;
+    }
+    if (sameCalendarMonth) return true;
+    return !periodKey && !affPeriod;
+  }
+
+  sortAffiliationsByApprovalDesc(affiliations) {
+    return [...(affiliations || [])].sort((a, b) => {
+      const da = new Date(a.approved_at || a.date || 0).getTime();
+      const db = new Date(b.approved_at || b.date || 0).getTime();
+      return db - da;
+    });
+  }
+
+  /**
+   * Suma puntos de afiliación de todas las afiliaciones aprobadas en el mismo periodo.
+   * Si el usuario migra de paquete dentro del mes, acumula 450 + 900, etc.
+   */
+  async sumApprovedAffiliationPointsInPeriod(
+    Affiliation,
+    userId,
+    periodKey,
+    refDate,
+    excludeId = null
+  ) {
+    const approved = await Affiliation.find({ userId, status: "approved" });
+    let total = 0;
+    for (const aff of approved || []) {
+      if (excludeId && aff.id === excludeId) continue;
+      if (!this.isSameAffiliationPeriod(aff, periodKey, refDate)) continue;
+      total += Number(aff.plan?.affiliation_points) || 0;
+    }
+    return total;
+  }
+
+  /** Afiliación aprobada más reciente (plan vigente). */
+  async getLatestApprovedAffiliation(Affiliation, userId) {
+    const approved = await Affiliation.find({ userId, status: "approved" });
+    const sorted = this.sortAffiliationsByApprovalDesc(approved);
+    return sorted[0] || null;
+  }
+
+  /**
+   * Calcula puntos acumulados del periodo y datos del plan según la última afiliación aprobada.
+   */
+  async resolveUserAffiliationState(Affiliation, userId, periodKey, refDate) {
+    const latest = await this.getLatestApprovedAffiliation(Affiliation, userId);
+    if (!latest) return null;
+
+    const pk = periodKey != null ? periodKey : latest.period_key;
+    const rd = refDate != null ? refDate : latest.approved_at || latest.date;
+    const affiliation_points = await this.sumApprovedAffiliationPointsInPeriod(
+      Affiliation,
+      userId,
+      pk,
+      rd
+    );
+
+    return {
+      affiliated: true,
+      _activated: true,
+      activated: true,
+      plan: latest.plan.id,
+      n: latest.plan.n,
+      affiliation_points,
+      affiliation_date: latest.approved_at || latest.date,
+    };
+  }
+
   // Actualiza total_points de un nodo y propaga hacia arriba
   async updateTotalPointsCascade(User, Tree, userId) {
     // 1. Obtener el nodo del árbol

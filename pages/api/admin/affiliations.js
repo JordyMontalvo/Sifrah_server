@@ -475,8 +475,15 @@ const handler = async (req, res) => {
         period_label: approvedPeriodLabel,
       });
 
-      // update USER
+      // update USER — acumular puntos de afiliación del mismo periodo (migraciones en el mes)
       const user = await User.findOne({ id: affiliation.userId });
+
+      const affiliation_points = await lib.sumApprovedAffiliationPointsInPeriod(
+        Affiliation,
+        user.id,
+        approvedPeriodKey,
+        approvedAt
+      );
 
       await User.update(
         { id: user.id },
@@ -484,10 +491,10 @@ const handler = async (req, res) => {
           affiliated: true,
           _activated: true,
           activated: true,
-          affiliation_date: new Date(),
+          affiliation_date: approvedAt,
           plan: affiliation.plan.id,
           n: affiliation.plan.n,
-          affiliation_points: affiliation.plan.affiliation_points,
+          affiliation_points,
         }
       );
 
@@ -607,25 +614,16 @@ const handler = async (req, res) => {
           await Office.update({ id: office_id }, { products: office.products });
         }
 
-        // Revertir estado del USUARIO: volver a la última afiliación aprobada (excluyendo esta)
-        const prevApproved = await Affiliation.findOne(
-          { userId: user.id, status: "approved", id: { $ne: affiliation.id } },
-          { sort: { date: -1 } }
+        // Revertir estado del USUARIO: recalcular suma del periodo (no solo el último paquete)
+        const userState = await lib.resolveUserAffiliationState(
+          Affiliation,
+          user.id,
+          affiliation.period_key,
+          affiliation.approved_at || affiliation.date
         );
 
-        if (prevApproved) {
-          await User.update(
-            { id: user.id },
-            {
-              affiliated: true,
-              _activated: true,
-              activated: true,
-              plan: prevApproved.plan.id,
-              n: prevApproved.plan.n,
-              affiliation_points: prevApproved.plan.affiliation_points,
-              affiliation_date: prevApproved.date,
-            }
-          );
+        if (userState) {
+          await User.update({ id: user.id }, userState);
         } else {
           await User.update(
             { id: user.id },
@@ -668,24 +666,18 @@ const handler = async (req, res) => {
         await Transaction.delete({ id });
       }
 
-      const affiliations = await Affiliation.find({
-        userId: user.id,
-        status: "approved",
-      });
+      const userState = await lib.resolveUserAffiliationState(
+        Affiliation,
+        user.id
+      );
 
-      if (affiliations.length) {
-        affiliation = affiliations[affiliations.length - 1];
-
+      if (userState) {
         await User.update(
           { id: user.id },
           {
-            // affiliated: false,
+            ...userState,
             _activated: false,
             activated: false,
-            plan: affiliation.plan.id,
-            affiliation_date: affiliation.date,
-            affiliation_points: affiliation.plan.affiliation_points,
-            n: affiliation.plan.n,
           }
         );
       } else {
