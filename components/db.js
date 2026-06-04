@@ -33,6 +33,7 @@ class DB {
     BookCategory,
     RankBonusPayment,
     AgendaEvent,
+    AuditLog,
   }) {
     this.User = User;
     this.Session = Session;
@@ -62,6 +63,33 @@ class DB {
     this.BookCategory = BookCategory;
     this.RankBonusPayment = RankBonusPayment;
     this.AgendaEvent = AgendaEvent;
+    this.AuditLog = AuditLog;
+  }
+}
+
+class AuditLog {
+  async findOne(query) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    const log = await db.collection("audit_logs").findOne(query);
+    client.close();
+    return log;
+  }
+  async find(query, sort = { date: -1 }) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    const logs = await db.collection("audit_logs").find(query).sort(sort).toArray();
+    client.close();
+    return logs;
+  }
+  async insert(log) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    await db.collection("audit_logs").insertOne(log);
+    return client.close();
   }
 }
 
@@ -1183,4 +1211,5 @@ module.exports = new DB({
   Book: new Book(),
   BookCategory: new BookCategory(),
   AgendaEvent: new AgendaEvent(),
+  AuditLog: new AuditLog(),
 });

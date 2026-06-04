@@ -6,7 +6,7 @@ import { requireAdmin } from "../../../components/adminAuth";
 const URL = process.env.DB_URL; // Asegúrate de que esta variable esté definida correctamente
 const name = process.env.DB_NAME;
 
-const { Activation, Affiliation, User, Tree, Token, Office, Transaction, Closed, Period } = db;
+const { Activation, Affiliation, User, Tree, Token, Office, Transaction, Closed, Period, AuditLog } = db;
 const { error, success, midd, ids, map, model, rand } = lib;
 
 /**
@@ -512,6 +512,16 @@ export default async (req, res) => {
         }
       }
 
+      await lib.createAuditLog(AuditLog, {
+        collection: "activations",
+        action: "approve",
+        target_id: id,
+        user_id: user.id,
+        admin_id: auth.user.id,
+        state_before: { points: wasActivatedBefore ? user.points : user.points - activation.points, activated: wasActivatedBefore },
+        state_after: { points: points_total, activated: activated }
+      });
+
       // response
       return res.json(success());
     }
@@ -526,6 +536,14 @@ export default async (req, res) => {
           await Transaction.delete({ id: transactionId });
         }
       }
+
+      await lib.createAuditLog(AuditLog, {
+        collection: "activations",
+        action: "reject",
+        target_id: id,
+        user_id: activation.userId,
+        admin_id: auth.user.id
+      });
 
       // response
       return res.json(success());
@@ -583,6 +601,16 @@ export default async (req, res) => {
           }
         );
       }
+
+      await lib.createAuditLog(AuditLog, {
+        collection: "activations",
+        action: "revert",
+        target_id: id,
+        user_id: user.id,
+        admin_id: auth.user.id,
+        state_before: { points: user.points + activation.points, activated: true }, // rough estimate
+        state_after: { points: user.points, activated: activated }
+      });
     }
 
     if (action == "change") {
@@ -648,6 +676,14 @@ export default async (req, res) => {
         );
       }
       
+      await lib.createAuditLog(AuditLog, {
+        collection: "activations",
+        action: "cancel",
+        target_id: id,
+        user_id: activation.userId,
+        admin_id: auth.user.id
+      });
+
       return res.json(success({ message: "Activación anulada correctamente" }));
     }
 

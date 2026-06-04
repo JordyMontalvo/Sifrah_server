@@ -119,6 +119,7 @@ const {
   Closed,
   Period,
   Activation,
+  AuditLog,
 } = db;
 const { error, success, midd, ids, parent_ids, map, model, rand } = lib;
 
@@ -263,7 +264,7 @@ async function pay_bonus(
 
 const processingAffiliations = new Set();
 
-const handler = async (req, res) => {
+const handler = async (req, res, auth) => {
   if (req.method == "GET") {
     // Obtener parámetros de paginación
     const { filter, page = 1, limit = 20, search } = req.query;
@@ -564,6 +565,15 @@ const handler = async (req, res) => {
         console.error('[Affiliations] Error enviando email SIFRAH:', emailError.message);
       }
 
+      await lib.createAuditLog(AuditLog, {
+        collection: "affiliations",
+        action: "approve",
+        target_id: id,
+        user_id: user.id,
+        admin_id: auth ? auth.user.id : null,
+        state_after: { points: user.points, affiliation_points: affiliation_points, plan: affiliation.plan.id }
+      });
+
       return res.json(success());
     }
 
@@ -576,6 +586,14 @@ const handler = async (req, res) => {
           await Transaction.delete({ id: transactionId });
         }
       }
+
+      await lib.createAuditLog(AuditLog, {
+        collection: "affiliations",
+        action: "reject",
+        target_id: id,
+        user_id: affiliation.userId,
+        admin_id: auth ? auth.user.id : null
+      });
     }
 
     if (action == "cancel") {
@@ -642,6 +660,14 @@ const handler = async (req, res) => {
         // Recalcular total_points
         await lib.updateTotalPointsCascade(User, Tree, user.id);
       }
+
+      await lib.createAuditLog(AuditLog, {
+        collection: "affiliations",
+        action: "cancel",
+        target_id: id,
+        user_id: affiliation.userId,
+        admin_id: auth ? auth.user.id : null
+      });
     }
 
     if (action == "check") {
@@ -712,6 +738,14 @@ const handler = async (req, res) => {
           products: office.products,
         }
       );
+
+      await lib.createAuditLog(AuditLog, {
+        collection: "affiliations",
+        action: "revert",
+        target_id: id,
+        user_id: user.id,
+        admin_id: auth ? auth.user.id : null
+      });
     }
 
     return res.json(success());
@@ -727,5 +761,5 @@ export default async (req, res) => {
   await midd(req, res);
   const auth = await requireAdmin(req, res);
   if (!auth) return;
-  return handler(req, res);
+  return handler(req, res, auth);
 };

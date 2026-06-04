@@ -91,6 +91,15 @@ class Lib {
     return ret;
   }
 
+  async createAuditLog(AuditLog, payload) {
+    if (!AuditLog) return;
+    await AuditLog.insert({
+      id: this.rand(),
+      date: new Date(),
+      ...payload
+    });
+  }
+
   /** Misma ventana de periodo (period_key o mismo mes calendario de aprobación). */
   isSameAffiliationPeriod(aff, periodKey, refDate) {
     if (!aff) return false;
