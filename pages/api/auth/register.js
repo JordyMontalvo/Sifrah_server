@@ -17,52 +17,111 @@ const Register = async (req, res) => {
 
   code = code.trim().toUpperCase()
 
-  const user = await User.findOne({ dni })
+  const existingUser = await User.findOne({ dni })
 
-  // valid dni
-  if(user) return res.json(error('dni already use'))
-  
-  // Validar que el email no esté en uso
+  // Si el DNI ya existe y el usuario NO está eliminado → bloquear
+  if (existingUser && existingUser.status !== 'eliminated') {
+    return res.json(error('dni already use'))
+  }
+
+  // Validar que el email no esté en uso por OTRO usuario distinto
   if (email) {
     const existingEmail = await User.findOne({ email })
-    if(existingEmail) return res.json(error('email already use'))
+    if (existingEmail && (!existingUser || existingEmail.id !== existingUser.id)) {
+      return res.json(error('email already use'))
+    }
   }
-  
+
   const parent = await User.findOne({ token: code })
 
   // valid code
   if(!parent) return res.json(error('code not found'))
 
-  
   password = await bcrypt.hash(password, 12)
 
+  // ── RE-REGISTRO: usuario eliminado que vuelve ──────────────────────────────
+  if (existingUser && existingUser.status === 'eliminated') {
+    const session = rand() + rand() + rand()
 
-  const      id  = rand() + rand() + rand()
-  const session  = rand() + rand() + rand()
+    // Generar nuevo token único
+    let token = null
+    let attempts = 0
+    while (!token && attempts < 10) {
+      const generatedToken = lib.generateToken()
+      const existingToken = await User.findOne({ token: generatedToken })
+      if (!existingToken) token = generatedToken
+      attempts++
+    }
+    if (!token) return res.json(error('unable to generate unique token'))
 
+    // Resetear el documento conservando el id (historial de auditoría intacto)
+    await User.update({ id: existingUser.id }, {
+      date: new Date(),
+      country,
+      name,
+      lastName,
+      birthdate: date,
+      email,
+      password,
+      phone,
+      department,
+      province,
+      district,
+      parentId:     parent.id,
+      affiliated:   false,
+      _activated:   false,
+      activated:    false,
+      plan:         'default',
+      points:       0,
+      token,
+      status:       'active',       // quitar estado eliminado
+      eliminated_at: null,
+      reregistered_at: new Date(),
+    })
+
+    // Cerrar sesiones viejas y crear sesión nueva
+    await Session.deleteMany({ id: existingUser.id })
+    await Session.insert({ id: existingUser.id, value: session })
+
+    // Reparar nodo en el árbol: insertar bajo el nuevo patrocinador
+    const _id = parent.coverage && parent.coverage.id ? parent.coverage.id : parent.id
+    let parentNode = await Tree.findOne({ id: _id })
+    if (parentNode && !parentNode.childs.includes(existingUser.id)) {
+      parentNode.childs.push(existingUser.id)
+      await Tree.update({ id: _id }, { childs: parentNode.childs })
+    }
+    // Actualizar o insertar el nodo propio del usuario
+    const ownNode = await Tree.findOne({ id: existingUser.id })
+    if (ownNode) {
+      await Tree.update({ id: existingUser.id }, { parent: _id, childs: ownNode.childs || [] })
+    } else {
+      await Tree.insert({ id: existingUser.id, childs: [], parent: _id })
+    }
+
+    return res.json(success({
+      session,
+      affiliated: false,
+      reregistered: true
+    }))
+  }
+
+  // ── REGISTRO NUEVO ─────────────────────────────────────────────────────────
+  const id      = rand() + rand() + rand()
+  const session = rand() + rand() + rand()
 
   // Generate a unique token dynamically (instead of using a pre-generated pool)
   let token = null
   let attempts = 0
   const maxAttempts = 10
-  
+
   while (!token && attempts < maxAttempts) {
     const generatedToken = lib.generateToken()
-    
-    // Check if token already exists
     const existingToken = await User.findOne({ token: generatedToken })
-    
-    if (!existingToken) {
-      token = generatedToken
-    }
+    if (!existingToken) token = generatedToken
     attempts++
   }
-  
-  // If we couldn't generate a unique token after max attempts, return error
-  if (!token) {
-    return res.json(error('unable to generate unique token'))
-  }
 
+  if (!token) return res.json(error('unable to generate unique token'))
 
   await User.insert({
     id,
@@ -85,22 +144,18 @@ const Register = async (req, res) => {
     plan:      'default',
     photo:     'https://ik.imagekit.io/asu/impulse/avatar_cWVgh_GNP.png',
     points: 0,
-    // tree: false,
     tree: true,
     token: token,
   })
-  
+
   // save new session
   await Session.insert({
     id: id,
     value: session,
   })
 
-
   // insert to tree
-  // Usar parent.id directamente (ya no se usa apalancamiento/coverage)
-  // Si el parent tiene coverage, usar ese ID; si no, usar parent.id
-  const _id = parent.coverage?.id || parent.id
+  const _id = parent.coverage && parent.coverage.id ? parent.coverage.id : parent.id
   let node = await Tree.findOne({ id: _id })
 
   node.childs.push(id)
@@ -108,11 +163,10 @@ const Register = async (req, res) => {
   await Tree.update({ id: _id }, { childs: node.childs })
   await Tree.insert({ id:  id, childs: [], parent: _id })
 
-
   // response
-  return res.json(success({ 
+  return res.json(success({
     session,
-    affiliated: false  // El usuario recién registrado aún no está afiliado
+    affiliated: false
   }))
 }
 
