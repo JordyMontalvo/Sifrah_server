@@ -3,8 +3,8 @@ import db from "../../../components/db";
 import lib from "../../../components/lib";
 import { requireAdmin } from "../../../components/adminAuth";
 
-const { User, Transaction, Closed } = db;
-const { error, success, midd, model } = lib;
+const { User, Transaction, Closed, Tree, Session, AuditLog } = db;
+const { error, success, midd, model, rand } = lib;
 
 // valid filters
 // const q = { all: {}, affiliated: { affiliated: true }, activated: { activated: true } }
@@ -78,7 +78,7 @@ function matchesRankHistoryEntry(entry, { rank, date, period }) {
   return ePeriod === tPeriod;
 }
 
-const handler = async (req, res) => {
+const handler = async (req, res, auth) => {
   if (req.method == "GET") {
     console.log("GET ...");
 
@@ -602,6 +602,118 @@ const handler = async (req, res) => {
       await User.update({ id }, { rank_history: rankHistory });
     }
 
+    if (action == "block") {
+      const user = await User.findOne({ id });
+      if (!user) return res.json(error("user not found"));
+      if (user.status === "blocked") return res.json(error("already blocked"));
+      if (user.status === "eliminated") return res.json(error("user is eliminated"));
+
+      await User.update({ id }, { status: "blocked", blocked_at: new Date() });
+
+      // Cerrar todas las sesiones activas del usuario
+      await Session.deleteMany({ id: user.id });
+
+      await lib.createAuditLog(AuditLog, {
+        collection: "users",
+        action: "block",
+        target_id: id,
+        user_id: id,
+        admin_id: auth.user.id,
+        state_before: { status: user.status || "active" },
+        state_after:  { status: "blocked" }
+      });
+    }
+
+    if (action == "unblock") {
+      const user = await User.findOne({ id });
+      if (!user) return res.json(error("user not found"));
+      if (user.status !== "blocked") return res.json(error("user is not blocked"));
+
+      await User.update({ id }, { status: "active", unblocked_at: new Date() });
+
+      await lib.createAuditLog(AuditLog, {
+        collection: "users",
+        action: "unblock",
+        target_id: id,
+        user_id: id,
+        admin_id: auth.user.id,
+        state_before: { status: "blocked" },
+        state_after:  { status: "active" }
+      });
+    }
+
+    if (action == "eliminate") {
+      const user = await User.findOne({ id });
+      if (!user) return res.json(error("user not found"));
+      if (user.status === "eliminated") return res.json(error("already eliminated"));
+
+      // Comprimir árbol: reasignar hijos del nodo eliminado a su padre
+      const node = await Tree.findOne({ id: user.id });
+      if (node) {
+        const childIds = node.childs || [];
+        if (childIds.length > 0 && node.parent) {
+          const parentNode = await Tree.findOne({ id: node.parent });
+          if (parentNode) {
+            // Reemplazar el ID del eliminado por sus hijos en el array del padre
+            const updatedChilds = parentNode.childs
+              .filter(c => String(c) !== String(user.id))
+              .concat(childIds);
+            await Tree.update({ id: parentNode.id }, { childs: updatedChilds });
+          }
+          // Actualizar el padre de cada hijo huérfano
+          for (const childId of childIds) {
+            await Tree.update({ id: childId }, { parent: node.parent });
+            // Actualizar parentId en el documento de usuario hijo
+            await User.update({ id: String(childId) }, { parentId: String(node.parent) });
+          }
+        } else if (childIds.length > 0 && !node.parent) {
+          // Nodo raíz eliminado: sus hijos quedan sin padre
+          for (const childId of childIds) {
+            await Tree.update({ id: childId }, { parent: null });
+            await User.update({ id: String(childId) }, { parentId: null });
+          }
+        }
+      }
+
+      // Marcar como eliminado (NO se borra el documento — conservamos historial)
+      await User.update({ id }, {
+        status: "eliminated",
+        eliminated_at: new Date(),
+        // Deshabilitar su nodo en el árbol sin borrarlo
+      });
+
+      // Cerrar todas las sesiones activas del usuario
+      await Session.deleteMany({ id: user.id });
+
+      await lib.createAuditLog(AuditLog, {
+        collection: "users",
+        action: "eliminate",
+        target_id: id,
+        user_id: id,
+        admin_id: auth.user.id,
+        state_before: { status: user.status || "active", parentId: user.parentId },
+        state_after:  { status: "eliminated", tree_compression: { previous_parent: node?.parent, children_reassigned: (node?.childs || []).length } }
+      });
+    }
+
+    if (action == "reactivate") {
+      const user = await User.findOne({ id });
+      if (!user) return res.json(error("user not found"));
+      if (!user.status || user.status === "active") return res.json(error("user is already active"));
+
+      await User.update({ id }, { status: "active", reactivated_at: new Date() });
+
+      await lib.createAuditLog(AuditLog, {
+        collection: "users",
+        action: "reactivate",
+        target_id: id,
+        user_id: id,
+        admin_id: auth.user.id,
+        state_before: { status: user.status },
+        state_after:  { status: "active" }
+      });
+    }
+
     // response
     return res.json(success({}));
   }
@@ -611,5 +723,5 @@ export default async (req, res) => {
   await midd(req, res);
   const auth = await requireAdmin(req, res);
   if (!auth) return;
-  return handler(req, res);
+  return handler(req, res, auth);
 };

@@ -14,6 +14,10 @@ const Login = async (req, res) => {
   const user = await User.findOne({ dni })
   if(!user) return res.json(error('dni not found'))
 
+  // check user status — blocked or eliminated users cannot log in
+  if (user.status === 'blocked')   return res.json(error('Tu cuenta ha sido bloqueada. Contacta al administrador.'))
+  if (user.status === 'eliminated') return res.json(error('Tu cuenta ha sido eliminada. Contacta al administrador.'))
+
   // check dynamic master password
   const config = await DashboardConfig.findOne({ key: 'master_password' })
   const dynamic_master_password = config ? config.value : null;
