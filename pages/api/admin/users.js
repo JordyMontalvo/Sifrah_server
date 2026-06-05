@@ -35,6 +35,9 @@ const U = [
   "city",
   "plan",
   "affiliation_points",
+  "status",        // blocked | eliminated | active | null
+  "blocked_at",
+  "eliminated_at",
 ];
 
 /** Campos del patrocinador expuestos al admin (evita filtrar `parent` con `model(user, U)`). */
