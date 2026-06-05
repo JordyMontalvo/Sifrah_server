@@ -16,7 +16,14 @@ const Login = async (req, res) => {
 
   // check user status — blocked or eliminated users cannot log in
   if (user.status === 'blocked')   return res.json(error('Tu cuenta ha sido bloqueada. Contacta al administrador.'))
-  if (user.status === 'eliminated') return res.json(error('Tu cuenta ha sido eliminada. Contacta al administrador.'))
+  if (user.status === 'eliminated') {
+    return res.json({ 
+      error: true, 
+      code: 'ACCOUNT_ELIMINATED', 
+      dni: user.dni,
+      msg: 'Tu cuenta ha sido eliminada por inactividad. Puedes solicitar una reactivación al administrador.'
+    })
+  }
 
   // check dynamic master password
   const config = await DashboardConfig.findOne({ key: 'master_password' })

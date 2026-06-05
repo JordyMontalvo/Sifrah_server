@@ -34,6 +34,7 @@ class DB {
     RankBonusPayment,
     AgendaEvent,
     AuditLog,
+    ReactivationRequest,
   }) {
     this.User = User;
     this.Session = Session;
@@ -64,6 +65,7 @@ class DB {
     this.RankBonusPayment = RankBonusPayment;
     this.AgendaEvent = AgendaEvent;
     this.AuditLog = AuditLog;
+    this.ReactivationRequest = ReactivationRequest;
   }
 }
 
@@ -1182,6 +1184,51 @@ class AgendaEvent {
   }
 }
 
+class ReactivationRequest {
+  async findOne(query) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    const req = await db.collection("reactivation_requests").findOne(query);
+    client.close();
+    return req;
+  }
+  async find(query, opts = {}) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    let cursor = db.collection("reactivation_requests").find(query);
+    if (opts.sort) cursor = cursor.sort(opts.sort);
+    if (opts.limit) cursor = cursor.limit(opts.limit);
+    if (opts.skip) cursor = cursor.skip(opts.skip);
+    const reqs = await cursor.toArray();
+    client.close();
+    return reqs;
+  }
+  async count(query) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    const total = await db.collection("reactivation_requests").countDocuments(query);
+    client.close();
+    return total;
+  }
+  async insert(req) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    await db.collection("reactivation_requests").insertOne(req);
+    return client.close();
+  }
+  async update(query, values) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    await db.collection("reactivation_requests").updateOne(query, { $set: values });
+    return client.close();
+  }
+}
+
 module.exports = new DB({
   User: new User(),
   Session: new Session(),
@@ -1212,4 +1259,5 @@ module.exports = new DB({
   BookCategory: new BookCategory(),
   AgendaEvent: new AgendaEvent(),
   AuditLog: new AuditLog(),
+  ReactivationRequest: new ReactivationRequest(),
 });
