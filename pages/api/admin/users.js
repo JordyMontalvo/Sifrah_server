@@ -106,6 +106,8 @@ const handler = async (req, res, auth) => {
       all: {},
       affiliated: { affiliated: true },
       activated: { activated: true },
+      blocked: { status: 'blocked' },
+      eliminated: { status: 'eliminated' },
     };
 
     // validate filter
