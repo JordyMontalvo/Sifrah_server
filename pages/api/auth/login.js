@@ -15,7 +15,13 @@ const Login = async (req, res) => {
   if(!user) return res.json(error('dni not found'))
 
   // check user status — blocked or eliminated users cannot log in
-  if (user.status === 'blocked')   return res.json(error('Tu cuenta ha sido bloqueada. Contacta al administrador.'))
+  if (user.status === 'blocked') {
+    return res.json({ 
+      error: true, 
+      code: 'ACCOUNT_BLOCKED', 
+      msg: 'Tu cuenta ha sido bloqueada. Contacta al soporte o administrador para más detalles.'
+    })
+  }
   if (user.status === 'eliminated') {
     return res.json({ 
       error: true, 
