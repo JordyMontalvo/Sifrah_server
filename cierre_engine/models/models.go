@@ -19,6 +19,11 @@ type User struct {
 	LastName          string    `bson:"lastName" json:"lastName"`
 	ParentID          string    `bson:"parentId" json:"parentId"`
 	Plan              string    `bson:"plan" json:"plan"`
+	Email             string    `bson:"email" json:"email"`
+	Phone             string    `bson:"phone" json:"phone"`
+	Status            string    `bson:"status" json:"status"`
+	StatusReason      string    `bson:"statusReason" json:"statusReason"`
+	NInactives        int       `bson:"n_inactives" json:"n_inactives"`
 	Points            float64   `bson:"points" json:"points"`
 	AffiliationPoints float64   `bson:"affiliation_points" json:"affiliation_points"`
 	Activated         bool      `bson:"activated" json:"activated"`

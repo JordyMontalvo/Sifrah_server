@@ -309,6 +309,42 @@ func main() {
 		user.LastGenerationalBonus = genTotal
 		user.LastSavingsBonus      = savTotal
 
+		// Elimination logic
+		if user.Status != "eliminated" {
+			if !user.Affiliated {
+				user.Status = "eliminated"
+				user.StatusReason = "Cierre automático: Usuario no afiliado"
+				ts := time.Now().Unix()
+				user.DNI = fmt.Sprintf("del_%d_%s", ts, user.DNI)
+				if user.Email != "" {
+					user.Email = fmt.Sprintf("del_%d_%s", ts, user.Email)
+				}
+				if user.Phone != "" {
+					user.Phone = fmt.Sprintf("del_%d_%s", ts, user.Phone)
+				}
+				user.Name = user.Name + " (Eliminado)"
+			} else {
+				if calculatedTotalPoints == 0 {
+					user.NInactives++
+					if user.NInactives >= 6 {
+						user.Status = "eliminated"
+						user.StatusReason = "Cierre automático: Inactividad de 6 meses"
+						ts := time.Now().Unix()
+						user.DNI = fmt.Sprintf("del_%d_%s", ts, user.DNI)
+						if user.Email != "" {
+							user.Email = fmt.Sprintf("del_%d_%s", ts, user.Email)
+						}
+						if user.Phone != "" {
+							user.Phone = fmt.Sprintf("del_%d_%s", ts, user.Phone)
+						}
+						user.Name = user.Name + " (Eliminado)"
+					}
+				} else {
+					user.NInactives = 0
+				}
+			}
+		}
+
 		// Update for DB (cycle reset as per users.js)
 		user.Rank              = rank
 		user.TotalPoints       = 0

@@ -10,10 +10,10 @@ const ReactivateRequest = async (req, res) => {
   if (!dni) return res.json(error('DNI es requerido'))
   if (!reason || reason.trim() === '') return res.json(error('Debes proporcionar un motivo'))
 
-  // Verificar que el usuario exista y esté eliminado
+  // Verificar que el usuario exista y esté bloqueado
   const user = await User.findOne({ dni })
   if (!user) return res.json(error('Usuario no encontrado'))
-  if (user.status !== 'eliminated') return res.json(error('Este usuario no está eliminado'))
+  if (user.status !== 'blocked') return res.json(error('Este usuario no está bloqueado'))
 
   // Validar patrocinador si se proporcionó
   let new_sponsor = null

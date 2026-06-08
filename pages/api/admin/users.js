@@ -613,7 +613,13 @@ const handler = async (req, res, auth) => {
       if (user.status === "blocked") return res.json(error("already blocked"));
       if (user.status === "eliminated") return res.json(error("user is eliminated"));
 
-      await User.update({ id }, { status: "blocked", blocked_at: new Date() });
+      const { reason } = req.body.data || {};
+
+      await User.update({ id }, { 
+        status: "blocked", 
+        statusReason: reason || "Bloqueado manualmente por admin",
+        blocked_at: new Date() 
+      });
 
       // Cerrar todas las sesiones activas del usuario
       await Session.deleteMany({ id: user.id });
@@ -625,7 +631,7 @@ const handler = async (req, res, auth) => {
         user_id: id,
         admin_id: auth.user.id,
         state_before: { status: user.status || "active" },
-        state_after:  { status: "blocked" }
+        state_after:  { status: "blocked", reason: reason }
       });
     }
 
@@ -651,6 +657,8 @@ const handler = async (req, res, auth) => {
       const user = await User.findOne({ id });
       if (!user) return res.json(error("user not found"));
       if (user.status === "eliminated") return res.json(error("already eliminated"));
+
+      const { reason } = req.body.data || {};
 
       // Comprimir árbol: reasignar hijos del nodo eliminado a su padre
       const node = await Tree.findOne({ id: user.id });
@@ -680,10 +688,21 @@ const handler = async (req, res, auth) => {
         }
       }
 
+      const ts = Math.floor(Date.now() / 1000);
+      const newDni = `del_${ts}_${user.dni}`;
+      const newEmail = user.email ? `del_${ts}_${user.email}` : user.email;
+      const newPhone = user.phone ? `del_${ts}_${user.phone}` : user.phone;
+      const newName = user.name + " (Eliminado)";
+
       // Marcar como eliminado (NO se borra el documento — conservamos historial)
       await User.update({ id }, {
         status: "eliminated",
+        statusReason: reason || "Eliminado manualmente por admin",
         eliminated_at: new Date(),
+        dni: newDni,
+        email: newEmail,
+        phone: newPhone,
+        name: newName,
         // Deshabilitar su nodo en el árbol sin borrarlo
       });
 
@@ -697,7 +716,7 @@ const handler = async (req, res, auth) => {
         user_id: id,
         admin_id: auth.user.id,
         state_before: { status: user.status || "active", parentId: user.parentId },
-        state_after:  { status: "eliminated", tree_compression: { previous_parent: node?.parent, children_reassigned: (node?.childs || []).length } }
+        state_after:  { status: "eliminated", reason: reason, tree_compression: { previous_parent: node?.parent, children_reassigned: (node?.childs || []).length } }
       });
     }
 

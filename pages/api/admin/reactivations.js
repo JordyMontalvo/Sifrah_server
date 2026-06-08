@@ -49,67 +49,17 @@ const postHandler = async (req, res) => {
   }
   
   if (action === 'approve') {
-    // Definir el patrocinador
-    let final_sponsor = null
-    const code_to_check = new_sponsor_code || reactivationReq.new_sponsor_code
-    
-    if (code_to_check) {
-      final_sponsor = await User.findOne({ token: code_to_check.trim().toUpperCase() })
-      if (!final_sponsor) return res.json(error('El código de patrocinador no es válido'))
-    }
-    
-    // Si no hay código nuevo y no envió uno originalmente, se queda con su parent actual
-    // a menos que ya lo hayan reasignado al comprimir el árbol. En Sifrah la eliminación comprime el árbol.
-    // El usuario fue reasignado, por lo que su parent actual en DB es válido, PERO podría querer uno nuevo.
-    
-    let parent_id_to_use = user.parentId
-    if (final_sponsor) {
-      parent_id_to_use = final_sponsor.id
-    }
-    
-    // Si va a cambiar de patrocinador, actualizar el árbol
-    if (final_sponsor && final_sponsor.id !== user.parentId) {
-      // 1. Quitarlo de su padre actual
-      const currentParentNode = await Tree.findOne({ id: user.parentId })
-      if (currentParentNode && currentParentNode.childs) {
-        const updatedChilds = currentParentNode.childs.filter(childId => childId !== user.id)
-        await Tree.update({ id: user.parentId }, { childs: updatedChilds })
-      }
-      
-      // 2. Agregarlo al nuevo padre
-      const _id = final_sponsor.coverage && final_sponsor.coverage.id ? final_sponsor.coverage.id : final_sponsor.id
-      let newParentNode = await Tree.findOne({ id: _id })
-      if (newParentNode) {
-        if (!newParentNode.childs.includes(user.id)) {
-          newParentNode.childs.push(user.id)
-          await Tree.update({ id: _id }, { childs: newParentNode.childs })
-        }
-      } else {
-        await Tree.insert({ id: _id, childs: [user.id], parent: final_sponsor.id })
-      }
-      
-      parent_id_to_use = final_sponsor.id
-      
-      // Actualizar el propio nodo del usuario
-      const ownNode = await Tree.findOne({ id: user.id })
-      if (ownNode) {
-        await Tree.update({ id: user.id }, { parent: _id })
-      } else {
-        await Tree.insert({ id: user.id, childs: [], parent: _id })
-      }
-    }
-    
     // Actualizar usuario
     await User.update({ id: user.id }, {
       status: 'active',
-      eliminated_at: null,
-      parentId: parent_id_to_use
+      blocked_at: null,
+      statusReason: null,
+      unblocked_at: new Date()
     })
     
     // Marcar solicitud
     await ReactivationRequest.update({ id: request_id }, { 
       status: 'approved',
-      final_sponsor_id: final_sponsor ? final_sponsor.id : null,
       updated_at: new Date() 
     })
     
@@ -118,17 +68,15 @@ const postHandler = async (req, res) => {
       id: lib.rand() + lib.rand(),
       date: new Date(),
       admin_id,
-      action: 'reactivate_approved',
+      action: 'unblock_approved',
       collection_name: 'users',
       target_id: user.id,
       details: { 
-        request_id, 
-        changed_sponsor: final_sponsor ? true : false,
-        new_sponsor_id: final_sponsor ? final_sponsor.id : null 
+        request_id 
       }
     })
     
-    return res.json(success({ msg: 'Usuario reactivado con éxito' }))
+    return res.json(success({ msg: 'Usuario desbloqueado con éxito' }))
   }
   
   return res.json(error('Acción no válida'))

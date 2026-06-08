@@ -121,6 +121,13 @@ func (db *MongoDB) UpdateUserRanks(ctx context.Context, users []models.User) err
 				"activated":          user.Activated,
 				"_activated":         user.ActivatedInternal,
 				"pays":               user.Pays,
+				"n_inactives":        user.NInactives,
+				"status":             user.Status,
+				"statusReason":       user.StatusReason,
+				"dni":                user.DNI,
+				"email":              user.Email,
+				"phone":              user.Phone,
+				"name":               user.Name,
 			}},
 			{Key: "$push", Value: bson.M{
 				"rank_history": historyEntry,
