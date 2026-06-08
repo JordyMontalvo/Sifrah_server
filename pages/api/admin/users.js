@@ -36,6 +36,7 @@ const U = [
   "plan",
   "affiliation_points",
   "status",        // blocked | eliminated | active | null
+  "statusReason",
   "blocked_at",
   "eliminated_at",
 ];
