@@ -105,10 +105,7 @@ export default async (req, res) => {
     userId: user.id,
     status: { $in: ["pending", "approved"] },
   });
-  const affiliations = await Affiliation.find({
-    userId: user.id,
-    status: "approved",
-  });
+  const affiliations = await Affiliation.find({ userId: user.id });
 
   if (affiliation && affiliation.status == "approved") {
     // if(affiliation.plan.id == 'early') {

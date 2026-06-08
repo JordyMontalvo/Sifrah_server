@@ -1,8 +1,36 @@
 import db  from "../../../components/db"
 import lib from "../../../components/lib"
 
-const { User, Session, Activation, Product } = db
+const { User, Session, Activation, Product, Affiliation } = db
 const { error, success, midd } = lib
+
+function buildOperationHistory(activations, affiliations) {
+  const acts = (activations || []).map((a) => ({
+    ...a,
+    type: a.type || "activation",
+  }));
+
+  const affs = (affiliations || []).map((a) => ({
+    id: a.id,
+    date: a.date,
+    approved_at: a.approved_at,
+    period_key: a.period_key,
+    period_label: a.period_label,
+    products: a.products || [],
+    plan: a.plan,
+    price: Number(a.plan?.amount ?? a.price ?? 0),
+    points: Number(a.plan?.affiliation_points ?? 0),
+    voucher: a.voucher || a.voucher2 || null,
+    status: a.status,
+    type: "affiliation",
+  }));
+
+  return [...acts, ...affs].sort((a, b) => {
+    const da = new Date(a.approved_at || a.date || 0).getTime();
+    const db = new Date(b.approved_at || b.date || 0).getTime();
+    return db - da;
+  });
+}
 
 
 // function light(a, b, c) {
@@ -48,8 +76,9 @@ export default async (req, res) => {
 
   if(req.method == 'GET') {
 
-    // get activations
     const activations = await Activation.find({ userId: user.id })
+    const affiliations = await Affiliation.find({ userId: user.id })
+    const history = buildOperationHistory(activations, affiliations)
 
     // const all_points = user.all_points
     // const n = all_points.length
@@ -74,8 +103,8 @@ export default async (req, res) => {
       photo:      user.photo,
       tree:       user.tree,
 
-              activations,
-        products,
+      activations: history,
+      products,
         // arr,
     }))
   }
