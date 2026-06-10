@@ -27,7 +27,64 @@ const { google } = require("googleapis");
 dotenv.config({ path: path.resolve(__dirname, "../.env.local") });
 dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
-const MONGODB_URI = process.env.MONGODB_URI || process.env.DB_URL;
+function normalizeMongoUri(raw) {
+  if (!raw) return "";
+  let uri = String(raw).trim();
+  if (
+    (uri.startsWith('"') && uri.endsWith('"')) ||
+    (uri.startsWith("'") && uri.endsWith("'"))
+  ) {
+    uri = uri.slice(1, -1).trim();
+  }
+  const assignMatch = uri.match(/^(?:MONGODB_URI|DB_URL(?:_PROD|_DEV)?)\s*=\s*(.+)$/i);
+  if (assignMatch) uri = assignMatch[1].trim();
+  return uri;
+}
+
+function maskMongoUri(uri) {
+  return uri.replace(/\/\/([^:@/]+):([^@/]+)@/, "//$1:***@");
+}
+
+function resolveMongoUri() {
+  const candidates = [
+    ["DB_URL", process.env.DB_URL],
+    ["MONGODB_URI", process.env.MONGODB_URI],
+    ["DB_URL_PROD", process.env.DB_URL_PROD],
+    ["DB_URL_DEV", process.env.DB_URL_DEV],
+  ];
+
+  for (const [name, value] of candidates) {
+    const uri = normalizeMongoUri(value);
+    if (uri) return { uri, source: name };
+  }
+  return { uri: "", source: null };
+}
+
+function validateMongoUri(uri, source) {
+  if (!uri) {
+    fail("Define DB_URL o MONGODB_URI en Heroku Config Vars.");
+  }
+  if (!/^mongodb(\+srv)?:\/\//i.test(uri)) {
+    fail(
+      `${source} debe empezar con mongodb:// o mongodb+srv://. ` +
+        `Revisa Heroku → Settings → Config Vars. Valor (enmascarado): ${maskMongoUri(uri)}`
+    );
+  }
+  if (/\s/.test(uri)) {
+    fail(
+      `${source} contiene espacios. Si la contraseña tiene caracteres especiales, codifícala (ej. @ → %40).`
+    );
+  }
+  const body = uri.replace(/^mongodb\+srv:\/\//i, "").replace(/^mongodb:\/\//i, "");
+  const atCount = (body.match(/@/g) || []).length;
+  if (atCount > 1) {
+    fail(
+      `${source} tiene varios '@'. Si la contraseña incluye @, codifícala como %40.`
+    );
+  }
+}
+
+const { uri: MONGODB_URI, source: MONGODB_URI_SOURCE } = resolveMongoUri();
 const CREDENTIALS_JSON = process.env.GOOGLE_DRIVE_CREDENTIALS_JSON;
 const FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID;
 const RETENTION_DAYS = parseInt(process.env.BACKUP_RETENTION_DAYS || "30", 10);
@@ -57,11 +114,13 @@ function assertMongodump() {
 }
 
 function runMongodump(archivePath) {
-  console.log("[backup] Ejecutando mongodump...");
+  console.log(
+    `[backup] Ejecutando mongodump (origen: ${MONGODB_URI_SOURCE}, uri: ${maskMongoUri(MONGODB_URI)})...`
+  );
   const result = spawnSync(
     "mongodump",
     ["--uri", MONGODB_URI, "--archive", archivePath, "--gzip"],
-    { stdio: "inherit" }
+    { stdio: "inherit", env: process.env }
   );
 
   if (result.error) {
@@ -159,9 +218,7 @@ async function cleanupOldBackups(drive) {
 }
 
 async function main() {
-  if (!MONGODB_URI) {
-    fail("Define MONGODB_URI o DB_URL.");
-  }
+  validateMongoUri(MONGODB_URI, MONGODB_URI_SOURCE || "DB_URL/MONGODB_URI");
   if (!CREDENTIALS_JSON) {
     fail("Define GOOGLE_DRIVE_CREDENTIALS_JSON.");
   }

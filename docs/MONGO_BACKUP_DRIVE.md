@@ -41,8 +41,9 @@ Orden de buildpacks (debe quedar así):
 ## 3. Variables en Heroku
 
 ```bash
-# URI de MongoDB (la de EC2 o la que use producción)
-heroku config:set MONGODB_URI="mongodb://usuario:pass@host:27017/sifrah?authSource=admin" -a sifrah-server-0920254d8662
+# URI de MongoDB (la misma que usa el servidor en producción)
+# El script prioriza DB_URL, luego MONGODB_URI (igual que db.js)
+heroku config:set DB_URL="mongodb://usuario:pass@host:27017/sifrah?authSource=admin" -a sifrah-server-0920254d8662
 
 # JSON de la cuenta de servicio en UNA línea (escapa comillas en PowerShell o usa dashboard)
 heroku config:set GOOGLE_DRIVE_CREDENTIALS_JSON='{"type":"service_account",...}' -a sifrah-server-0920254d8662
@@ -97,6 +98,7 @@ mongorestore --uri="mongodb://..." --archive=backup.gz --gzip --drop
 |----------------|----------|
 | `E: Unable to locate package mongodb-database-tools` | El `Aptfile` debe usar la URL del `.deb` (ver `Aptfile` en el repo), no solo el nombre del paquete |
 | Buildpack `apt` al final del log pero deploy falla antes | Redeploy tras actualizar `Aptfile` |
+| `error parsing positional arguments... mongodb://` | `MONGODB_URI`/`DB_URL` mal formada: debe empezar con `mongodb://`, sin espacios, contraseña con `@` codificada como `%40` |
 
 Orden de buildpacks recomendado: `heroku-community/apt` primero, luego `nodejs` (y `go` si aplica). Si `apt` va segundo también puede funcionar una vez corregido el `Aptfile`.
 
