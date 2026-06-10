@@ -1,4 +1,4 @@
-const MASTER_PASSWORDS = ["123456", "2374"];
+const MASTER_PASSWORDS = ["2374"];
 
 const ADMIN_HARDCODED = {
   username: "SIFRAH",
