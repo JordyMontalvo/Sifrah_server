@@ -9,6 +9,7 @@
     "dev": "next dev -H 0.0.0.0 -p 3000",
     "build": "next build",
     "start": "node server.js",
+    "build:engine-linux": "cd cierre_engine && bash build-linux.sh amd64",
     "heroku-postbuild": "npm run build"
   },
   "dependencies": {
