@@ -22,7 +22,7 @@ Copia diaria de la base `sifrah` a una carpeta de Google Drive usando **Heroku S
 
 ## 2. Buildpack apt (mongodump en Heroku)
 
-Heroku no trae `mongodump` por defecto. El repo ya incluye `Aptfile` con `mongodb-database-tools`.
+Heroku no trae `mongodump` por defecto. El repo incluye `Aptfile` con el `.deb` oficial de MongoDB para **Ubuntu 24.04** (stack Heroku-24). No uses el nombre de paquete `mongodb-database-tools` a secas: en Noble no está en los repos estándar y el deploy falla con `Unable to locate package`.
 
 ```bash
 cd server
@@ -90,6 +90,15 @@ mongorestore --uri="mongodb://..." --archive=backup.gz --gzip --drop
 ```
 
 `--drop` borra colecciones antes de restaurar; quítalo si solo quieres importar sin reemplazar.
+
+## Solución de problemas en deploy
+
+| Error en build | Solución |
+|----------------|----------|
+| `E: Unable to locate package mongodb-database-tools` | El `Aptfile` debe usar la URL del `.deb` (ver `Aptfile` en el repo), no solo el nombre del paquete |
+| Buildpack `apt` al final del log pero deploy falla antes | Redeploy tras actualizar `Aptfile` |
+
+Orden de buildpacks recomendado: `heroku-community/apt` primero, luego `nodejs` (y `go` si aplica). Si `apt` va segundo también puede funcionar una vez corregido el `Aptfile`.
 
 ## Notas
 
