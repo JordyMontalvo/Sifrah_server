@@ -113,64 +113,28 @@ function assertMongodump() {
   }
 }
 
-function decodeURIComponentSafe(value) {
-  try {
-    return decodeURIComponent(value);
-  } catch (e) {
-    return value;
-  }
-}
+function ensureDatabaseInUri(uri) {
+  const defaultDb = process.env.BACKUP_DB_NAME || "sifrah";
+  if (!/^mongodb:\/\//i.test(uri)) return uri;
 
-function parseMongoUri(uri) {
-  if (/^mongodb\+srv:\/\//i.test(uri)) {
-    return { mode: "uri", uri };
-  }
+  const qIndex = uri.indexOf("?");
+  const query = qIndex >= 0 ? uri.slice(qIndex) : "";
+  const base = qIndex >= 0 ? uri.slice(0, qIndex) : uri;
 
-  const match = uri.match(
-    /^mongodb:\/\/(?:(?<user>[^:@/]*)(?::(?<pass>[^@]*))?@)?(?<host>[^:/]+)(?::(?<port>\d+))?(?:\/(?<db>[^?]*))?(?:\?(?<query>.*))?$/
-  );
-  if (!match || !match.groups) {
-    return { mode: "uri", uri };
+  // Ya incluye nombre de base: mongodb://.../sifrah
+  if (/^mongodb:\/\/[^/]+\/[^/]+/.test(base)) {
+    return uri;
   }
 
-  const { user, pass, host, port, db, query } = match.groups;
-  const params = new URLSearchParams(query || "");
-  const authDb = params.get("authSource") || "admin";
-  const database = db ? decodeURIComponentSafe(db) : "";
-
-  return {
-    mode: "flags",
-    host,
-    port: port || "27017",
-    username: user ? decodeURIComponentSafe(user) : "",
-    password: pass ? decodeURIComponentSafe(pass) : "",
-    authDb,
-    database,
-  };
+  const normalizedBase = base.endsWith("/") ? base.slice(0, -1) : base;
+  return `${normalizedBase}/${defaultDb}${query}`;
 }
 
 function buildMongodumpArgs(uri, archivePath) {
-  const parsed = parseMongoUri(uri);
-
-  if (parsed.mode === "uri") {
-    return ["--uri", parsed.uri, "--archive", archivePath, "--gzip"];
-  }
-
-  const args = ["--host", parsed.host, "--port", parsed.port];
-
-  if (parsed.username) {
-    args.push("--username", parsed.username);
-  }
-  if (parsed.password) {
-    args.push("--password", parsed.password);
-  }
-  args.push("--authenticationDatabase", parsed.authDb);
-  if (parsed.database) {
-    args.push("--db", parsed.database);
-  }
-
-  args.push("--archive", archivePath, "--gzip");
-  return args;
+  // mongodump 100.x: la URI va como argumento posicional (no --uri).
+  // El resto de opciones deben usar "=" para no confundir al parser.
+  const connectionUri = ensureDatabaseInUri(uri);
+  return [connectionUri, `--archive=${archivePath}`, "--gzip"];
 }
 
 function mongodumpEnv() {
@@ -184,13 +148,10 @@ function mongodumpEnv() {
 
 function runMongodump(archivePath) {
   const args = buildMongodumpArgs(MONGODB_URI, archivePath);
-  const mode =
-    args[0] === "--uri"
-      ? `uri (${maskMongoUri(MONGODB_URI)})`
-      : `host ${args[1]}:${args[3]}`;
+  const connectionUri = args[0];
 
   console.log(
-    `[backup] Ejecutando mongodump (origen: ${MONGODB_URI_SOURCE}, modo: ${mode})...`
+    `[backup] Ejecutando mongodump (origen: ${MONGODB_URI_SOURCE}, uri: ${maskMongoUri(connectionUri)})...`
   );
 
   const result = spawnSync("mongodump", args, {
