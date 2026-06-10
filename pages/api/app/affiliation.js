@@ -107,20 +107,16 @@ export default async (req, res) => {
   });
   const affiliations = await Affiliation.find({ userId: user.id });
 
-  if (affiliation && affiliation.status == "approved") {
-    // if(affiliation.plan.id == 'early') {
-    //  plans.shift()
-    // }
-    if (affiliation.plan.id == "basic") {
+  const planId = affiliation?.plan?.id;
+  if (affiliation && affiliation.status == "approved" && planId) {
+    if (planId == "basic") {
       plans.shift();
-      //  plans.shift()
     }
-    if (affiliation.plan.id == "standard") {
+    if (planId == "standard") {
       plans.shift();
       plans.shift();
-      // plans.shift()
     }
-    if (affiliation.plan.id == "master") {
+    if (planId == "master") {
       plans = [];
     }
   }
