@@ -85,10 +85,29 @@ function validateMongoUri(uri, source) {
   }
 }
 
+function normalizeFolderId(raw) {
+  if (!raw) return "";
+  let folderId = String(raw).trim();
+  
+  // Si pegaron una o más URLs de Google Drive, extraemos el ID de la carpeta
+  const matches = [...folderId.matchAll(/\/folders\/([a-zA-Z0-9-_]+)/g)];
+  if (matches.length > 0) {
+    return matches[0][1];
+  }
+  
+  // Limpiamos posibles query strings si pegaron el ID con algo extra
+  const qIndex = folderId.indexOf("?");
+  if (qIndex >= 0) {
+    folderId = folderId.slice(0, qIndex).trim();
+  }
+  
+  return folderId;
+}
+
 const { uri: MONGODB_URI, source: MONGODB_URI_SOURCE } = resolveMongoUri();
 const CREDENTIALS_B64 = process.env.GOOGLE_DRIVE_CREDENTIALS_B64;
 const CREDENTIALS_JSON = process.env.GOOGLE_DRIVE_CREDENTIALS_JSON;
-const FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID;
+const FOLDER_ID = normalizeFolderId(process.env.GOOGLE_DRIVE_FOLDER_ID);
 const RETENTION_DAYS = parseInt(process.env.BACKUP_RETENTION_DAYS || "30", 10);
 const BACKUP_PREFIX = process.env.BACKUP_PREFIX || "sifrah-mongo-backup";
 
