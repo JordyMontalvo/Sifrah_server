@@ -113,15 +113,90 @@ function assertMongodump() {
   }
 }
 
+function decodeURIComponentSafe(value) {
+  try {
+    return decodeURIComponent(value);
+  } catch (e) {
+    return value;
+  }
+}
+
+function parseMongoUri(uri) {
+  if (/^mongodb\+srv:\/\//i.test(uri)) {
+    return { mode: "uri", uri };
+  }
+
+  const match = uri.match(
+    /^mongodb:\/\/(?:(?<user>[^:@/]*)(?::(?<pass>[^@]*))?@)?(?<host>[^:/]+)(?::(?<port>\d+))?(?:\/(?<db>[^?]*))?(?:\?(?<query>.*))?$/
+  );
+  if (!match || !match.groups) {
+    return { mode: "uri", uri };
+  }
+
+  const { user, pass, host, port, db, query } = match.groups;
+  const params = new URLSearchParams(query || "");
+  const authDb = params.get("authSource") || "admin";
+  const database = db ? decodeURIComponentSafe(db) : "";
+
+  return {
+    mode: "flags",
+    host,
+    port: port || "27017",
+    username: user ? decodeURIComponentSafe(user) : "",
+    password: pass ? decodeURIComponentSafe(pass) : "",
+    authDb,
+    database,
+  };
+}
+
+function buildMongodumpArgs(uri, archivePath) {
+  const parsed = parseMongoUri(uri);
+
+  if (parsed.mode === "uri") {
+    return ["--uri", parsed.uri, "--archive", archivePath, "--gzip"];
+  }
+
+  const args = ["--host", parsed.host, "--port", parsed.port];
+
+  if (parsed.username) {
+    args.push("--username", parsed.username);
+  }
+  if (parsed.password) {
+    args.push("--password", parsed.password);
+  }
+  args.push("--authenticationDatabase", parsed.authDb);
+  if (parsed.database) {
+    args.push("--db", parsed.database);
+  }
+
+  args.push("--archive", archivePath, "--gzip");
+  return args;
+}
+
+function mongodumpEnv() {
+  const env = { ...process.env };
+  delete env.MONGODB_URI;
+  delete env.DB_URL;
+  delete env.DB_URL_PROD;
+  delete env.DB_URL_DEV;
+  return env;
+}
+
 function runMongodump(archivePath) {
+  const args = buildMongodumpArgs(MONGODB_URI, archivePath);
+  const mode =
+    args[0] === "--uri"
+      ? `uri (${maskMongoUri(MONGODB_URI)})`
+      : `host ${args[1]}:${args[3]}`;
+
   console.log(
-    `[backup] Ejecutando mongodump (origen: ${MONGODB_URI_SOURCE}, uri: ${maskMongoUri(MONGODB_URI)})...`
+    `[backup] Ejecutando mongodump (origen: ${MONGODB_URI_SOURCE}, modo: ${mode})...`
   );
-  const result = spawnSync(
-    "mongodump",
-    ["--uri", MONGODB_URI, "--archive", archivePath, "--gzip"],
-    { stdio: "inherit", env: process.env }
-  );
+
+  const result = spawnSync("mongodump", args, {
+    stdio: "inherit",
+    env: mongodumpEnv(),
+  });
 
   if (result.error) {
     fail(`mongodump falló: ${result.error.message}`);

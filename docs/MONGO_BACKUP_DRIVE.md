@@ -43,6 +43,7 @@ Orden de buildpacks (debe quedar así):
 ```bash
 # URI de MongoDB (la misma que usa el servidor en producción)
 # El script prioriza DB_URL, luego MONGODB_URI (igual que db.js)
+# Incluye /sifrah antes de ?authSource=admin
 heroku config:set DB_URL="mongodb://usuario:pass@host:27017/sifrah?authSource=admin" -a sifrah-server-0920254d8662
 
 # JSON de la cuenta de servicio en UNA línea (escapa comillas en PowerShell o usa dashboard)
