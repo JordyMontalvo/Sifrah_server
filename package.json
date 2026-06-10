@@ -10,7 +10,8 @@
     "build": "next build",
     "start": "node server.js",
     "build:engine-linux": "bash scripts/build-engine-linux.sh",
-    "heroku-postbuild": "bash scripts/build-engine-linux.sh && npm run build"
+    "heroku-postbuild": "bash scripts/build-engine-linux.sh && npm run build",
+    "backup:mongo": "node scripts/mongo-backup-drive.js"
   },
   "dependencies": {
     "axios": "^1.11.0",
@@ -20,6 +21,7 @@
     "dotenv": "^17.2.1",
     "express": "^4.21.2",
     "formidable": "^2.1.5",
+    "googleapis": "^140.0.1",
     "imagekit": "^3.0.5",
     "joi": "^17.13.3",
     "mercadopago": "^2.8.0",
