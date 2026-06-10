@@ -180,6 +180,18 @@ function envForChildGo(goEnv) {
 
 const CIERRE_EXEC_MAX_BUFFER = 100 * 1024 * 1024
 
+function isLinuxElfBinary(filePath) {
+  try {
+    const fd = fs.openSync(filePath, "r")
+    const buf = Buffer.alloc(4)
+    fs.readSync(fd, buf, 0, 4, 0)
+    fs.closeSync(fd)
+    return buf[0] === 0x7f && buf[1] === 0x45 && buf[2] === 0x4c && buf[3] === 0x46
+  } catch {
+    return false
+  }
+}
+
 /**
  * Ejecuta el motor: binario Linux en servidor, binario local `cierre_engine` si existe, si no `go run`.
  * @param {string} engineCwd
@@ -204,6 +216,11 @@ function runCierreEngine(engineCwd, goEnv, opts) {
   const previewArgs = opts.preview ? ["--dry-run", "--json"] : []
 
   if (platform === "linux" && fs.existsSync(linuxBinaryPath)) {
+    if (!isLinuxElfBinary(linuxBinaryPath)) {
+      throw new Error(
+        "engine_linux no es un binario Linux válido (¿compilado en macOS?). Ejecuta: bash scripts/build-engine-linux.sh"
+      )
+    }
     return execFileSync(linuxBinaryPath, previewArgs, baseOpts)
   }
   if (fs.existsSync(localBinaryPath)) {
