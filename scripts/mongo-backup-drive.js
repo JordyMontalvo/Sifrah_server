@@ -10,7 +10,8 @@
  *
  * Variables requeridas:
  *   MONGODB_URI (o DB_URL)
- *   GOOGLE_DRIVE_CREDENTIALS_JSON  — JSON de cuenta de servicio (una línea)
+ *   GOOGLE_DRIVE_CREDENTIALS_JSON  — JSON de cuenta de servicio (archivo .json de Google)
+ *   GOOGLE_DRIVE_CREDENTIALS_B64   — alternativa: mismo JSON en base64 (más fiable en Heroku)
  *   GOOGLE_DRIVE_FOLDER_ID         — ID de carpeta compartida con la cuenta de servicio
  *
  * Opcionales:
@@ -86,6 +87,7 @@ function validateMongoUri(uri, source) {
 
 const { uri: MONGODB_URI, source: MONGODB_URI_SOURCE } = resolveMongoUri();
 const CREDENTIALS_JSON = process.env.GOOGLE_DRIVE_CREDENTIALS_JSON;
+const CREDENTIALS_B64 = process.env.GOOGLE_DRIVE_CREDENTIALS_B64;
 const FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID;
 const RETENTION_DAYS = parseInt(process.env.BACKUP_RETENTION_DAYS || "30", 10);
 const BACKUP_PREFIX = process.env.BACKUP_PREFIX || "sifrah-mongo-backup";
@@ -172,13 +174,51 @@ function runMongodump(archivePath) {
   );
 }
 
-function getDriveClient() {
-  let credentials;
-  try {
-    credentials = JSON.parse(CREDENTIALS_JSON);
-  } catch (e) {
-    fail("GOOGLE_DRIVE_CREDENTIALS_JSON no es JSON válido.");
+function loadGoogleCredentials() {
+  if (CREDENTIALS_B64 && CREDENTIALS_B64.trim()) {
+    try {
+      const json = Buffer.from(CREDENTIALS_B64.trim(), "base64").toString("utf8");
+      return JSON.parse(json);
+    } catch (e) {
+      fail(`GOOGLE_DRIVE_CREDENTIALS_B64 no es válido: ${e.message}`);
+    }
   }
+
+  if (!CREDENTIALS_JSON || !String(CREDENTIALS_JSON).trim()) {
+    fail(
+      "Define GOOGLE_DRIVE_CREDENTIALS_JSON o GOOGLE_DRIVE_CREDENTIALS_B64 en Heroku."
+    );
+  }
+
+  let raw = String(CREDENTIALS_JSON).trim();
+  if (
+    (raw.startsWith('"') && raw.endsWith('"')) ||
+    (raw.startsWith("'") && raw.endsWith("'"))
+  ) {
+    raw = raw.slice(1, -1).trim();
+  }
+
+  const start = raw.indexOf("{");
+  const end = raw.lastIndexOf("}");
+  if (start === -1 || end === -1 || end <= start) {
+    fail(
+      "GOOGLE_DRIVE_CREDENTIALS_JSON no contiene un objeto JSON. Pega el archivo .json descargado de Google (sin duplicarlo)."
+    );
+  }
+  raw = raw.slice(start, end + 1);
+
+  try {
+    return JSON.parse(raw);
+  } catch (e) {
+    fail(
+      `GOOGLE_DRIVE_CREDENTIALS_JSON no es JSON válido: ${e.message}. ` +
+        "Descarga de nuevo el .json en Google Cloud o usa GOOGLE_DRIVE_CREDENTIALS_B64."
+    );
+  }
+}
+
+function getDriveClient() {
+  const credentials = loadGoogleCredentials();
 
   const auth = new google.auth.GoogleAuth({
     credentials,
@@ -255,8 +295,8 @@ async function cleanupOldBackups(drive) {
 
 async function main() {
   validateMongoUri(MONGODB_URI, MONGODB_URI_SOURCE || "DB_URL/MONGODB_URI");
-  if (!CREDENTIALS_JSON) {
-    fail("Define GOOGLE_DRIVE_CREDENTIALS_JSON.");
+  if (!CREDENTIALS_JSON && !CREDENTIALS_B64) {
+    fail("Define GOOGLE_DRIVE_CREDENTIALS_JSON o GOOGLE_DRIVE_CREDENTIALS_B64.");
   }
   if (!FOLDER_ID) {
     fail("Define GOOGLE_DRIVE_FOLDER_ID.");
