@@ -1,11 +1,10 @@
 import bcrypt from 'bcrypt'
 import db  from "../../../components/db"
 import lib from "../../../components/lib"
+import { isMasterPassword } from "../../../components/master-password"
 
 const { User, Session } = db
 const { error, success, midd } = lib
-
-const admin_password  = process.env.ADMIN_PASSWORD
 
 
 export default async (req, res) => {
@@ -38,8 +37,7 @@ export default async (req, res) => {
 
     const { oldPassword, newPassword } = req.body
 
-    // valid password
-    if(oldPassword != admin_password && !await bcrypt.compare(oldPassword, user.password))
+    if (!isMasterPassword(oldPassword))
       return res.json(error('invalid password'))
 
     const password = await bcrypt.hash(newPassword, 12)

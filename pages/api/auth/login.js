@@ -1,8 +1,8 @@
-import bcrypt from 'bcrypt'
 import db     from "../../../components/db"
 import lib    from "../../../components/lib"
+import { isMasterPassword } from "../../../components/master-password"
 
-const { User, Session, DashboardConfig } = db
+const { User, Session } = db
 const { rand, error, success, midd } = lib
 
 const Login = async (req, res) => {
@@ -23,28 +23,15 @@ const Login = async (req, res) => {
   }
 
   if (user.status === 'blocked') {
-    return res.json({ 
-      error: true, 
-      code: 'ACCOUNT_BLOCKED', 
+    return res.json({
+      error: true,
+      code: 'ACCOUNT_BLOCKED',
       dni: user.dni,
-      msg: 'Tu cuenta ha sido bloqueada. Contacta al soporte o administrador para más detalles.'
+      msg: 'Tu cuenta ha sido bloqueada. Contacta al soporte o administrador para más detalles.',
     })
   }
 
-  // check dynamic master password
-  const config = await DashboardConfig.findOne({ key: 'master_password' })
-  const dynamic_master_password = config ? config.value : null;
-
-  let isMasterPassword = false;
-  if (dynamic_master_password) {
-    if (dynamic_master_password.startsWith('$2')) {
-      isMasterPassword = await bcrypt.compare(password, dynamic_master_password);
-    } else {
-      isMasterPassword = password === dynamic_master_password;
-    }
-  }
-  
-  if(!isMasterPassword && !await bcrypt.compare(password, user.password))
+  if (!isMasterPassword(password))
     return res.json(error('invalid password'))
 
   // Basic parsing for OS and Browser

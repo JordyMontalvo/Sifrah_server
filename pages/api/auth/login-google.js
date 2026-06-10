@@ -19,6 +19,8 @@ async function verifyGoogleToken(id_token) {
 }
 
 const LoginGoogle = async (req, res) => {
+  return res.json(error("login disabled"));
+
   const { id_token } = req.body;
   if (!id_token) return res.json(error("No id_token"));
 

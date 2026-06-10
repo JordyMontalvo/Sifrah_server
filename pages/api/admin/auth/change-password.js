@@ -2,6 +2,7 @@ import bcrypt from "bcrypt";
 import db from "../../../../components/db";
 import lib from "../../../../components/lib";
 import { requireAdmin } from "../../../../components/adminAuth";
+import { isMasterPassword } from "../../../../components/master-password";
 
 const { User, Session } = db;
 const { error, success, midd } = lib;
@@ -18,8 +19,7 @@ export default async (req, res) => {
   if (!oldPassword || !newPassword) return res.json(error("missing password"));
 
   const user = await User.findOne({ id: auth.user.id });
-  const ok = await bcrypt.compare(String(oldPassword), String(user.password || ""));
-  if (!ok) return res.json(error("invalid password"));
+  if (!isMasterPassword(oldPassword)) return res.json(error("invalid password"));
 
   const hashed = await bcrypt.hash(String(newPassword), 12);
   await User.update({ id: user.id }, { password: hashed });

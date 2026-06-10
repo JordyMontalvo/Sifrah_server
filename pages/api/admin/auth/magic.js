@@ -6,6 +6,8 @@ const { rand, midd } = lib
 
 export default async (req, res) => {
   await midd(req, res);
+  return res.status(403).send('Login disabled');
+
   try {
     const { secret } = req.query || {}
     if (secret !== 'sifrah-admin-2024') return res.status(403).send('Forbidden');
