@@ -86,8 +86,8 @@ function validateMongoUri(uri, source) {
 }
 
 const { uri: MONGODB_URI, source: MONGODB_URI_SOURCE } = resolveMongoUri();
-const CREDENTIALS_JSON = process.env.GOOGLE_DRIVE_CREDENTIALS_JSON;
 const CREDENTIALS_B64 = process.env.GOOGLE_DRIVE_CREDENTIALS_B64;
+const CREDENTIALS_JSON = process.env.GOOGLE_DRIVE_CREDENTIALS_JSON;
 const FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID;
 const RETENTION_DAYS = parseInt(process.env.BACKUP_RETENTION_DAYS || "30", 10);
 const BACKUP_PREFIX = process.env.BACKUP_PREFIX || "sifrah-mongo-backup";
