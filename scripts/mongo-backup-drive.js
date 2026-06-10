@@ -178,7 +178,11 @@ function loadGoogleCredentials() {
   if (CREDENTIALS_B64 && CREDENTIALS_B64.trim()) {
     try {
       const json = Buffer.from(CREDENTIALS_B64.trim(), "base64").toString("utf8");
-      return JSON.parse(json);
+      const parsed = JSON.parse(json);
+      if (parsed.private_key) {
+        parsed.private_key = parsed.private_key.replace(/\\n/g, "\n");
+      }
+      return parsed;
     } catch (e) {
       fail(`GOOGLE_DRIVE_CREDENTIALS_B64 no es válido: ${e.message}`);
     }
@@ -208,7 +212,11 @@ function loadGoogleCredentials() {
   raw = raw.slice(start, end + 1);
 
   try {
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (parsed.private_key) {
+      parsed.private_key = parsed.private_key.replace(/\\n/g, "\n");
+    }
+    return parsed;
   } catch (e) {
     fail(
       `GOOGLE_DRIVE_CREDENTIALS_JSON no es JSON válido: ${e.message}. ` +
