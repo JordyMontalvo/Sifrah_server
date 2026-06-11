@@ -66,6 +66,30 @@ class Lib {
       .reduce((a, b) => a + b, 0);
   }
 
+  /** Saldo disponible para retiro / transferencia (excluye Bono Ahorro). */
+  calcAvailableBalance(transactions) {
+    if (!Array.isArray(transactions)) return 0;
+    const ins = transactions
+      .filter((t) => t.type === "in" && t.wallet_tipo !== "BONO_AHORRO")
+      .reduce((sum, t) => sum + Number(t.value || 0), 0);
+    const outs = transactions
+      .filter((t) => t.type === "out" && t.wallet_tipo !== "BONO_AHORRO")
+      .reduce((sum, t) => sum + Number(t.value || 0), 0);
+    return ins - outs;
+  }
+
+  /** Saldo Bono Ahorro (solo canje, no retirable). */
+  calcSavingsBonusBalance(transactions) {
+    if (!Array.isArray(transactions)) return 0;
+    const ins = transactions
+      .filter((t) => t.type === "in" && t.wallet_tipo === "BONO_AHORRO")
+      .reduce((sum, t) => sum + Number(t.value || 0), 0);
+    const outs = transactions
+      .filter((t) => t.type === "out" && t.wallet_tipo === "BONO_AHORRO")
+      .reduce((sum, t) => sum + Number(t.value || 0), 0);
+    return ins - outs;
+  }
+
   ids(a) {
     return a.map((i) => i.userId);
   }

@@ -2,7 +2,7 @@ import db  from "../../../components/db"
 import lib from "../../../components/lib"
 
 const { User, Session, Transaction, Collect } = db
-const { error, success, midd, acum, rand } = lib
+const { error, success, midd, rand } = lib
 
 
 const handler = async (req, res) => {
@@ -17,13 +17,9 @@ const handler = async (req, res) => {
   const user = await User.findOne({ id: session.id })
   // if(!user.verified) return res.json(error('unverified user'))
 
-  // get transactions
-  // const transactions = await Transaction.find({ userId: user.id })
-  const transactions = await Transaction.find({ user_id: user.id, virtual: {$in: [null, false]} })
-
-  const ins  = acum(transactions, {type: 'in'}, 'value')
-  const outs = acum(transactions, {type: 'out'}, 'value')
-  const balance = ins - outs
+  const transactions = await Transaction.find({ user_id: user.id, virtual: { $in: [null, false] } })
+  const balance = lib.calcAvailableBalance(transactions)
+  const savingsBonusBalance = lib.calcSavingsBonusBalance(transactions)
 
 
   if(req.method == 'GET') {
@@ -45,6 +41,7 @@ const handler = async (req, res) => {
       // ibk:     user.ibk,
       amount:  user.amount,
       balance,
+      savingsBonusBalance,
     }))
   }
 
@@ -52,8 +49,16 @@ const handler = async (req, res) => {
 
     const { cash, bank, account, account_type, amount, desc, office } = req.body
 
-    // validate ammount
-    if(amount > balance) return res.json(error('amount exceeds the balance'))
+    const withdrawAmount = Number(amount)
+    if (!Number.isFinite(withdrawAmount) || withdrawAmount <= 0) {
+      return res.json(error("invalid amount"))
+    }
+    if (balance <= 0) {
+      return res.json(error("amount exceeds the balance"))
+    }
+    if (withdrawAmount > balance) {
+      return res.json(error("amount exceeds the balance"))
+    }
 
 
     const id = rand()
@@ -67,22 +72,22 @@ const handler = async (req, res) => {
       bank,
       account,
       account_type,
-      amount,
+      amount: withdrawAmount,
       desc,
       office,
       status: 'pending',
     })
 
-    //
     await Transaction.insert({
       id:     rand(),
       date:   new Date(),
       user_id: user.id,
       type:  'out',
-      value:  amount,
+      value:  withdrawAmount,
       name:  'collect',
       desc,
       collectId: id,
+      virtual: false,
     })
 
     // response

@@ -3,7 +3,7 @@ import lib    from "../../../components/lib"
 import { isMasterPassword } from "../../../components/master-password"
 
 const { User, Session, Transaction, Collect } = db
-const { error, success, midd, acum, rand } = lib
+const { error, success, midd, rand } = lib
 
 const handler = async (req, res) => {
 
@@ -16,12 +16,8 @@ const handler = async (req, res) => {
   // get user
   const user = await User.findOne({ id: session.id })
 
-  // get transactions
-  const transactions = await Transaction.find({ user_id: user.id, virtual: {$in: [null, false]} })
-
-  const ins  = acum(transactions, {type: 'in' }, 'value')
-  const outs = acum(transactions, {type: 'out'}, 'value')
-  const balance = ins - outs
+  const transactions = await Transaction.find({ user_id: user.id, virtual: { $in: [null, false] } })
+  const balance = lib.calcAvailableBalance(transactions)
 
 
   if(req.method == 'GET') {
@@ -70,15 +66,23 @@ const handler = async (req, res) => {
       if (!isMasterPassword(password))
         return res.json(error('invalid password'))
 
+      const transferAmount = Number(amount)
+      if (!Number.isFinite(transferAmount) || transferAmount <= 0) {
+        return res.json(error('invalid amount'))
+      }
+      if (balance <= 0 || transferAmount > balance) {
+        return res.json(error('amount exceeds the balance'))
+      }
 
       await Transaction.insert({
         date:     new Date(),
         user_id:  user.id,
        _user_id: _user.id,
         type:    'out',
-        value:    amount,
+        value:    transferAmount,
         name:    'wallet transfer',
         desc,
+        virtual: false,
       })
 
       await Transaction.insert({
@@ -86,9 +90,10 @@ const handler = async (req, res) => {
         user_id: _user.id,
        _user_id:  user.id,
         type:    'in',
-        value:    amount,
+        value:    transferAmount,
         name:    'wallet transfer',
         desc,
+        virtual: false,
       })
 
       return res.json(success())
