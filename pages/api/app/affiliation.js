@@ -131,12 +131,10 @@ export default async (req, res) => {
     virtual: true,
   });
 
-  const ins = acum(transactions, { type: "in" }, "value");
-  const outs = acum(transactions, { type: "out" }, "value");
   const _ins = acum(_transactions, { type: "in" }, "value");
   const _outs = acum(_transactions, { type: "out" }, "value");
 
-  const balance = ins - outs;
+  const balance = lib.calcAvailableBalance(transactions);
   const _balance = _ins - _outs;
 
   if (req.method == "GET") {
