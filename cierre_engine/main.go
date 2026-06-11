@@ -229,9 +229,11 @@ func main() {
 	}
 
 	// PASS 2: Calculate Bonuses
+	var newlyEliminated []string
 	for i := range users {
 		user := &users[i]
-		
+		wasEliminated := user.Status == "eliminated"
+
 		rank := closedRanks[user.ID]
 		calculatedTotalPoints := ce.MemoPoints[user.ID]
 
@@ -344,6 +346,9 @@ func main() {
 				}
 			}
 		}
+		if !wasEliminated && user.Status == "eliminated" {
+			newlyEliminated = append(newlyEliminated, user.ID)
+		}
 
 		// Update for DB (cycle reset as per users.js)
 		user.Rank              = rank
@@ -425,6 +430,15 @@ func main() {
 
 		log.Printf("Updating %d users...", len(updatedUsers))
 		m.UpdateUserRanks(ctx, updatedUsers)
+
+		if len(newlyEliminated) > 0 {
+			log.Printf("Compressing tree for %d eliminated users...", len(newlyEliminated))
+			for _, uid := range newlyEliminated {
+				if err := m.CompressTreeOnElimination(ctx, uid); err != nil {
+					log.Printf("Warning: tree compression failed for %s: %v", uid, err)
+				}
+			}
+		}
 	}
 
 	// 7. Final Logging

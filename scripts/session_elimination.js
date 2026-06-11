@@ -75,28 +75,59 @@ async function run() {
 
       if (shouldEliminate) {
         // --- ELIMINATION LOGIC ---
-        // 1. Compress Tree
+        // 1. Comprimir árbol (hijos suben a la posición del eliminado, sin huecos)
         const node = await db.collection("tree").findOne({ id: user.id });
+        let treeCompression = { previous_parent: null, children_reassigned: 0 };
         if (node) {
-          const childIds = node.childs || [];
-          if (childIds.length > 0 && node.parent) {
-            const parentNode = await db.collection("tree").findOne({ id: node.parent });
+          const childIds = (node.childs || []).filter((c) => c != null && c !== "");
+          const parentId = node.parent || null;
+          treeCompression.previous_parent = parentId;
+          treeCompression.children_reassigned = childIds.length;
+
+          if (parentId) {
+            const parentNode = await db.collection("tree").findOne({ id: parentId });
             if (parentNode) {
-              const updatedChilds = parentNode.childs
-                .filter(c => String(c) !== String(user.id))
-                .concat(childIds);
-              await db.collection("tree").updateOne({ id: parentNode.id }, { $set: { childs: updatedChilds } });
+              const parentChilds = parentNode.childs || [];
+              const idx = parentChilds.findIndex((c) => String(c) === String(user.id));
+              let updatedChilds = parentChilds.filter((c) => String(c) !== String(user.id));
+              if (childIds.length > 0) {
+                if (idx >= 0) {
+                  updatedChilds.splice(idx, 0, ...childIds);
+                } else {
+                  updatedChilds = updatedChilds.concat(childIds);
+                }
+              }
+              await db.collection("tree").updateOne(
+                { id: parentNode.id },
+                { $set: { childs: updatedChilds } }
+              );
             }
             for (const childId of childIds) {
-              await db.collection("tree").updateOne({ id: childId }, { $set: { parent: node.parent } });
-              await db.collection("users").updateOne({ id: String(childId) }, { $set: { parentId: String(node.parent) } });
+              await db.collection("tree").updateOne(
+                { id: childId },
+                { $set: { parent: parentId } }
+              );
+              await db.collection("users").updateOne(
+                { id: String(childId) },
+                { $set: { parentId: String(parentId) } }
+              );
             }
-          } else if (childIds.length > 0 && !node.parent) {
+          } else if (childIds.length > 0) {
             for (const childId of childIds) {
-              await db.collection("tree").updateOne({ id: childId }, { $set: { parent: null } });
-              await db.collection("users").updateOne({ id: String(childId) }, { $set: { parentId: null } });
+              await db.collection("tree").updateOne(
+                { id: childId },
+                { $set: { parent: null } }
+              );
+              await db.collection("users").updateOne(
+                { id: String(childId) },
+                { $set: { parentId: null } }
+              );
             }
           }
+          await db.collection("tree").updateOne(
+            { id: user.id },
+            { $set: { childs: [] } }
+          );
         }
 
         // 2. Modify Credentials
@@ -137,10 +168,7 @@ async function run() {
           state_after:  { 
             status: "eliminated", 
             reason: reason, 
-            tree_compression: { 
-              previous_parent: node ? node.parent : null, 
-              children_reassigned: node ? (node.childs || []).length : 0 
-            } 
+            tree_compression: treeCompression 
           }
         });
 

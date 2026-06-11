@@ -210,6 +210,59 @@ class Lib {
     };
   }
 
+  /**
+   * Al eliminar un usuario, quita su nodo del padre y sube sus hijos
+   * a la misma posición (sin huecos en childs).
+   */
+  async compressTreeOnElimination(Tree, User, userId) {
+    const node = await Tree.findOne({ id: userId });
+    if (!node) {
+      return { compressed: false, previousParent: null, childrenReassigned: 0 };
+    }
+
+    const childIds = (node.childs || []).filter((c) => c != null && c !== "");
+    const parentId = node.parent || null;
+
+    if (parentId) {
+      const parentNode = await Tree.findOne({ id: parentId });
+      if (parentNode) {
+        const parentChilds = parentNode.childs || [];
+        const idx = parentChilds.findIndex((c) => String(c) === String(userId));
+        let updatedChilds = parentChilds.filter(
+          (c) => String(c) !== String(userId)
+        );
+        if (childIds.length > 0) {
+          if (idx >= 0) {
+            updatedChilds.splice(idx, 0, ...childIds);
+          } else {
+            updatedChilds = updatedChilds.concat(childIds);
+          }
+        }
+        await Tree.update({ id: parentNode.id }, { childs: updatedChilds });
+      }
+      for (const childId of childIds) {
+        await Tree.update({ id: childId }, { parent: parentId });
+        await User.update(
+          { id: String(childId) },
+          { parentId: String(parentId) }
+        );
+      }
+    } else if (childIds.length > 0) {
+      for (const childId of childIds) {
+        await Tree.update({ id: childId }, { parent: null });
+        await User.update({ id: String(childId) }, { parentId: null });
+      }
+    }
+
+    await Tree.update({ id: userId }, { childs: [] });
+
+    return {
+      compressed: true,
+      previousParent: parentId,
+      childrenReassigned: childIds.length,
+    };
+  }
+
   // Actualiza total_points de un nodo y propaga hacia arriba
   async updateTotalPointsCascade(User, Tree, userId) {
     // 1. Obtener el nodo del árbol

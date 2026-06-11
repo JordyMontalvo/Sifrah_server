@@ -661,35 +661,17 @@ const handler = async (req, res, auth) => {
 
       const { reason } = req.body.data || {};
 
-      // Comprimir árbol: quitar al eliminado del padre y reasignar sus hijos
-      const node = await Tree.findOne({ id: user.id });
-      if (node) {
-        const childIds = node.childs || [];
-
-        if (node.parent) {
-          const parentNode = await Tree.findOne({ id: node.parent });
-          if (parentNode) {
-            let updatedChilds = (parentNode.childs || [])
-              .filter((c) => String(c) !== String(user.id));
-            if (childIds.length > 0) {
-              updatedChilds = updatedChilds.concat(childIds);
-            }
-            await Tree.update({ id: parentNode.id }, { childs: updatedChilds });
-          }
-          if (childIds.length > 0) {
-            for (const childId of childIds) {
-              await Tree.update({ id: childId }, { parent: node.parent });
-              await User.update({ id: String(childId) }, { parentId: String(node.parent) });
-            }
-          }
-        } else if (childIds.length > 0) {
-          for (const childId of childIds) {
-            await Tree.update({ id: childId }, { parent: null });
-            await User.update({ id: String(childId) }, { parentId: null });
-          }
-        }
-
-        await Tree.update({ id: user.id }, { childs: [] });
+      const treeCompression = await lib.compressTreeOnElimination(
+        Tree,
+        User,
+        user.id
+      );
+      if (treeCompression.previousParent) {
+        await lib.updateTotalPointsCascade(
+          User,
+          Tree,
+          treeCompression.previousParent
+        );
       }
 
       const ts = Math.floor(Date.now() / 1000);
@@ -720,7 +702,7 @@ const handler = async (req, res, auth) => {
         user_id: id,
         admin_id: auth.user.id,
         state_before: { status: user.status || "active", parentId: user.parentId },
-        state_after:  { status: "eliminated", reason: reason, tree_compression: { previous_parent: node?.parent, children_reassigned: (node?.childs || []).length } }
+        state_after:  { status: "eliminated", reason: reason, tree_compression: treeCompression }
       });
     }
 
