@@ -1,8 +1,180 @@
 import db from "../../../components/db"
 import lib from "../../../components/lib"
+import { normalizeRank, rankAtIndex, rankIndex, RANK_ORDER } from "../../../lib/rankBonusConfig"
+import {
+  RANK_IMAGE_ID,
+  emptyRankImagesDoc,
+  getHistoricalRankImageKey,
+} from "../../../lib/rankImages"
 
-const { User, Session, Transaction, Tree, Banner, Plan, DashboardConfig } = db
+const { User, Session, Transaction, Tree, Banner, Plan, DashboardConfig, Closed } = db
 const { error, success, acum, midd, model } = lib
+
+const RANK_DISPLAY_LABELS = [
+  "Activo",
+  "Bronce",
+  "Plata",
+  "Oro",
+  "Ruby",
+  "Esmeralda",
+  "Diamante",
+  "Doble diamante",
+  "Triple diamante",
+  "Diamante imperial",
+  "Embajador Sifrah",
+]
+
+function stripAccents(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+}
+
+/** Índice en RANK_ORDER (motor Go). Incluye códigos legacy de la app (star, ruby, etc.). */
+function resolveRankToIndex(rank) {
+  const fromEngine = rankIndex(rank)
+  if (fromEngine >= 0) return fromEngine
+
+  const raw = String(rank || "").trim()
+  if (!raw || raw.toLowerCase() === "none") return -1
+
+  const key = stripAccents(raw).toLowerCase()
+  const legacy = {
+    active: 0,
+    activo: 0,
+    star: 1,
+    bronce: 1,
+    master: 1,
+    silver: 2,
+    plata: 2,
+    si: 2,
+    platino: 2,
+    gold: 3,
+    oro: 3,
+    sapphire: 4,
+    zafiro: 4,
+    rubi: 4,
+    ruby: 4,
+    emerald: 5,
+    esmeralda: 5,
+    diamond: 6,
+    diamante: 6,
+    "doble diamante": 7,
+    "triple diamante": 8,
+    "diamante estrella": 9,
+    "diamante imperial": 9,
+    "embajador sifrah": 10,
+  }
+  if (legacy[key] !== undefined) return legacy[key]
+
+  const upper = stripAccents(raw).toUpperCase()
+  const fromUpper = rankIndex(upper)
+  if (fromUpper >= 0) return fromUpper
+
+  return rankIndex(raw.toUpperCase())
+}
+
+function indexToDisplayLabel(index) {
+  if (index < 0 || index >= RANK_DISPLAY_LABELS.length) return null
+  return RANK_DISPLAY_LABELS[index]
+}
+
+function rankToDashboardCode(rankName) {
+  if (!rankName) return "none"
+  const normalized = normalizeRank(rankName)
+  const toCode = {
+    ACTIVO: "active",
+    BRONCE: "star",
+    PLATA: "silver",
+    ORO: "gold",
+    "RUBÍ": "ruby",
+    ESMERALDA: "emerald",
+    DIAMANTE: "diamond",
+    "DOBLE DIAMANTE": "DOBLE DIAMANTE",
+    "TRIPLE DIAMANTE": "TRIPLE DIAMANTE",
+    "DIAMANTE IMPERIAL": "DIAMANTE ESTRELLA",
+    "EMBAJADOR SIFRAH": "DIAMANTE ESTRELLA",
+  }
+  if (normalized && toCode[normalized]) return toCode[normalized]
+
+  const idx = resolveRankToIndex(rankName)
+  if (idx >= 0) return rankToDashboardCode(rankAtIndex(idx))
+
+  return String(rankName).toLowerCase()
+}
+
+function collectHistoricalRankCandidates(user, closeds) {
+  const candidates = []
+
+  const push = (rank, entry) => {
+    const idx = resolveRankToIndex(rank)
+    if (idx < 0) return
+    candidates.push({ index: idx, rank, entry: entry || { rank } })
+  }
+
+  for (const entry of user.rank_history || []) {
+    if (!entry) continue
+    push(entry.rank, entry)
+  }
+
+  push(user.rank)
+
+  for (const doc of closeds || []) {
+    for (const u of doc.users || []) {
+      const uid = u.user_id || u.userId
+      if (uid !== user.id) continue
+      const d = doc.date ? new Date(doc.date) : null
+      push(u.rank, {
+        rank: u.rank,
+        period:
+          u.period ||
+          (d && !Number.isNaN(d.getTime())
+            ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
+            : null),
+        date: doc.date,
+      })
+    }
+  }
+
+  if (!candidates.length && (user.activated || user._activated)) {
+    push("ACTIVO")
+  }
+
+  return candidates
+}
+
+function resolvePeakHistoricalRank(user, closeds) {
+  const candidates = collectHistoricalRankCandidates(user, closeds)
+  if (!candidates.length) {
+    return {
+      index: -1,
+      rank: null,
+      entry: null,
+      label: null,
+    }
+  }
+  const peak = candidates.reduce((best, current) =>
+    current.index > best.index ? current : best
+  )
+  return {
+    index: peak.index,
+    rank: peak.rank,
+    entry: peak.entry,
+    label: indexToDisplayLabel(peak.index),
+  }
+}
+
+function buildHistoricalRankSubtitle(peakEntry, historicalRankIndex) {
+  if (historicalRankIndex < 0) {
+    return "Aún sin rango en historial"
+  }
+  const period = peakEntry?.period ? String(peakEntry.period).trim() : ""
+  if (period) return `Máximo alcanzado en período ${period}`
+  if (peakEntry?.date) {
+    return `Máximo alcanzado: ${new Date(peakEntry.date).toLocaleDateString("es-PE")}`
+  }
+  return "Máximo rango histórico alcanzado"
+}
 
 const D = ['id', 'name', 'lastName', 'affiliated', 'activated', 'tree', 'email', 'phone', 'address', 'rank', 'points', 'parentId', 'total_points']
 export default async (req, res) => {
@@ -143,6 +315,37 @@ export default async (req, res) => {
     }
   }
 
+  const closeds = await Closed.find({})
+  const peak = resolvePeakHistoricalRank(user, closeds)
+  const historicalRankIndex = peak.index
+  const peakEntry = peak.entry
+
+  const historicalRankRaw =
+    historicalRankIndex >= 0 ? rankAtIndex(historicalRankIndex) : null
+  const historicalRank = rankToDashboardCode(
+    historicalRankRaw || peak.rank || user.rank || "none"
+  )
+  const historicalRankLabel =
+    peak.label ||
+    indexToDisplayLabel(historicalRankIndex) ||
+    (historicalRank && historicalRank !== "none" ? historicalRank : null)
+  const historicalRankPercentage =
+    historicalRankIndex >= 0 && RANK_ORDER.length > 1
+      ? Math.floor((historicalRankIndex / (RANK_ORDER.length - 1)) * 100)
+      : 0
+  const historicalRankSubtitle = buildHistoricalRankSubtitle(
+    peakEntry,
+    historicalRankIndex
+  )
+
+  let rankImages = await Banner.findOne({ id: RANK_IMAGE_ID })
+  if (!rankImages) rankImages = emptyRankImagesDoc()
+  const historicalRankImageKey = getHistoricalRankImageKey(historicalRankIndex)
+  const historicalRankImage =
+    historicalRankImageKey && rankImages[historicalRankImageKey]
+      ? rankImages[historicalRankImageKey]
+      : null
+
   // response
   return res.json(success({
     name: user.name,
@@ -176,5 +379,10 @@ export default async (req, res) => {
     nextRankName,
     nextRankPercentage,
     provisionalRank,
+    historicalRank,
+    historicalRankLabel,
+    historicalRankPercentage,
+    historicalRankSubtitle,
+    historicalRankImage,
   }))
 }
