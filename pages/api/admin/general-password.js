@@ -1,6 +1,7 @@
 import bcrypt from 'bcrypt'
 import db from "../../../components/db"
 import lib from "../../../components/lib"
+import { requireAdmin } from "../../../components/adminAuth"
 
 const { DashboardConfig } = db
 const { error, success, midd } = lib
@@ -41,5 +42,7 @@ const GeneralPassword = async (req, res) => {
 
 export default async (req, res) => {
   await midd(req, res);
+  const auth = await requireAdmin(req, res);
+  if (!auth) return;
   return GeneralPassword(req, res);
 };

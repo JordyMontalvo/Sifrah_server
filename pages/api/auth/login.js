@@ -8,6 +8,12 @@ const { rand, error, success, midd } = lib
 const Login = async (req, res) => {
 
   let { dni, password, office_id } = req.body
+  if (!dni || !password) return res.json(error('missing credentials'))
+
+  // Force string casting to prevent NoSQL injection via objects (e.g. {"$ne": null})
+  dni = String(dni).trim()
+  password = String(password)
+
   console.log({ dni, password, office_id })
 
   // valid user
