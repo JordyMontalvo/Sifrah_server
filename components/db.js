@@ -1,7 +1,29 @@
 const URL = process.env.DB_URL || process.env.MONGODB_URI || "mongodb://localhost:27017";
 const name = process.env.DB_NAME || process.env.DB_NAME_FALLBACK || "sifrah";
 
-const Client = require("mongodb").MongoClient;
+const { MongoClient } = require("mongodb");
+
+let globalDb = null;
+let connectPromise = null;
+
+class FakeClient {
+  async connect() {
+    if (!connectPromise) {
+      connectPromise = (async () => {
+        const client = new MongoClient(URL, { useUnifiedTopology: true });
+        await client.connect();
+        globalDb = client.db(name);
+      })();
+    }
+    await connectPromise;
+    return { db: () => globalDb };
+  }
+  close() {
+    // Keep connection alive for connection pooling
+  }
+}
+
+const Client = FakeClient;
 
 class DB {
   constructor({
