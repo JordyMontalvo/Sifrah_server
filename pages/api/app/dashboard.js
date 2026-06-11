@@ -197,6 +197,7 @@ export default async (req, res) => {
   const user = await User.findOne({ id: session.id })
 
   let directs = await User.find({ parentId: user.id })
+  directs = directs.filter((direct) => direct.status !== "eliminated")
 
   directs = directs.map(direct => {
     const d = model(direct, D)
@@ -210,7 +211,7 @@ export default async (req, res) => {
   console.log({ childs })
 
   let frontals = await User.find({ id: { $in: childs } })
-  // frontals = frontals.filter(e => e.parentId != user.id)
+  frontals = frontals.filter((frontal) => frontal.status !== "eliminated")
   console.log({ frontals })
 
   // get transactions

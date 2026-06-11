@@ -193,6 +193,17 @@ function total_points(id) {
   return node.total_points
 }
 
+function isEliminatedUser(user) {
+  return !!(user && user.status === "eliminated")
+}
+
+function visibleChildIds(childIds, usersById) {
+  return (childIds || []).filter((id) => {
+    const user = usersById.get(String(id))
+    return user && !isEliminatedUser(user)
+  })
+}
+
 function find(id, n) {
 
   if(n == 100) return
@@ -235,6 +246,9 @@ export default async (req, res) => {
 
   // Traer datos de usuario para el nodo
   const nodeUser = await User.findOne({ id: node.id })
+  if (isEliminatedUser(nodeUser)) {
+    return res.json(error("user not available"))
+  }
 
   // Tomar el último cierre para reflejar el rango “real” (según cierre)
   let lastClosed = null
@@ -257,31 +271,38 @@ export default async (req, res) => {
   // Leer el total_points ya almacenado
   const total_points = nodeUser.total_points || 0
 
-  // Traer los hijos inmediatos
+  // Traer los hijos inmediatos (sin usuarios eliminados)
   let children = []
   let children_points = []
+  let visibleChilds = []
   if (node.childs && node.childs.length > 0) {
-    // Buscar los nodos hijos
     const childNodes = await Tree.find({ id: { $in: node.childs } })
-    // Traer los usuarios de los hijos
     const childUsers = await User.find({ id: { $in: node.childs } })
-    // Ordenar childNodes y childUsers según el orden de node.childs
-    const childNodesOrdered = node.childs.map(cid => childNodes.find(n => n.id === cid))
-    const childUsersOrdered = node.childs.map(cid => childUsers.find(u => u.id === cid))
-    // Mapear hijos con datos de usuario
-    children = childNodesOrdered.map((childNode, idx) => {
-      const childUser = childUsersOrdered[idx] || {}
-      const closedRank =
-        childUser && childUser.id
-          ? lastClosedRankByUserId.get(String(childUser.id))
-          : null
+    const childUsersById = new Map(childUsers.map((u) => [String(u.id), u]))
+    const descendantIds = childNodes.flatMap((n) => n && n.childs ? n.childs : [])
+    const descendantUsers = descendantIds.length
+      ? await User.find({ id: { $in: descendantIds } })
+      : []
+    descendantUsers.forEach((u) => childUsersById.set(String(u.id), u))
+
+    const childNodesOrdered = node.childs.map((cid) => childNodes.find((n) => n.id === cid))
+    const childUsersOrdered = node.childs.map((cid) => childUsersById.get(String(cid)))
+
+    for (let idx = 0; idx < node.childs.length; idx++) {
+      const childNode = childNodesOrdered[idx]
+      const childUser = childUsersOrdered[idx]
+      if (!childNode || !childUser || isEliminatedUser(childUser)) continue
+
+      const closedRank = lastClosedRankByUserId.get(String(childUser.id)) || null
       const closedRankByDni =
-        !closedRank && childUser && childUser.dni
+        !closedRank && childUser.dni
           ? lastClosedRankByDni.get(String(childUser.dni))
           : null
-      return {
+
+      visibleChilds.push(childNode.id)
+      children.push({
         id: childNode.id,
-        childs: childNode.childs,
+        childs: visibleChildIds(childNode.childs, childUsersById),
         name: childUser.name,
         lastName: childUser.lastName,
         affiliated: childUser.affiliated,
@@ -293,20 +314,17 @@ export default async (req, res) => {
         dni: childUser.dni,
         phone: childUser.phone,
         email: childUser.email,
-        // `_rank` = rango del último cierre (fuente de verdad). Fallback a rank actual.
         _rank: closedRank || closedRankByDni || childUser.rank,
-        // `rank` para compatibilidad con pantallas que lean `rank`.
         rank: closedRank || closedRankByDni || childUser.rank,
-      }
-    })
-    // Calcular los puntos grupales de cada hijo directo en el mismo orden
-    children_points = childUsersOrdered.map(childUser => childUser && childUser.total_points || 0)
+      })
+      children_points.push(childUser.total_points || 0)
+    }
   }
 
   // Nodo principal con datos de usuario
   const mainNode = {
     id: node.id,
-    childs: node.childs,
+    childs: visibleChilds,
     name: nodeUser.name,
     lastName: nodeUser.lastName,
     affiliated: nodeUser.affiliated,

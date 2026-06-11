@@ -661,32 +661,35 @@ const handler = async (req, res, auth) => {
 
       const { reason } = req.body.data || {};
 
-      // Comprimir árbol: reasignar hijos del nodo eliminado a su padre
+      // Comprimir árbol: quitar al eliminado del padre y reasignar sus hijos
       const node = await Tree.findOne({ id: user.id });
       if (node) {
         const childIds = node.childs || [];
-        if (childIds.length > 0 && node.parent) {
+
+        if (node.parent) {
           const parentNode = await Tree.findOne({ id: node.parent });
           if (parentNode) {
-            // Reemplazar el ID del eliminado por sus hijos en el array del padre
-            const updatedChilds = parentNode.childs
-              .filter(c => String(c) !== String(user.id))
-              .concat(childIds);
+            let updatedChilds = (parentNode.childs || [])
+              .filter((c) => String(c) !== String(user.id));
+            if (childIds.length > 0) {
+              updatedChilds = updatedChilds.concat(childIds);
+            }
             await Tree.update({ id: parentNode.id }, { childs: updatedChilds });
           }
-          // Actualizar el padre de cada hijo huérfano
-          for (const childId of childIds) {
-            await Tree.update({ id: childId }, { parent: node.parent });
-            // Actualizar parentId en el documento de usuario hijo
-            await User.update({ id: String(childId) }, { parentId: String(node.parent) });
+          if (childIds.length > 0) {
+            for (const childId of childIds) {
+              await Tree.update({ id: childId }, { parent: node.parent });
+              await User.update({ id: String(childId) }, { parentId: String(node.parent) });
+            }
           }
-        } else if (childIds.length > 0 && !node.parent) {
-          // Nodo raíz eliminado: sus hijos quedan sin padre
+        } else if (childIds.length > 0) {
           for (const childId of childIds) {
             await Tree.update({ id: childId }, { parent: null });
             await User.update({ id: String(childId) }, { parentId: null });
           }
         }
+
+        await Tree.update({ id: user.id }, { childs: [] });
       }
 
       const ts = Math.floor(Date.now() / 1000);

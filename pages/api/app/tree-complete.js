@@ -48,7 +48,9 @@ function find(id, n) {
 
   // Cargar hijos recursivamente
   node.childs.forEach(_id => {
-    find(_id, n+1)
+    const childUser = users.find((u) => u.id === _id)
+    if (childUser && childUser.status === "eliminated") return
+    find(_id, n + 1)
   })
 
   // Crear array de hijos con datos completos
@@ -58,7 +60,7 @@ function find(id, n) {
     if(_node) {
       // Encontrar datos del usuario
       const user = users.find(u => u.id === _id)
-      if(user) {
+      if(user && user.status !== "eliminated") {
         _node.name = user.name
         _node.lastName = user.lastName
         _node.affiliated = user.affiliated
@@ -77,8 +79,8 @@ function find(id, n) {
         _node._rank = closedRank || closedRankByDni || user.rank
         _node.rank = closedRank || closedRankByDni || user.rank
         _node.total_points = user.total_points || 0
+        node._childs.push(_node)
       }
-      node._childs.push(_node)
     }
   })
 }
