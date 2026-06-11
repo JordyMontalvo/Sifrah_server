@@ -341,10 +341,11 @@ export default async (req, res) => {
   let rankImages = await Banner.findOne({ id: RANK_IMAGE_ID })
   if (!rankImages) rankImages = emptyRankImagesDoc()
   const historicalRankImageKey = getHistoricalRankImageKey(historicalRankIndex)
-  const historicalRankImage =
+  const configuredRankImage =
     historicalRankImageKey && rankImages[historicalRankImageKey]
-      ? rankImages[historicalRankImageKey]
-      : null
+      ? String(rankImages[historicalRankImageKey]).trim()
+      : ""
+  const historicalRankImage = configuredRankImage || null
 
   // response
   return res.json(success({
