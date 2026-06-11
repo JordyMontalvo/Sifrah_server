@@ -1,1 +1,1 @@
-web: chmod +x cierre_engine/engine_linux && node server.js
+web: chmod +x cierre_engine/engine_linux && bin/qgtunnel node server.js
