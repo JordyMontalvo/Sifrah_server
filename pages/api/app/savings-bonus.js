@@ -139,6 +139,21 @@ export default async (req, res) => {
 
       const period = await getOrCreateOpenPeriod(new Date())
       const redemptionId = rand()
+      const holdTxId = rand()
+
+      // Reservar saldo de inmediato (evita doble gasto con varias solicitudes pendientes)
+      await Transaction.insert({
+        id: holdTxId,
+        date: new Date(),
+        user_id: user.id,
+        type: "out",
+        value: price,
+        name: "savings_bonus_redemption",
+        desc: `Reserva canje Bono Ahorro #${redemptionId} (pendiente)`,
+        virtual: false,
+        wallet_tipo: "BONO_AHORRO",
+        activation_id: redemptionId,
+      })
 
       await Activation.insert({
         id: redemptionId,
@@ -156,7 +171,7 @@ export default async (req, res) => {
         office: officeId,
         status: "pending",
         delivered: false,
-        transactions: [],
+        transactions: [holdTxId],
         amounts: [0, 0, price],
         delivery_info: {
           method: deliveryMethod || "pickup",

@@ -42,6 +42,32 @@ async function restoreOfficeStock(officeId, products) {
   await Office.update({ id: officeId }, { products: office.products });
 }
 
+async function refundSavingsBonusHold(redemption, reason) {
+  const price = Number(redemption.price) || 0;
+  if (price <= 0) return null;
+
+  const refundId = rand();
+  await Transaction.insert({
+    id: refundId,
+    date: new Date(),
+    user_id: redemption.userId,
+    type: "in",
+    value: price,
+    name: "savings_bonus_refund",
+    desc: reason,
+    virtual: false,
+    wallet_tipo: "BONO_AHORRO",
+    activation_id: redemption.id,
+  });
+
+  const transactions = Array.isArray(redemption.transactions)
+    ? [...redemption.transactions, refundId]
+    : [refundId];
+  await Activation.update({ id: redemption.id }, { transactions });
+
+  return refundId;
+}
+
 async function deductOfficeStock(officeId, products) {
   if (!officeId || !Array.isArray(products) || !products.length) return;
   const office = await Office.findOne({ id: officeId });
@@ -193,51 +219,65 @@ export default async (req, res) => {
       const user = await User.findOne({ id: redemption.userId });
       if (!user) return res.json(error("user not found"));
 
-      const userTx = await Transaction.find({
-        user_id: user.id,
-        virtual: { $in: [null, false] },
-      });
-      const savingsBalance = lib.calcSavingsBonusBalance(userTx);
       const price = Number(redemption.price) || 0;
-
       if (price <= 0) return res.json(error("invalid price"));
-      if (savingsBalance < price) {
-        return res.json(
-          error("Saldo Bono Ahorro insuficiente para aprobar el canje")
+
+      const approvedAt = new Date();
+      const hasHold =
+        Array.isArray(redemption.transactions) &&
+        redemption.transactions.length > 0;
+
+      // Órdenes antiguas sin reserva: descontar al aprobar (compatibilidad)
+      if (!hasHold) {
+        const userTx = await Transaction.find({
+          user_id: user.id,
+          virtual: { $in: [null, false] },
+        });
+        const savingsBalance = lib.calcSavingsBonusBalance(userTx);
+        if (savingsBalance < price) {
+          return res.json(
+            error("Saldo Bono Ahorro insuficiente para aprobar el canje")
+          );
+        }
+        const txId = rand();
+        await Transaction.insert({
+          id: txId,
+          date: approvedAt,
+          user_id: user.id,
+          type: "out",
+          value: price,
+          name: "savings_bonus_redemption",
+          desc: `Canje Bono Ahorro #${id}`,
+          virtual: false,
+          wallet_tipo: "BONO_AHORRO",
+          activation_id: id,
+        });
+        await Activation.update(
+          { id },
+          {
+            status: "approved",
+            approved_at: approvedAt,
+            delivered: false,
+            transactions: [txId],
+          }
+        );
+      } else {
+        await Activation.update(
+          { id },
+          {
+            status: "approved",
+            approved_at: approvedAt,
+            delivered: false,
+          }
         );
       }
 
-      const txId = rand();
-      const approvedAt = new Date();
-      const transactions = Array.isArray(redemption.transactions)
-        ? [...redemption.transactions]
-        : [];
-      transactions.push(txId);
-
-      await Transaction.insert({
-        id: txId,
-        date: approvedAt,
-        user_id: user.id,
-        type: "out",
-        value: price,
-        name: "savings_bonus_redemption",
-        desc: `Canje Bono Ahorro #${id}`,
-        virtual: false,
-        wallet_tipo: "BONO_AHORRO",
-        activation_id: id,
-      });
-
-      await Activation.update(
-        { id },
-        {
-          status: "approved",
-          approved_at: approvedAt,
-          delivered: false,
-          transactions,
-        }
-      );
-
       await deductOfficeStock(redemption.office, redemption.products);
+
+      const userTxAfter = await Transaction.find({
+        user_id: user.id,
+        virtual: { $in: [null, false] },
+      });
 
       await lib.createAuditLog(AuditLog, {
         collection: "activations",
@@ -245,13 +285,27 @@ export default async (req, res) => {
         target_id: id,
         user_id: user.id,
         admin_id: auth.user.id,
-        state_after: { price, savingsBalance: savingsBalance - price },
+        state_after: {
+          price,
+          savingsBalance: lib.calcSavingsBonusBalance(userTxAfter),
+          hadHold: hasHold,
+        },
       });
 
       return res.json(success());
     }
 
     if (action === "reject") {
+      const hasHold =
+        Array.isArray(redemption.transactions) &&
+        redemption.transactions.length > 0;
+      if (hasHold) {
+        await refundSavingsBonusHold(
+          redemption,
+          `Devolución canje rechazado #${id}`
+        );
+      }
+
       await Activation.update({ id }, { status: "rejected" });
 
       await lib.createAuditLog(AuditLog, {
@@ -277,11 +331,21 @@ export default async (req, res) => {
 
     if (action === "cancel") {
       const wasApproved = redemption.status === "approved";
+      const wasPending = redemption.status === "pending";
+      const hasHold =
+        Array.isArray(redemption.transactions) &&
+        redemption.transactions.length > 0;
 
-      if (wasApproved && redemption.transactions?.length) {
-        for (const txId of redemption.transactions) {
-          await Transaction.delete({ id: txId });
-        }
+      if ((wasPending || wasApproved) && hasHold) {
+        await refundSavingsBonusHold(
+          redemption,
+          wasApproved
+            ? `Devolución canje anulado (aprobado) #${id}`
+            : `Devolución canje anulado (pendiente) #${id}`
+        );
+      }
+
+      if (wasApproved) {
         await restoreOfficeStock(redemption.office, redemption.products);
       }
 
