@@ -193,38 +193,6 @@ function runMongodump(archivePath) {
   );
 }
 
-function extractFirstJsonObject(raw) {
-  const start = raw.indexOf("{");
-  if (start === -1) return null;
-
-  let depth = 0;
-  let inString = false;
-  let escaped = false;
-
-  for (let i = start; i < raw.length; i += 1) {
-    const char = raw[i];
-
-    if (inString) {
-      if (escaped) escaped = false;
-      else if (char === "\\") escaped = true;
-      else if (char === '"') inString = false;
-      continue;
-    }
-
-    if (char === '"') {
-      inString = true;
-      continue;
-    }
-    if (char === "{") depth += 1;
-    if (char === "}") {
-      depth -= 1;
-      if (depth === 0) return raw.slice(start, i + 1);
-    }
-  }
-
-  return null;
-}
-
 function loadGoogleCredentials() {
   if (CREDENTIALS_B64 && CREDENTIALS_B64.trim()) {
     try {
@@ -253,12 +221,14 @@ function loadGoogleCredentials() {
     raw = raw.slice(1, -1).trim();
   }
 
-  raw = extractFirstJsonObject(raw);
-  if (!raw) {
+  const start = raw.indexOf("{");
+  const end = raw.lastIndexOf("}");
+  if (start === -1 || end === -1 || end <= start) {
     fail(
-      "GOOGLE_DRIVE_CREDENTIALS_JSON no contiene un objeto JSON válido. Pega el archivo .json de Google una sola vez."
+      "GOOGLE_DRIVE_CREDENTIALS_JSON no contiene un objeto JSON. Pega el archivo .json descargado de Google (sin duplicarlo)."
     );
   }
+  raw = raw.slice(start, end + 1);
 
   try {
     const parsed = JSON.parse(raw);
