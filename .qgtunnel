@@ -1,0 +1,6 @@
+
+[qgtunnel.sifrah]
+accept = "127.0.0.1:27017"
+connect = "ec2-18-220-240-71.us-east-2.compute.amazonaws.com:27017"
+encrypted = false
+transparent = true
