@@ -34,7 +34,7 @@ export default async (req, res) => {
       return res.json(error("Rango no válido"))
     }
 
-    if (!img || typeof img !== "string") {
+    if (typeof img !== "string") {
       return res.json(error("La imagen es requerida"))
     }
 

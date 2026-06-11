@@ -44,7 +44,9 @@ const handler = async (req, res) => {
 
     const folderMapping = {
       'perfil': 'perfiles', 'photos': 'perfiles', 'audios': 'audios',
-      'product': 'productos', 'banner': 'banners', 'flyer': 'flyers'
+      'product': 'productos', 'banner': 'banners', 'flyer': 'flyers',
+      'rank_image': 'rank_images', 'activation_banner': 'activation_banners',
+      'affiliation_banner': 'affiliation_banners',
     };
     const targetFolder = folderMapping[dir] || dir;
     const path = `${targetFolder}/${fileName}`;
