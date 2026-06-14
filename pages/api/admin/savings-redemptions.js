@@ -25,8 +25,82 @@ const FIELDS = [
   "period_label",
   "approved_at",
   "transactions",
+  "voucher",
+  "voucher2",
+  "amounts",
+  "bank",
+  "bank_info",
+  "payment_breakdown",
+  "voucher_number",
 ];
 const USER_FIELDS = ["name", "lastName", "dni", "phone"];
+
+function formatVoucherField(url) {
+  if (!url || typeof url !== "string") {
+    return { url: "", isImage: false };
+  }
+  const isImage = /(https?:\/\/.*\.(?:png|jpg|jpeg|gif|webp|svg))/i.test(url);
+  return { url, isImage };
+}
+
+function productsLabel(products) {
+  if (!Array.isArray(products) || !products.length) return "—";
+  const label = products
+    .filter((p) => Number(p.total) > 0)
+    .map((p) => `${p.name || "Producto"} x${p.total || 1}`)
+    .join(", ");
+  return label || "—";
+}
+
+function savingsPaymentSplit(item) {
+  const price = Number(item.price) || 0;
+
+  // Canje Bono Ahorro: el total se reserva/desconta del monedero BONO_AHORRO (no voucher externo).
+  // amounts [0,0,price] reutiliza el formato de activaciones pero NO significa "faltante por pagar".
+  if (
+    item.pay_method === "savings_bonus" ||
+    item.order_type === SAVINGS_ORDER_TYPE
+  ) {
+    return {
+      paid_savings: price,
+      due: 0,
+      mode: "savings_bonus_only",
+      modeLabel: "Bono Ahorro",
+    };
+  }
+
+  const pb = item.payment_breakdown;
+
+  if (pb && !pb.legacy_missing_amounts) {
+    return {
+      paid_savings: Number(pb.paid_savings ?? pb.paid_balance ?? price),
+      due: Number(pb.due || 0),
+      mode: pb.mode || "savings_bonus_only",
+      modeLabel: pb.modeLabel || "Bono Ahorro",
+    };
+  }
+
+  if (Array.isArray(item.amounts) && item.amounts.length >= 3) {
+    const paidVirtual = Number(item.amounts[0] || 0);
+    const paidBalance = Number(item.amounts[1] || 0);
+    const due = Number(item.amounts[2] || 0);
+    if (paidVirtual > 0 || paidBalance > 0 || due > 0) {
+      return {
+        paid_savings: paidVirtual + paidBalance,
+        due,
+        mode: due <= 0.0001 ? "savings_bonus_only" : "mixed",
+        modeLabel: due <= 0.0001 ? "Bono Ahorro" : "Mixto",
+      };
+    }
+  }
+
+  return {
+    paid_savings: price,
+    due: 0,
+    mode: "savings_bonus_only",
+    modeLabel: "Bono Ahorro",
+  };
+}
 
 const SAVINGS_ORDER_TYPE = "savings_bonus";
 
@@ -150,13 +224,22 @@ export default async (req, res) => {
       const redemptions = items.map((item) => {
         const u = lib.model(users.get(item.userId) || {}, USER_FIELDS);
         const row = lib.model(item, FIELDS);
+        const voucher = formatVoucherField(row.voucher);
+        const voucher2 = row.voucher2
+          ? formatVoucherField(row.voucher2)
+          : null;
+        const paymentSplit = savingsPaymentSplit(row);
+
         return {
           ...row,
           ...u,
           officeName: officeMap[row.office] || row.office || "—",
-          productsSummary: (row.products || [])
-            .map((p) => `${p.name || "Producto"} x${p.total || 1}`)
-            .join(", "),
+          product: productsLabel(row.products),
+          productsSummary: productsLabel(row.products),
+          payMethodLabel: "Bono Ahorro",
+          voucher,
+          voucher2,
+          paymentSplit,
         };
       });
 
