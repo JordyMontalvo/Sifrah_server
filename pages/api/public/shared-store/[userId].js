@@ -1,5 +1,6 @@
 import db from "../../../../components/db";
 import lib from "../../../../components/lib";
+import { mainCatalogMongoFilter } from "../../../../lib/productCatalog";
 const { applyCORS } = require("../../../../middleware/middleware-cors");
 
 const { User, Product, Session, Banner } = db;
@@ -47,7 +48,7 @@ export default async (req, res) => {
 
     // ⭐ REUTILIZAR LA MISMA LÓGICA DE /api/app/activation
     // Obtener productos - MISMA CONSULTA que activation
-    let _products = await Product.find({});
+    let _products = await Product.find(mainCatalogMongoFilter());
 
     // Aplicar el mismo filtro que en activation
     if (!user.activated) {

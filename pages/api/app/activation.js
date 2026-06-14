@@ -1,5 +1,10 @@
 import db from "../../../components/db"
 import lib from "../../../components/lib"
+import {
+  mainCatalogMongoFilter,
+  savingsCatalogMongoFilter,
+  findSavingsOnlyInOrder,
+} from "../../../lib/productCatalog"
 
 const { User, Session, Product, Activation, Affiliation, Office, Transaction } = db
 const { error, success, midd, map, rand, acum } = lib
@@ -96,11 +101,10 @@ export default async (req, res) => {
 
   // get plans
   const isSavingsBonusFilter = req.query.type === 'savings_bonus'
-  
-  const productFilter = {}
-  if (isSavingsBonusFilter) {
-    productFilter.is_savings_bonus = true
-  }
+
+  const productFilter = isSavingsBonusFilter
+    ? savingsCatalogMongoFilter()
+    : mainCatalogMongoFilter()
 
   let _products = await Product.find(productFilter)
 
@@ -184,6 +188,18 @@ export default async (req, res) => {
 
     if (!Array.isArray(products) || !products.length) {
       return res.json(error("No hay productos en la orden."));
+    }
+
+    const productIds = products.map((p) => String(p.id));
+    const dbProducts = await Product.find({ id: { $in: productIds } });
+    const catalogById = new Map(dbProducts.map((p) => [String(p.id), p]));
+    const savingsOnly = findSavingsOnlyInOrder(products, catalogById);
+    if (savingsOnly) {
+      return res.json(
+        error(
+          `El producto "${savingsOnly.name}" solo está disponible en Tienda Bono Ahorro.`
+        )
+      );
     }
 
     // Validación de duplicidad de voucher

@@ -1,5 +1,6 @@
 import db from "../../../components/db";
 import lib from "../../../components/lib";
+import { mainCatalogMongoFilter } from "../../../lib/productCatalog";
 
 const { User, Session, Plan, Product, Affiliation, Activation, Office, Tree, Transaction, Period } =
   db;
@@ -98,7 +99,7 @@ export default async (req, res) => {
   let plans = await Plan.find({});
 
   // get PRODUCTS
-  const products = await Product.find({});
+  const products = await Product.find(mainCatalogMongoFilter());
 
   // get last AFFILIATION pending or approved
   const affiliation = await Affiliation.findOneLast({

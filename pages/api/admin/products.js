@@ -25,6 +25,83 @@ export default async (req, res) => {
     console.log("[API Admin Products] POST recibido:", req.body);
     const { action } = req.body;
 
+    if (action == "toggle_savings_bonus") {
+      const { id, enabled, savings_price: savingsPriceInput } = req.body;
+      const found = await Product.find({ id });
+      const product = found && found[0];
+
+      if (!product) {
+        return res.status(404).json({ error: "Producto no encontrado" });
+      }
+
+      const isEnabled = enabled === true || enabled === "true";
+      let savings_price = Number(product.savings_price) || 0;
+
+      if (isEnabled) {
+        const requested = Number(savingsPriceInput);
+        savings_price =
+          requested > 0
+            ? requested
+            : savings_price > 0
+              ? savings_price
+              : Number(product.price) || 0;
+      }
+
+      await Product.update(
+        { id },
+        {
+          is_savings_bonus: isEnabled,
+          savings_price,
+        }
+      );
+
+      return res.json(
+        success({
+          is_savings_bonus: isEnabled,
+          savings_price,
+        })
+      );
+    }
+
+    if (action == "update_savings_catalog") {
+      const { id } = req.body;
+      const {
+        savings_price,
+        savings_description,
+        savings_img,
+      } = req.body.data || req.body;
+
+      const found = await Product.find({ id });
+      const product = found && found[0];
+
+      if (!product) {
+        return res.status(404).json({ error: "Producto no encontrado" });
+      }
+
+      const update = {};
+
+      if (savings_price !== undefined) {
+        update.savings_price = Number(savings_price) || 0;
+      }
+      if (savings_description !== undefined) {
+        update.savings_description = savings_description;
+      }
+      if (savings_img !== undefined) {
+        update.savings_img = savings_img;
+      }
+
+      await Product.update({ id }, update);
+
+      return res.json(
+        success({
+          savings_price: update.savings_price ?? product.savings_price ?? 0,
+          savings_description:
+            update.savings_description ?? product.savings_description ?? "",
+          savings_img: update.savings_img ?? product.savings_img ?? "",
+        })
+      );
+    }
+
     if (action == "edit") {
       const { id } = req.body;
       const {
@@ -51,7 +128,7 @@ export default async (req, res) => {
 
       // Initialize plans object with all available plans
       allPlans.forEach((plan) => {
-        plansObject[plan.id] = _plans[plan.id] || false;
+        plansObject[plan.id] = (_plans && _plans[plan.id]) || false;
       });
 
       await Product.update(
@@ -101,26 +178,27 @@ export default async (req, res) => {
 
       // Initialize plans object with the plans sent from frontend
       allPlans.forEach((plan) => {
-        plansObject[plan.id] = plans[plan.id] || false;
+        plansObject[plan.id] = (plans && plans[plan.id]) || false;
       });
 
       await Product.insert({
         id: rand(),
-        code,
+        code: code || "",
         name,
         type,
-        price,
-        points,
-        img,
-        description,
+        price: price || 0,
+        points: points || 0,
+        img: img || "",
+        description: description || "",
         subdescription,
         plans: plansObject,
-        weight,
-        prices,
+        weight: weight || 0,
+        prices: prices || {},
         is_savings_bonus,
-        savings_price,
+        savings_price: savings_price || price || 0,
         savings_description,
-        savings_img,
+        savings_img: savings_img || img || "",
+        catalog_type: req.body.data?.catalog_type || "",
       });
     }
 

@@ -1,5 +1,9 @@
-import db from "../../../components/db"
-import lib from "../../../components/lib"
+import db from "../../../components/db";
+import lib from "../../../components/lib";
+import {
+  savingsCatalogMongoFilter,
+  findSavingsOnlyInOrder,
+} from "../../../lib/productCatalog";
 
 const { User, Session, Product, Activation, Office, Transaction, Period } = db
 const { success, error, midd, rand } = lib
@@ -44,18 +48,26 @@ export default async (req, res) => {
 
   if (req.method === "GET") {
     try {
-      const products = await Product.find({ is_savings_bonus: true })
+      const products = await Product.find(savingsCatalogMongoFilter())
 
-      const formattedProducts = products.map((p) => ({
-        id: p.id,
-        name: p.name,
-        sub: p.savings_description || p.subdescription || p.type,
-        price: p.savings_price || p.price,
-        img: p.savings_img || p.img,
-        description: p.savings_description || p.description,
-        type: p.type,
-        catalog_type: p.catalog_type || (p.points ? "both" : "savings"),
-      }))
+      const formattedProducts = products.map((p) => {
+        const fromSifrah =
+          p.catalog_type !== "savings" &&
+          (Number(p.points) > 0 ||
+            (p.plans && Object.values(p.plans).some(Boolean)) ||
+            (p.code && Number(p.price) > 0));
+
+        return {
+          id: p.id,
+          name: p.name,
+          sub: p.savings_description || p.subdescription || p.type,
+          price: p.savings_price || p.price,
+          img: fromSifrah ? p.img || p.savings_img : p.savings_img || p.img,
+          description: p.savings_description || p.description,
+          type: p.type,
+          catalog_type: p.catalog_type || (p.points ? "both" : "savings"),
+        };
+      });
 
       const transactions = await Transaction.find({
         user_id: user.id,
@@ -100,7 +112,7 @@ export default async (req, res) => {
         return res.json(error("La Oficina de Recojo seleccionada no es válida."))
       }
 
-      const catalog = await Product.find({ is_savings_bonus: true })
+      const catalog = await Product.find(savingsCatalogMongoFilter())
       const catalogMap = new Map(catalog.map((p) => [String(p.id), p]))
 
       products = products.map((item) => {
