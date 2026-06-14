@@ -1,4 +1,10 @@
 // Middleware CORS configurable para múltiples orígenes
+const productionFallbacks = [];
+if (process.env.NODE_ENV === 'production') {
+  if (!process.env.FRONTEND_URL) productionFallbacks.push('https://sifrah.vercel.app');
+  if (!process.env.ADMIN_URL) productionFallbacks.push('https://sifrah-admin.vercel.app');
+}
+
 const allowedOrigins = [
   // Desarrollo local
   'http://localhost:8081',
@@ -14,11 +20,8 @@ const allowedOrigins = [
   // Orígenes adicionales desde CORS_ORIGINS (separados por coma)
   ...(process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',').map(o => o.trim()) : []),
   
-  // Fallback para producción si no hay variables de entorno configuradas
-  ...(process.env.NODE_ENV === 'production' && !process.env.FRONTEND_URL ? [
-    'https://sifrah.vercel.app',
-    'https://sifrah-admin.vercel.app',
-  ] : []),
+  // Fallback por rol si falta cada variable (FRONTEND_URL y ADMIN_URL por separado)
+  ...productionFallbacks,
 ];  
 
 function corsMiddleware(req, res, next) {
