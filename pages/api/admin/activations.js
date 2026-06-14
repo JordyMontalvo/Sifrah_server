@@ -475,7 +475,12 @@ export default async (req, res) => {
       if (user.parentId) {
         const activationProducts = activation.products || []; // Asegurarse de que products sea un array
         const amount = activationProducts
-          .filter((p) => p && p.type === "Promoción") // Verificar que p no sea null/undefined
+          .filter(
+            (p) =>
+              p &&
+              p.type === "Promoción" &&
+              !p.is_promotion
+          )
           .reduce((a, p) => a + (p && typeof p.total === 'number' ? p.total : 0) * 10, 0); // Verificar p y p.total
         console.log("amunt: ", amount);
 

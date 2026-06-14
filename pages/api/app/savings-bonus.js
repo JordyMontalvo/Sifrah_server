@@ -2,8 +2,13 @@ import db from "../../../components/db";
 import lib from "../../../components/lib";
 import {
   savingsCatalogMongoFilter,
-  findSavingsOnlyInOrder,
+  isPromotionProduct,
 } from "../../../lib/productCatalog";
+import {
+  countPromotionSold,
+  enrichPromotionForStore,
+  validatePromotionOrder,
+} from "../../../lib/promotionStock";
 
 const { User, Session, Product, Activation, Office, Transaction, Period } = db
 const { success, error, midd, rand } = lib
@@ -48,16 +53,22 @@ export default async (req, res) => {
 
   if (req.method === "GET") {
     try {
-      const products = await Product.find(savingsCatalogMongoFilter())
+      let products = await Product.find(savingsCatalogMongoFilter())
+      products = products.filter((p) => {
+        if (!isPromotionProduct(p)) return true
+        return p.promotion_active !== false
+      })
 
-      const formattedProducts = products.map((p) => {
+      const formattedProducts = []
+      for (const p of products) {
         const fromSifrah =
+          !isPromotionProduct(p) &&
           p.catalog_type !== "savings" &&
           (Number(p.points) > 0 ||
             (p.plans && Object.values(p.plans).some(Boolean)) ||
             (p.code && Number(p.price) > 0));
 
-        return {
+        let base = {
           id: p.id,
           name: p.name,
           sub: p.savings_description || p.subdescription || p.type,
@@ -66,8 +77,17 @@ export default async (req, res) => {
           description: p.savings_description || p.description,
           type: p.type,
           catalog_type: p.catalog_type || (p.points ? "both" : "savings"),
+          is_promotion: !!p.is_promotion,
+          points: 0,
         };
-      });
+
+        if (isPromotionProduct(p)) {
+          const sold = await countPromotionSold(p.id, Activation)
+          base = enrichPromotionForStore({ ...base, available_quantity: p.available_quantity }, sold)
+        }
+
+        formattedProducts.push(base)
+      }
 
       const transactions = await Transaction.find({
         user_id: user.id,
@@ -115,6 +135,15 @@ export default async (req, res) => {
       const catalog = await Product.find(savingsCatalogMongoFilter())
       const catalogMap = new Map(catalog.map((p) => [String(p.id), p]))
 
+      const stockError = await validatePromotionOrder(
+        products,
+        catalogMap,
+        Activation
+      )
+      if (stockError) {
+        return res.json(error(stockError.error))
+      }
+
       products = products.map((item) => {
         const dbProduct = catalogMap.get(String(item.id))
         if (!dbProduct) {
@@ -130,6 +159,7 @@ export default async (req, res) => {
           price: unitPrice,
           total: qty,
           points: 0,
+          is_promotion: !!dbProduct.is_promotion,
         }
       })
 

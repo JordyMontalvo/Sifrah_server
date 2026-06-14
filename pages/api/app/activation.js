@@ -4,7 +4,13 @@ import {
   mainCatalogMongoFilter,
   savingsCatalogMongoFilter,
   findSavingsOnlyInOrder,
+  isPromotionProduct,
 } from "../../../lib/productCatalog"
+import {
+  countPromotionSold,
+  enrichPromotionForStore,
+  validatePromotionOrder,
+} from "../../../lib/promotionStock"
 
 const { User, Session, Product, Activation, Affiliation, Office, Transaction } = db
 const { error, success, midd, map, rand, acum } = lib
@@ -106,10 +112,54 @@ export default async (req, res) => {
     ? savingsCatalogMongoFilter()
     : mainCatalogMongoFilter()
 
-  let _products = await Product.find(productFilter)
+  const userCanSeePromotions = !!(user.activated || user._activated);
 
-  if (!user.activated && !isSavingsBonusFilter) {
-    _products = _products.filter((p) => p.type != 'Promoción')
+  let _products = await Product.find(productFilter);
+
+  if (!isSavingsBonusFilter) {
+    const promoDocs = await Product.find({
+      $or: [
+        { is_promotion: true },
+        { catalog_type: "promotion" },
+        { type: "Promoción" },
+      ],
+    });
+
+    const byId = new Map(_products.map((p) => [String(p.id), p]));
+
+    if (userCanSeePromotions) {
+      for (const promo of promoDocs) {
+        if (promo.promotion_active === false) continue;
+        byId.set(String(promo.id), promo);
+      }
+    }
+
+    _products = Array.from(byId.values());
+
+    if (!userCanSeePromotions) {
+      _products = _products.filter((p) => !isPromotionProduct(p));
+    } else {
+      _products = _products.filter((p) => {
+        if (!isPromotionProduct(p)) return true;
+        return p.promotion_active !== false;
+      });
+    }
+
+    const enriched = [];
+    for (const p of _products) {
+      if (isPromotionProduct(p)) {
+        const sold = await countPromotionSold(p.id, Activation);
+        const enrichedP = enrichPromotionForStore(p, sold);
+        const max = Number(p.available_quantity) || 0;
+        if (max > 0 && enrichedP.promotion_remaining === 0) {
+          continue;
+        }
+        enriched.push(enrichedP);
+      } else {
+        enriched.push(p);
+      }
+    }
+    _products = enriched;
   }
 
 
@@ -202,6 +252,25 @@ export default async (req, res) => {
       );
     }
 
+    const hasPromotion = products.some((p) => {
+      const db = catalogById.get(String(p.id));
+      return db && isPromotionProduct(db);
+    });
+    if (hasPromotion && !userCanSeePromotions) {
+      return res.json(
+        error("Las promociones solo están disponibles para usuarios activos.")
+      );
+    }
+
+    const stockError = await validatePromotionOrder(
+      products,
+      catalogById,
+      Activation
+    );
+    if (stockError) {
+      return res.json(error(stockError.error));
+    }
+
     // Validación de duplicidad de voucher
     if (pay_method === 'bank' && voucher_number) {
       const vn = String(voucher_number).trim();
@@ -243,15 +312,17 @@ export default async (req, res) => {
 
     // Recalcular el precio de cada producto según el plan del usuario
     products = products.map((p) => {
-      let finalPrice = p.price; // Usar el precio inicial del producto
+      let finalPrice = p.price;
       if (p.prices && planId && p.prices[planId] != null && p.prices[planId] !== "") {
         finalPrice = p.prices[planId];
       }
-      // Retornar todas las propiedades del producto y actualizar solo el precio
-      return { ...p, price: finalPrice };
+      const dbProduct = catalogById.get(String(p.id));
+      const promoPoints =
+        dbProduct && isPromotionProduct(dbProduct) ? 0 : p.points || 0;
+      return { ...p, price: finalPrice, points: promoPoints };
     });
 
-    const points = products.reduce((a, b) => a + b.points * b.total, 0)
+    const points = products.reduce((a, b) => a + (b.points || 0) * b.total, 0)
     // const points = products.reduce((a, b) => a + (b.val ? b.val : b.price) * b.total, 0)
 
     const total = products.reduce((a, b) => a + b.total, 0)

@@ -120,37 +120,42 @@ export default async (req, res) => {
         savings_price = 0,
         savings_description = "",
         savings_img = "",
+        is_promotion = false,
+        promotion_active = true,
+        available_quantity = 0,
+        catalog_type = "",
       } = req.body.data;
 
-      // Get all plans from database
       const allPlans = await Plan.find({});
       const plansObject = {};
-
-      // Initialize plans object with all available plans
       allPlans.forEach((plan) => {
         plansObject[plan.id] = (_plans && _plans[plan.id]) || false;
       });
 
-      await Product.update(
-        { id },
-        {
-          code: _code,
-          name: _name,
-          type: _type,
-          price: _price,
-          points: _points,
-          img: _img,
-          description: _description,
-          subdescription: _subdescription,
-          plans: plansObject,
-          weight: _weight,
-          prices: _prices,
-          is_savings_bonus,
-          savings_price,
-          savings_description,
-          savings_img,
-        }
-      );
+      const updatePayload = {
+        code: _code,
+        name: _name,
+        type: _type,
+        price: _price,
+        points: is_promotion ? 0 : _points,
+        img: _img,
+        description: _description,
+        subdescription: _subdescription,
+        plans: is_promotion ? plansObject : plansObject,
+        weight: _weight,
+        prices: _prices,
+        is_savings_bonus,
+        savings_price,
+        savings_description,
+        savings_img,
+      };
+
+      if (is_promotion !== undefined) updatePayload.is_promotion = !!is_promotion;
+      if (promotion_active !== undefined) updatePayload.promotion_active = promotion_active !== false;
+      if (available_quantity !== undefined) updatePayload.available_quantity = Number(available_quantity) || 0;
+      if (catalog_type) updatePayload.catalog_type = catalog_type;
+
+      await Product.update({ id }, updatePayload);
     }
 
     if (action == "add") {
@@ -170,36 +175,74 @@ export default async (req, res) => {
         savings_price = 0,
         savings_description = "",
         savings_img = "",
+        is_promotion = false,
+        promotion_active = true,
+        available_quantity = 0,
+        catalog_type = "",
       } = req.body.data;
 
-      // Get all plans from database
       const allPlans = await Plan.find({});
       const plansObject = {};
-
-      // Initialize plans object with the plans sent from frontend
       allPlans.forEach((plan) => {
         plansObject[plan.id] = (plans && plans[plan.id]) || false;
       });
+
+      const isPromo = !!is_promotion || catalog_type === "promotion";
 
       await Product.insert({
         id: rand(),
         code: code || "",
         name,
-        type,
+        type: isPromo ? "Promoción" : type,
         price: price || 0,
-        points: points || 0,
+        points: isPromo ? 0 : points || 0,
         img: img || "",
         description: description || "",
         subdescription,
         plans: plansObject,
         weight: weight || 0,
         prices: prices || {},
-        is_savings_bonus,
+        is_savings_bonus: !!is_savings_bonus,
         savings_price: savings_price || price || 0,
         savings_description,
         savings_img: savings_img || img || "",
-        catalog_type: req.body.data?.catalog_type || "",
+        catalog_type: catalog_type || (isPromo ? "promotion" : ""),
+        is_promotion: isPromo,
+        promotion_active: promotion_active !== false,
+        available_quantity: Number(available_quantity) || 0,
       });
+    }
+
+    if (action == "toggle_promotion_active") {
+      const { id, enabled } = req.body;
+      const active = enabled === true || enabled === "true";
+      await Product.update({ id }, { promotion_active: active });
+      return res.json(success({ promotion_active: active }));
+    }
+
+    if (action == "toggle_promotion_savings") {
+      const { id, enabled, savings_price: savingsPriceInput } = req.body;
+      const found = await Product.find({ id });
+      const product = found && found[0];
+      if (!product) {
+        return res.status(404).json({ error: "Producto no encontrado" });
+      }
+      const isEnabled = enabled === true || enabled === "true";
+      let savings_price = Number(product.savings_price) || 0;
+      if (isEnabled) {
+        const requested = Number(savingsPriceInput);
+        savings_price =
+          requested > 0
+            ? requested
+            : savings_price > 0
+              ? savings_price
+              : Number(product.price) || 0;
+      }
+      await Product.update(
+        { id },
+        { is_savings_bonus: isEnabled, savings_price }
+      );
+      return res.json(success({ is_savings_bonus: isEnabled, savings_price }));
     }
 
     if (action == "delete") {
