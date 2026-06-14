@@ -550,19 +550,18 @@ const handler = async (req, res, auth) => {
         await Transaction.update({ id: tx.id }, { virtual: false });
       }
 
-      // Enviar email de bienvenida
+      // Enviar email de bienvenida de forma asíncrona (fire and forget)
+      // para evitar que el request se quede colgado si el servidor bloquea el puerto SMTP (ej. DigitalOcean)
       console.log('[Affiliations] Usuario email para notificacion:', user.email);
-      try {
-        if (user.email) {
-          await sendSifrahWelcomeEmail({
-            email: user.email,
-            name: user.name,
-            lastName: user.lastName || '',
-            dni: user.dni || ''
-          });
-        }
-      } catch (emailError) {
-        console.error('[Affiliations] Error enviando email SIFRAH:', emailError.message);
+      if (user.email) {
+        sendSifrahWelcomeEmail({
+          email: user.email,
+          name: user.name,
+          lastName: user.lastName || '',
+          dni: user.dni || ''
+        }).catch(emailError => {
+          console.error('[Affiliations] Error asíncrono enviando email SIFRAH:', emailError.message);
+        });
       }
 
       await lib.createAuditLog(AuditLog, {
