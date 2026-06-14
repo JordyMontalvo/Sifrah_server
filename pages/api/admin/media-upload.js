@@ -1,4 +1,5 @@
 import lib from "../../../components/lib";
+import { requireAdmin } from "../../../components/adminAuth";
 import { uploadToBunny } from "../../../lib/bunnyUpload";
 
 const { midd } = lib;
@@ -8,20 +9,21 @@ export const config = {
     bodyParser: {
       sizeLimit: "100mb",
     },
-    externalResolver: true,
   },
 };
 
-const handler = async (req, res) => {
+export default async (req, res) => {
   await midd(req, res);
 
-  if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const fileName = req.body?.fileName || req.query?.fileName;
-  const dir = req.body?.dir || req.query?.dir || "general";
+  const auth = await requireAdmin(req, res);
+  if (!auth) return;
+
+  const fileName = req.body?.fileName;
+  const dir = req.body?.dir || "general";
   const fileData = req.body?.fileData;
 
   if (!fileName || !fileData) {
@@ -40,11 +42,7 @@ const handler = async (req, res) => {
     });
     return res.status(200).json({ url });
   } catch (err) {
-    console.error("[BunnyUp]", err.message);
-    if (!res.writableEnded) {
-      return res.status(500).json({ error: err.message });
-    }
+    console.error("[AdminMediaUpload]", err.message);
+    return res.status(500).json({ error: err.message });
   }
 };
-
-export default handler;
