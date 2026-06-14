@@ -1,5 +1,7 @@
 import https from 'https';
-const { applyCORS } = require('../../../middleware/middleware-cors');
+import lib from '../../../components/lib';
+
+const { midd } = lib;
 
 export const config = {
   api: {
@@ -11,7 +13,7 @@ export const config = {
 };
 
 const handler = async (req, res) => {
-  applyCORS(req, res);
+  await midd(req, res);
 
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });

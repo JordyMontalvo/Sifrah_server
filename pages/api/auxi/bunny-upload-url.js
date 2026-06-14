@@ -1,9 +1,11 @@
-const { applyCORS } = require('../../../middleware/middleware-cors');
+import lib from '../../../components/lib';
+
+const { midd } = lib;
 
 // Este endpoint NO toca el archivo.
 // Solo genera la URL de destino a donde el cliente subirá directamente.
 export default async function handler(req, res) {
-  applyCORS(req, res);
+  await midd(req, res);
 
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).end();
