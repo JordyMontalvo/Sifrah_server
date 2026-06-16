@@ -307,6 +307,9 @@ func main() {
 
 		// Store for history BEFORE resetting
 		user.LastTotalPoints       = calculatedTotalPoints
+		user.LastPoints            = user.Points
+		user.LastActivated         = user.Activated
+		user.LastActivatedInt      = user.ActivatedInternal
 		user.LastResidualBonus     = resTotal
 		user.LastGenerationalBonus = genTotal
 		user.LastSavingsBonus      = savTotal
@@ -408,8 +411,10 @@ func main() {
 				Name:              u.Name + " " + u.LastName,
 				DNI:               u.DNI,
 				Rank:              u.Rank,
-				Points:            u.LastTotalPoints,
+				Points:            u.LastPoints,
 				TotalPoints:       u.LastTotalPoints,
+				Activated:         u.LastActivated,
+				ActivatedInt:      u.LastActivatedInt,
 				ResidualBonus:     u.LastResidualBonus,
 				ResidualLines:     resLines,
 				GenerationalBonus: u.LastGenerationalBonus,

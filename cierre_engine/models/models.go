@@ -38,6 +38,9 @@ type User struct {
 	LastGenerationalBonus float64   `bson:"-" json:"-"`
 	LastSavingsBonus      float64   `bson:"-" json:"-"`
 	LastTotalPoints       float64   `bson:"-" json:"-"`
+	LastPoints            float64   `bson:"-" json:"-"`
+	LastActivated         bool      `bson:"-" json:"-"`
+	LastActivatedInt      bool      `bson:"-" json:"-"`
 }
 
 type TreeNode struct {
@@ -96,12 +99,14 @@ type GenerationalLineEntry struct {
 }
 
 type ClosedUserEntry struct {
-	UserID            string              `bson:"user_id" json:"user_id"`
+	UserID            string              `bson:"user_id" json:"id"`
 	Name              string              `bson:"name" json:"name"`
 	DNI               string              `bson:"dni,omitempty" json:"dni,omitempty"`
 	Rank              string              `bson:"rank" json:"rank"`
 	Points            float64             `bson:"points" json:"points"`
-	TotalPoints       float64             `bson:"total_points" json:"total_points"`
+	TotalPoints       float64             `bson:"total_points" json:"_total"`
+	Activated         bool                `bson:"activated" json:"activated"`
+	ActivatedInt      bool                `bson:"_activated" json:"_activated"`
 	ResidualBonus     float64                 `bson:"residual_bonus" json:"residual_bonus"`
 	ResidualLines     []ResidualLineEntry     `bson:"residual_lines,omitempty" json:"residual_lines,omitempty"`
 	GenerationalBonus float64                 `bson:"generational_bonus" json:"generational_bonus"`
