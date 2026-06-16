@@ -9,7 +9,7 @@ import {
   enrichPromotionForStore,
   validatePromotionOrder,
 } from "../../../lib/promotionStock";
-import { ensureDefaultSavingsCategories, mapCategoriesForStore } from "../../../lib/savingsCategoryDefaults";
+import { mapCategoriesForStore } from "../../../lib/savingsCategoryDefaults";
 
 const { User, Session, Product, Activation, Office, Transaction, Period, SavingsCategory } = db
 const { success, error, midd, rand } = lib
@@ -97,7 +97,6 @@ export default async (req, res) => {
       })
       const savingsBalance = lib.calcSavingsBonusBalance(transactions)
 
-      await ensureDefaultSavingsCategories(db, lib)
       const allCategories = await SavingsCategory.find({})
       const categories = mapCategoriesForStore(allCategories)
 

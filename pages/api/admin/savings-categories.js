@@ -1,7 +1,7 @@
 import db from "../../../components/db";
 import lib from "../../../components/lib";
 import { requireAdmin } from "../../../components/adminAuth";
-import { seedDefaultSavingsCategories, ensureDefaultSavingsCategories, mapCategoriesForStore } from "../../../lib/savingsCategoryDefaults";
+import { mapCategoriesForStore } from "../../../lib/savingsCategoryDefaults";
 const { SavingsCategory, Product } = db;
 const { success, error, midd, rand } = lib;
 
@@ -22,7 +22,6 @@ export default async (req, res) => {
 
   if (req.method === "GET") {
     try {
-      await ensureDefaultSavingsCategories(db, lib);
       let categories = await SavingsCategory.find({});
       const products = await Product.find({ is_savings_bonus: true });
       const counts = {};
@@ -114,25 +113,18 @@ export default async (req, res) => {
         const { id } = req.body;
         if (!id) return res.json(error("ID requerido"));
         const linked = await Product.find({ savings_category_id: id });
-        if (linked.length) {
-          return res.json(
-            error(
-              `No se puede eliminar: ${linked.length} producto(s) usan esta categoría. Ocúltela o reasígnelos primero.`
-            )
+        for (const product of linked) {
+          await Product.update(
+            { id: product.id },
+            { savings_category_id: null }
           );
         }
         await SavingsCategory.delete({ id });
-        return res.json(success({}));
+        return res.json(success({ unlinked: linked.length }));
       }
 
-      if (action === "seed_defaults") {
-        const result = await seedDefaultSavingsCategories(db, lib, {
-          skipExisting: req.body.skipExisting !== false,
-        });
-        return res.json(success(result));
-      }
-
-      return res.json(error("Acción no válida"));    } catch (e) {
+      return res.json(error("Acción no válida"));
+    } catch (e) {
       console.error("[savings-categories POST]", e);
       return res.status(500).json(error("Internal Server Error"));
     }
@@ -143,12 +135,8 @@ export default async (req, res) => {
       const { id } = req.body;
       if (!id) return res.json(error("ID requerido"));
       const linked = await Product.find({ savings_category_id: id });
-      if (linked.length) {
-        return res.json(
-          error(
-            `No se puede eliminar: ${linked.length} producto(s) usan esta categoría.`
-          )
-        );
+      for (const product of linked) {
+        await Product.update({ id: product.id }, { savings_category_id: null });
       }
       await SavingsCategory.delete({ id });
       return res.json(success({ message: "Categoría eliminada" }));
