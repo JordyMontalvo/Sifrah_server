@@ -46,6 +46,7 @@ type PreviewNode struct {
 	Activated         bool                         `json:"activated"`
 	ActivatedInt      bool                         `json:"_activated"`
 	Pays              []models.Pay                 `json:"_pays"`
+	TreeSnapshot      *models.SnapshotNode         `json:"tree_snapshot,omitempty"`
 }
 
 func residualLinesFromTxs(txs []models.Transaction) []models.ResidualLineEntry {
@@ -290,6 +291,16 @@ func main() {
 		totalBonusTransactions = append(totalBonusTransactions, savTxs...)
 
 		// Collect preview data BEFORE resetting
+		// For the preview snapshot, we need a map of user ID to User
+		updatedUserByIDPreview := make(map[string]*models.User)
+		for idxPreview := range users {
+			uPreview := users[idxPreview]
+			// Simulate the LastPoints etc. for the snapshot since preview is before reset
+			uPreview.LastPoints = uPreview.Points
+			uPreview.LastTotalPoints = ce.MemoPoints[uPreview.ID]
+			updatedUserByIDPreview[uPreview.ID] = &uPreview
+		}
+
 		if rank != "none" || calculatedTotalPoints > 0 || resTotal > 0 || genTotal > 0 || savTotal > 0 {
 			previewNodes = append(previewNodes, PreviewNode{
 				ID:                user.ID,
@@ -305,6 +316,7 @@ func main() {
 				Activated:         user.Activated,
 				ActivatedInt:      user.ActivatedInternal,
 				Pays:              []models.Pay{}, // Can be populated if needed
+				TreeSnapshot:      buildSnapshotTree(ce, user.ID, updatedUserByIDPreview),
 			})
 		}
 
