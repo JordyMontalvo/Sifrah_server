@@ -76,6 +76,17 @@ type LegDetail struct {
 	TotalPoints float64 `bson:"total_points" json:"total_points"`
 }
 
+// SnapshotNode — Representación recursiva de la red en el momento del cierre.
+type SnapshotNode struct {
+	UserID      string          `bson:"user_id" json:"id"`
+	Name        string          `bson:"name" json:"name"`
+	DNI         string          `bson:"dni,omitempty" json:"dni,omitempty"`
+	Rank        string          `bson:"rank" json:"rank"`
+	Points      float64         `bson:"points" json:"points"`
+	TotalPoints float64         `bson:"total_points" json:"_total"`
+	Childs      []*SnapshotNode `bson:"childs,omitempty" json:"childs,omitempty"`
+}
+
 // ResidualLineEntry — una línea de bono residual (origen: puntos de reconsumo de un downline).
 type ResidualLineEntry struct {
 	FromUserID string  `bson:"from_user_id,omitempty" json:"from_user_id,omitempty"`
@@ -113,6 +124,7 @@ type ClosedUserEntry struct {
 	GenerationalLines []GenerationalLineEntry `bson:"generational_lines,omitempty" json:"generational_lines,omitempty"`
 	SavingsBonus      float64                 `bson:"savings_bonus,omitempty" json:"savings_bonus,omitempty"`
 	GroupedPointsLegs []LegDetail             `bson:"grouped_points_legs,omitempty" json:"grouped_points_legs,omitempty"`
+	TreeSnapshot      *SnapshotNode           `bson:"tree_snapshot,omitempty" json:"tree_snapshot,omitempty"`
 }
 
 type Closed struct {

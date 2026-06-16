@@ -86,6 +86,32 @@ func generationalLinesFromTxs(txs []models.Transaction) []models.GenerationalLin
 	return out
 }
 
+func buildSnapshotTree(ce *engine.CierreEngine, userID string, updatedUserByID map[string]*models.User) *models.SnapshotNode {
+	u, ok := updatedUserByID[userID]
+	if !ok {
+		return nil
+	}
+	
+	node := &models.SnapshotNode{
+		UserID:      u.ID,
+		Name:        u.Name + " " + u.LastName,
+		DNI:         u.DNI,
+		Rank:        u.Rank,
+		Points:      u.LastPoints,
+		TotalPoints: u.LastTotalPoints,
+	}
+
+	if treeNode, ok := ce.TreeNodes[userID]; ok && len(treeNode.Childs) > 0 {
+		for _, childID := range treeNode.Childs {
+			childSnapshot := buildSnapshotTree(ce, childID, updatedUserByID)
+			if childSnapshot != nil {
+				node.Childs = append(node.Childs, childSnapshot)
+			}
+		}
+	}
+	return node
+}
+
 func main() {
 	start := time.Now()
 
@@ -376,6 +402,11 @@ func main() {
 	}
 
 	// Build users summary for closed history
+	updatedUserByID := make(map[string]*models.User)
+	for i := range updatedUsers {
+		updatedUserByID[updatedUsers[i].ID] = &updatedUsers[i]
+	}
+
 	var usersSummary []models.ClosedUserEntry
 	for _, u := range updatedUsers {
 		if u.Rank != "none" && u.Rank != "" {
@@ -421,6 +452,7 @@ func main() {
 				GenerationalLines: genLines,
 				SavingsBonus:      u.LastSavingsBonus,
 				GroupedPointsLegs: legsByUserID[u.ID],
+				TreeSnapshot:      buildSnapshotTree(ce, u.ID, updatedUserByID),
 			})
 		}
 	}
