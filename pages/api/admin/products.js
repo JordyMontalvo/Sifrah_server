@@ -5,7 +5,25 @@ import { requireAdmin } from "../../../components/adminAuth";
 const { Product, Plan, SavingsCategory } = db;
 const { midd, success, rand } = lib;
 
-async function resolveSavingsCategoryFields(data = {}) {
+const SIFRAH_SAVINGS_CATEGORY_NAME = "Productos SIFRAH";
+
+function isFromSifrahCatalog(product) {
+  if (!product) return false;
+  if (product.catalog_type === "savings") return false;
+  if (product.is_promotion) return false;
+  if (Number(product.points) > 0) return true;
+  if (product.catalog_type === "sifrah" || product.catalog_type === "both") return true;
+  const plans = product.plans || {};
+  if (Object.values(plans).some(Boolean)) return true;
+  return !!(product.code && Number(product.price) > 0);
+}
+
+async function getSifrahSavingsCategoryId() {
+  const cat = await SavingsCategory.findOne({ name: SIFRAH_SAVINGS_CATEGORY_NAME });
+  return cat ? cat.id : null;
+}
+
+async function resolveSavingsCategoryFields(data = {}, product = null) {
   const savings_category_id = data.savings_category_id || null;
   if (!savings_category_id) {
     return { savings_category_id: null };
@@ -14,10 +32,24 @@ async function resolveSavingsCategoryFields(data = {}) {
   if (!category) {
     return { savings_category_id: null };
   }
-  return {
-    savings_category_id,
-    type: category.name,
-  };
+  const catalogType = data.catalog_type || product?.catalog_type || "";
+  const result = { savings_category_id };
+  if (catalogType === "savings") {
+    result.type = category.name;
+  }
+  return result;
+}
+
+async function applySifrahSavingsCategoryIfNeeded(product, update) {
+  const enabled =
+    update.is_savings_bonus !== undefined
+      ? update.is_savings_bonus
+      : product?.is_savings_bonus;
+  if (!product || !enabled) return update;
+  if (!isFromSifrahCatalog(product)) return update;
+  const catId = await getSifrahSavingsCategoryId();
+  if (catId) update.savings_category_id = catId;
+  return update;
 }
 
 export default async (req, res) => {
@@ -62,18 +94,22 @@ export default async (req, res) => {
               : Number(product.price) || 0;
       }
 
-      await Product.update(
-        { id },
-        {
-          is_savings_bonus: isEnabled,
-          savings_price,
-        }
-      );
+      const update = {
+        is_savings_bonus: isEnabled,
+        savings_price,
+      };
+
+      if (isEnabled) {
+        await applySifrahSavingsCategoryIfNeeded(product, update);
+      }
+
+      await Product.update({ id }, update);
 
       return res.json(
         success({
           is_savings_bonus: isEnabled,
           savings_price,
+          savings_category_id: update.savings_category_id ?? product.savings_category_id ?? null,
         })
       );
     }
@@ -105,6 +141,10 @@ export default async (req, res) => {
         update.savings_img = savings_img;
       }
 
+      if (product.is_savings_bonus) {
+        await applySifrahSavingsCategoryIfNeeded(product, update);
+      }
+
       await Product.update({ id }, update);
 
       return res.json(
@@ -113,6 +153,8 @@ export default async (req, res) => {
           savings_description:
             update.savings_description ?? product.savings_description ?? "",
           savings_img: update.savings_img ?? product.savings_img ?? "",
+          savings_category_id:
+            update.savings_category_id ?? product.savings_category_id ?? null,
         })
       );
     }
@@ -142,15 +184,30 @@ export default async (req, res) => {
         savings_category_id = null,
       } = req.body.data;
 
+      const found = await Product.find({ id });
+      const existing = found && found[0];
+      if (!existing) {
+        return res.status(404).json({ error: "Producto no encontrado" });
+      }
+
       const allPlans = await Plan.find({});
       const plansObject = {};
       allPlans.forEach((plan) => {
         plansObject[plan.id] = (_plans && _plans[plan.id]) || false;
       });
 
-      const categoryFields = await resolveSavingsCategoryFields({
-        savings_category_id,
-      });
+      const mergedProduct = {
+        ...existing,
+        catalog_type: catalog_type || existing.catalog_type,
+        points: is_promotion ? 0 : _points,
+        plans: plansObject,
+        is_promotion: !!is_promotion,
+      };
+
+      const categoryFields = await resolveSavingsCategoryFields(
+        { savings_category_id, catalog_type: mergedProduct.catalog_type },
+        mergedProduct
+      );
 
       const updatePayload = {
         code: _code,
@@ -161,7 +218,7 @@ export default async (req, res) => {
         img: _img,
         description: _description,
         subdescription: _subdescription,
-        plans: is_promotion ? plansObject : plansObject,
+        plans: plansObject,
         weight: _weight,
         prices: _prices,
         is_savings_bonus,
@@ -170,6 +227,8 @@ export default async (req, res) => {
         savings_img,
         savings_category_id: categoryFields.savings_category_id,
       };
+
+      await applySifrahSavingsCategoryIfNeeded(mergedProduct, updatePayload);
 
       if (is_promotion !== undefined) updatePayload.is_promotion = !!is_promotion;
       if (promotion_active !== undefined) updatePayload.promotion_active = promotion_active !== false;
@@ -210,11 +269,12 @@ export default async (req, res) => {
       });
 
       const isPromo = !!is_promotion || catalog_type === "promotion";
-      const categoryFields = await resolveSavingsCategoryFields({
-        savings_category_id,
-      });
+      const categoryFields = await resolveSavingsCategoryFields(
+        { savings_category_id, catalog_type },
+        { catalog_type, points, plans: plansObject, is_promotion: isPromo }
+      );
 
-      await Product.insert({
+      const insertPayload = {
         id: rand(),
         code: code || "",
         name,
@@ -236,7 +296,23 @@ export default async (req, res) => {
         promotion_active: promotion_active !== false,
         available_quantity: Number(available_quantity) || 0,
         savings_category_id: categoryFields.savings_category_id,
-      });
+      };
+
+      if (is_savings_bonus) {
+        await applySifrahSavingsCategoryIfNeeded(
+          {
+            catalog_type: insertPayload.catalog_type,
+            points: insertPayload.points,
+            plans: plansObject,
+            code,
+            price,
+            is_promotion: isPromo,
+          },
+          insertPayload
+        );
+      }
+
+      await Product.insert(insertPayload);
     }
 
     if (action == "toggle_promotion_active") {
