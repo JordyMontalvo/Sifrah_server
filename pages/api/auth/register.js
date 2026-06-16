@@ -8,7 +8,7 @@ const { rand, error, success, midd } = lib
 
 const Register = async (req, res) => {
 
-  let { country, dni, name, lastName, date, email, password, phone, code, department, province, district } = req.body
+  let { country, dni, name, lastName, date, email, password, phone, code, department, province, district, sponsorSession } = req.body
 
   // Validar que el código existe y no esté vacío
   if (!code || code.trim() === '') {
@@ -36,6 +36,17 @@ const Register = async (req, res) => {
 
   // valid code
   if(!parent) return res.json(error('code not found'))
+
+  let isSponsorRegistration = false
+  if (sponsorSession) {
+    const sponsorSess = await Session.findOne({ value: String(sponsorSession).trim() })
+    if (sponsorSess) {
+      const sponsorUser = await User.findOne({ id: sponsorSess.id })
+      if (sponsorUser && sponsorUser.status !== 'eliminated') {
+        isSponsorRegistration = true
+      }
+    }
+  }
 
   password = await bcrypt.hash(password, 12)
 
@@ -79,9 +90,11 @@ const Register = async (req, res) => {
       reregistered_at: new Date(),
     })
 
-    // Cerrar sesiones viejas y crear sesión nueva
+    // Cerrar sesiones viejas del usuario re-registrado (no del patrocinador)
     await Session.deleteMany({ id: existingUser.id })
-    await Session.insert({ id: existingUser.id, value: session })
+    if (!isSponsorRegistration) {
+      await Session.insert({ id: existingUser.id, value: session })
+    }
 
     // Reparar nodo en el árbol: insertar bajo el nuevo patrocinador
     const _id = parent.coverage && parent.coverage.id ? parent.coverage.id : parent.id
@@ -98,11 +111,11 @@ const Register = async (req, res) => {
       await Tree.insert({ id: existingUser.id, childs: [], parent: _id })
     }
 
-    return res.json(success({
-      session,
-      affiliated: false,
-      reregistered: true
-    }))
+    return res.json(success(
+      isSponsorRegistration
+        ? { sponsorRegistration: true, registeredDni: dni, affiliated: false, reregistered: true }
+        : { session, affiliated: false, reregistered: true }
+    ))
   }
 
   // ── REGISTRO NUEVO ─────────────────────────────────────────────────────────
@@ -148,11 +161,13 @@ const Register = async (req, res) => {
     token: token,
   })
 
-  // save new session
-  await Session.insert({
-    id: id,
-    value: session,
-  })
+  // save new session (omitir si el registro lo hace un patrocinador con sesión activa)
+  if (!isSponsorRegistration) {
+    await Session.insert({
+      id: id,
+      value: session,
+    })
+  }
 
   // insert to tree
   const _id = parent.coverage && parent.coverage.id ? parent.coverage.id : parent.id
@@ -164,10 +179,11 @@ const Register = async (req, res) => {
   await Tree.insert({ id:  id, childs: [], parent: _id })
 
   // response
-  return res.json(success({
-    session,
-    affiliated: false
-  }))
+  return res.json(success(
+    isSponsorRegistration
+      ? { sponsorRegistration: true, registeredDni: dni, affiliated: false }
+      : { session, affiliated: false }
+  ))
 }
 
 export default async (req, res) => { await midd(req, res); return Register(req, res) }

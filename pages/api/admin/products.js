@@ -2,8 +2,23 @@ import db from "../../../components/db";
 import lib from "../../../components/lib";
 import { requireAdmin } from "../../../components/adminAuth";
 
-const { Product, Plan } = db;
+const { Product, Plan, SavingsCategory } = db;
 const { midd, success, rand } = lib;
+
+async function resolveSavingsCategoryFields(data = {}) {
+  const savings_category_id = data.savings_category_id || null;
+  if (!savings_category_id) {
+    return { savings_category_id: null };
+  }
+  const category = await SavingsCategory.findOne({ id: savings_category_id });
+  if (!category) {
+    return { savings_category_id: null };
+  }
+  return {
+    savings_category_id,
+    type: category.name,
+  };
+}
 
 export default async (req, res) => {
   await midd(req, res);
@@ -124,6 +139,7 @@ export default async (req, res) => {
         promotion_active = true,
         available_quantity = 0,
         catalog_type = "",
+        savings_category_id = null,
       } = req.body.data;
 
       const allPlans = await Plan.find({});
@@ -132,10 +148,14 @@ export default async (req, res) => {
         plansObject[plan.id] = (_plans && _plans[plan.id]) || false;
       });
 
+      const categoryFields = await resolveSavingsCategoryFields({
+        savings_category_id,
+      });
+
       const updatePayload = {
         code: _code,
         name: _name,
-        type: _type,
+        type: categoryFields.type || _type,
         price: _price,
         points: is_promotion ? 0 : _points,
         img: _img,
@@ -148,6 +168,7 @@ export default async (req, res) => {
         savings_price,
         savings_description,
         savings_img,
+        savings_category_id: categoryFields.savings_category_id,
       };
 
       if (is_promotion !== undefined) updatePayload.is_promotion = !!is_promotion;
@@ -179,6 +200,7 @@ export default async (req, res) => {
         promotion_active = true,
         available_quantity = 0,
         catalog_type = "",
+        savings_category_id = null,
       } = req.body.data;
 
       const allPlans = await Plan.find({});
@@ -188,12 +210,15 @@ export default async (req, res) => {
       });
 
       const isPromo = !!is_promotion || catalog_type === "promotion";
+      const categoryFields = await resolveSavingsCategoryFields({
+        savings_category_id,
+      });
 
       await Product.insert({
         id: rand(),
         code: code || "",
         name,
-        type: isPromo ? "Promoción" : type,
+        type: isPromo ? "Promoción" : categoryFields.type || type,
         price: price || 0,
         points: isPromo ? 0 : points || 0,
         img: img || "",
@@ -210,6 +235,7 @@ export default async (req, res) => {
         is_promotion: isPromo,
         promotion_active: promotion_active !== false,
         available_quantity: Number(available_quantity) || 0,
+        savings_category_id: categoryFields.savings_category_id,
       });
     }
 

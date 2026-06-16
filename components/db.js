@@ -53,6 +53,7 @@ class DB {
     AudioCategory,
     Book,
     BookCategory,
+    SavingsCategory,
     RankBonusPayment,
     AgendaEvent,
     AuditLog,
@@ -84,6 +85,7 @@ class DB {
     this.AudioCategory = AudioCategory;
     this.Book = Book;
     this.BookCategory = BookCategory;
+    this.SavingsCategory = SavingsCategory;
     this.RankBonusPayment = RankBonusPayment;
     this.AgendaEvent = AgendaEvent;
     this.AuditLog = AuditLog;
@@ -1166,6 +1168,46 @@ class BookCategory {
   }
 }
 
+class SavingsCategory {
+  async findOne(query) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    const category = await db.collection("savings_categories").findOne(query);
+    client.close();
+    return category;
+  }
+  async find(query, sort = { order: 1, name: 1 }) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    const categories = await db.collection("savings_categories").find(query).sort(sort).toArray();
+    client.close();
+    return categories;
+  }
+  async insert(category) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    await db.collection("savings_categories").insertOne(category);
+    return client.close();
+  }
+  async update(query, values) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    await db.collection("savings_categories").updateOne(query, { $set: values });
+    return client.close();
+  }
+  async delete(query) {
+    const client = new Client(URL, { useUnifiedTopology: true });
+    const conn = await client.connect();
+    const db = conn.db(name);
+    await db.collection("savings_categories").deleteOne(query);
+    return client.close();
+  }
+}
+
 class AgendaEvent {
   async findOne(query) {
     const client = new Client(URL, { useUnifiedTopology: true });
@@ -1279,6 +1321,7 @@ module.exports = new DB({
   AudioCategory: new AudioCategory(),
   Book: new Book(),
   BookCategory: new BookCategory(),
+  SavingsCategory: new SavingsCategory(),
   AgendaEvent: new AgendaEvent(),
   AuditLog: new AuditLog(),
   ReactivationRequest: new ReactivationRequest(),

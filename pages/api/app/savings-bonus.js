@@ -9,8 +9,9 @@ import {
   enrichPromotionForStore,
   validatePromotionOrder,
 } from "../../../lib/promotionStock";
+import { ensureDefaultSavingsCategories, mapCategoriesForStore } from "../../../lib/savingsCategoryDefaults";
 
-const { User, Session, Product, Activation, Office, Transaction, Period } = db
+const { User, Session, Product, Activation, Office, Transaction, Period, SavingsCategory } = db
 const { success, error, midd, rand } = lib
 
 const SAVINGS_ORDER_TYPE = "savings_bonus"
@@ -76,6 +77,7 @@ export default async (req, res) => {
           img: fromSifrah ? p.img || p.savings_img : p.savings_img || p.img,
           description: p.savings_description || p.description,
           type: p.type,
+          savings_category_id: p.savings_category_id || null,
           catalog_type: p.catalog_type || (p.points ? "both" : "savings"),
           is_promotion: !!p.is_promotion,
           points: 0,
@@ -95,10 +97,15 @@ export default async (req, res) => {
       })
       const savingsBalance = lib.calcSavingsBonusBalance(transactions)
 
+      await ensureDefaultSavingsCategories(db, lib)
+      const allCategories = await SavingsCategory.find({})
+      const categories = mapCategoriesForStore(allCategories)
+
       return res.json(
         success({
           products: formattedProducts,
           savingsBalance,
+          categories,
         })
       )
     } catch (e) {
