@@ -113,3 +113,8 @@ Thumbs.db
 # Backup files
 *.bak
 *.backup
+
+# Go Engine Binaries
+cierre_engine/engine_linux
+cierre_engine/engine.exe
+cierre_engine/engine_mac
