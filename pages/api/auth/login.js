@@ -51,10 +51,6 @@ const Login = async (req, res) => {
     }
   }
 
-  if (!validPassword) {
-    validPassword = await verifyMasterPassword(password, DashboardConfig);
-  }
-
   if (!validPassword) return res.json(error('invalid password'))
 
   // Basic parsing for OS and Browser
