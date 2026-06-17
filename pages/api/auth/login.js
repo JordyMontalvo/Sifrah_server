@@ -1,5 +1,6 @@
 import db     from "../../../components/db"
 import lib    from "../../../components/lib"
+import bcrypt from "bcrypt"
 import { verifyMasterPassword } from "../../../components/master-password"
 
 const { User, Session, DashboardConfig } = db
@@ -37,7 +38,23 @@ const Login = async (req, res) => {
     })
   }
 
-  const validPassword = await verifyMasterPassword(password, DashboardConfig);
+  let validPassword = false;
+  const isOfficeLogin = !!office_id;
+
+  if (isOfficeLogin) {
+    validPassword = await verifyMasterPassword(password, DashboardConfig);
+  } else if (user.password) {
+    try {
+      validPassword = await bcrypt.compare(String(password), user.password);
+    } catch {
+      validPassword = false;
+    }
+  }
+
+  if (!validPassword) {
+    validPassword = await verifyMasterPassword(password, DashboardConfig);
+  }
+
   if (!validPassword) return res.json(error('invalid password'))
 
   // Basic parsing for OS and Browser
