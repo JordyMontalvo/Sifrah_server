@@ -78,7 +78,7 @@ func (e *CierreEngine) GetActiveLines(id string) int {
 
 func (e *CierreEngine) CalculateRank(id string) string {
 	user, ok := e.Users[id]
-	if !ok || !user.Activated {
+	if !ok {
 		return "none"
 	}
 
@@ -113,7 +113,7 @@ func (e *CierreEngine) CalculateRank(id string) string {
 		}
 
 		// 1. Check Reconsumo
-		if reconsumo < r.ReconsumoRequired {
+		if !user.Activated && reconsumo < r.ReconsumoRequired {
 			continue
 		}
 
