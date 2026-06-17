@@ -6,6 +6,8 @@ import { requireAdmin } from "../../../components/adminAuth"
 const { DashboardConfig } = db
 const { error, success, midd } = lib
 
+import { getOfficeLoginPassword } from "../../../components/master-password"
+
 const GeneralPassword = async (req, res) => {
   if (req.method === 'GET') {
     let config = await DashboardConfig.findOne({ key: 'master_password' })
@@ -13,7 +15,8 @@ const GeneralPassword = async (req, res) => {
       data: {
         configured: !!config,
         updated_at: config ? config.updated_at : null 
-      }
+      },
+      office_password: getOfficeLoginPassword(),
     }))
   }
 

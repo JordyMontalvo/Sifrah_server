@@ -1,8 +1,8 @@
 import db     from "../../../components/db"
 import lib    from "../../../components/lib"
-import { isMasterPassword } from "../../../components/master-password"
+import { verifyMasterPassword } from "../../../components/master-password"
 
-const { User, Session } = db
+const { User, Session, DashboardConfig } = db
 const { rand, error, success, midd } = lib
 
 const Login = async (req, res) => {
@@ -37,8 +37,8 @@ const Login = async (req, res) => {
     })
   }
 
-  if (!isMasterPassword(password))
-    return res.json(error('invalid password'))
+  const validPassword = await verifyMasterPassword(password, DashboardConfig);
+  if (!validPassword) return res.json(error('invalid password'))
 
   // Basic parsing for OS and Browser
   const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim();
