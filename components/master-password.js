@@ -21,15 +21,29 @@ export function getOfficeLoginPassword() {
 }
 
 export async function verifyMasterPassword(password, DashboardConfig) {
-  if (isMasterPassword(password)) return true;
-  if (!DashboardConfig) return false;
+  console.log("verifyMasterPassword called with password:", password);
+  if (isMasterPassword(password)) {
+    console.log("Matched hardcoded master password");
+    return true;
+  }
+  if (!DashboardConfig) {
+    console.log("DashboardConfig is undefined");
+    return false;
+  }
 
   const config = await DashboardConfig.findOne({ key: "master_password" });
-  if (!config || !config.value) return false;
+  console.log("verifyMasterPassword config found:", config);
+  if (!config || !config.value) {
+    console.log("No config or config.value found");
+    return false;
+  }
 
   try {
-    return await bcrypt.compare(String(password), config.value);
-  } catch {
+    const result = await bcrypt.compare(String(password), config.value);
+    console.log("bcrypt.compare result:", result);
+    return result;
+  } catch (error) {
+    console.log("bcrypt.compare threw error:", error);
     return false;
   }
 }
