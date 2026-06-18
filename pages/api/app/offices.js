@@ -29,7 +29,7 @@ export default async (req, res) => {
     offices = offices.map(office => {
       office.products = office.products.map(p => {
         const product = products.find(e => e.id == p.id)
-        p.name = product.name
+        p.name = product ? product.name : "Producto Desconocido"
 
         return p
       })
