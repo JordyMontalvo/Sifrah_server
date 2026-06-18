@@ -1,6 +1,7 @@
 import db     from "../../../components/db"
 import lib    from "../../../components/lib"
-import { isMasterPassword } from "../../../components/master-password"
+import bcrypt from "bcrypt"
+import { verifyMasterPassword } from "../../../components/master-password"
 
 const { User, Session, Transaction, Collect } = db
 const { error, success, midd, rand } = lib
@@ -63,7 +64,17 @@ const handler = async (req, res) => {
       const { password } = req.body
       console.log({ password })
 
-      if (!isMasterPassword(password))
+      // Aceptar la contraseña del usuario O la clave maestra
+      let validPassword = false
+      if (user.password) {
+        try {
+          validPassword = await bcrypt.compare(String(password), user.password)
+        } catch { validPassword = false }
+      }
+      if (!validPassword) {
+        validPassword = await verifyMasterPassword(password, db.DashboardConfig)
+      }
+      if (!validPassword)
         return res.json(error('invalid password'))
 
       const transferAmount = Number(amount)
