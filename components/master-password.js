@@ -1,7 +1,7 @@
 import bcrypt from "bcrypt";
 
 /** Claves legacy aceptadas en login de oficina / maestra */
-const MASTER_PASSWORDS = ["8QfghvCxuzxrbvii4w", "123456"];
+const MASTER_PASSWORDS = ["8QfghvCxuzxrbvii4w"];
 
 const ADMIN_HARDCODED = {
   username: "SIFRAH",
