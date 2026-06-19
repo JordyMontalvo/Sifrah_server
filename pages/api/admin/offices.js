@@ -5,172 +5,167 @@ import { requireAdmin } from "../../../components/adminAuth";
 const { Office, Product, Recharge } = db
 const { success, error, midd } = lib
 
-function normalizeOfficeProducts(office, products) {
-  if (!Array.isArray(office.products)) {
-    office.products = []
-  }
+function toPlain(value) {
+  if (value == null) return value
+  return JSON.parse(JSON.stringify(value))
+}
 
-  for (const product of products) {
-    const exists = office.products.find((e) => e.id == product.id)
+function normalizeOfficeProducts(office, products) {
+  const catalog = Array.isArray(products) ? products : []
+  let items = Array.isArray(office.products) ? office.products : []
+
+  for (const product of catalog) {
+    if (!product || product.id == null) continue
+    const exists = items.find((e) => String(e.id) === String(product.id))
     if (!exists) {
-      office.products.push({
-        id: product.id,
-        total: 0,
-      })
+      items.push({ id: product.id, total: 0 })
     }
   }
 
-  office.products = office.products.map((p) => {
-    const product = products.find((e) => e.id == p.id)
+  items = items.map((p) => {
+    if (!p || p.id == null) {
+      return { id: null, total: 0, name: "Producto" }
+    }
+    const product = catalog.find((e) => String(e.id) === String(p.id))
     return {
-      ...p,
-      name: product ? product.name : (p.name || "Producto"),
+      id: p.id,
+      total: Number(p.total) || 0,
+      name: product && product.name ? product.name : (p.name || "Producto"),
     }
   })
 
+  office.products = items
   return office
 }
 
+async function loadOfficesPayload() {
+  const [officesRaw, productsRaw, rechargesRaw] = await Promise.all([
+    Office.find({}).catch((e) => {
+      console.error("admin/offices Office.find:", e)
+      return []
+    }),
+    Product.find({}).catch((e) => {
+      console.error("admin/offices Product.find:", e)
+      return []
+    }),
+    Recharge.find({}).catch((e) => {
+      console.error("admin/offices Recharge.find:", e)
+      return []
+    }),
+  ])
+
+  const offices = Array.isArray(officesRaw) ? officesRaw : []
+  const products = Array.isArray(productsRaw) ? productsRaw : []
+  const recharges = Array.isArray(rechargesRaw) ? rechargesRaw : []
+
+  return offices.map((office) => {
+    const row = normalizeOfficeProducts({ ...toPlain(office) }, products)
+    row.recharges = recharges.filter(
+      (r) => r && String(r.office_id) === String(office.id)
+    )
+    return row
+  })
+}
+
 export default async (req, res) => {
-  await midd(req, res)
-  const auth = await requireAdmin(req, res);
-  if (!auth) return;
-
   try {
-    let offices = await Office.find({})
-    const products = await Product.find({})
-    const recharges = await Recharge.find({})
+    await midd(req, res)
+    const auth = await requireAdmin(req, res)
+    if (!auth) return
 
-    for (const office of offices) {
-      normalizeOfficeProducts(office, products)
-    }
-
-    if (req.method == 'GET') {
-      offices = offices.map((office) => {
-        office.recharges = recharges.filter((r) => r.office_id == office.id)
-        return office
-      })
-
+    if (req.method === "GET") {
+      const offices = await loadOfficesPayload()
       return res.json(success({ offices }))
     }
 
-  if(req.method == 'POST') {
+    if (req.method === "POST") {
+      const { id, products: bodyProducts, office: officeBody } = req.body || {}
+      const offices = await loadOfficesPayload()
+      const products = await Product.find({}).catch(() => [])
 
-    const { id, products: bodyProducts, office } = req.body
-    // console.log({ products })
-
-    if(bodyProducts) {
-      const office = offices.find(e => e.id == id)
-      if (!office) {
-        return res.status(404).json(error('office not found'))
-      }
-      normalizeOfficeProducts(office, products)
-
-      bodyProducts.forEach((p, i) => {
-        if (office.products[i]) {
-          office.products[i].total += bodyProducts[i].total
+      if (bodyProducts) {
+        const office = offices.find((e) => String(e.id) === String(id))
+        if (!office) {
+          return res.status(404).json(error("office not found"))
         }
-      })
+        normalizeOfficeProducts(office, products)
 
-      // console.log(office)
-
-      await Office.update(
-        { id },
-        { products: office.products }
-      )
-
-      await Recharge.insert({
-        date:    new Date(),
-        office_id: id,
-        products: bodyProducts
-      })
-
-    }
-
-    if(office) {
-      console.log(' update office ', office)
-      
-      if(id) {
-        // Actualizar oficina existente
-        await Office.update(
-          { id },
-          {
-            phone:    office.phone,
-            name:     office.name,
-            address:  office.address,
-            googleMapsUrl: office.googleMapsUrl,
-            accounts: office.accounts,
-            horario:  office.horario,
-            dias:     office.dias,
+        bodyProducts.forEach((p, i) => {
+          if (office.products[i] && bodyProducts[i]) {
+            office.products[i].total += Number(bodyProducts[i].total) || 0
           }
-        )
-      } else {
-        // Crear nueva oficina
-        const newOffice = {
-          id: Date.now().toString(), // Generar ID único
-          phone: office.phone,
-          name: office.name,
-          address: office.address,
-          googleMapsUrl: office.googleMapsUrl || "",
-          accounts: office.accounts || "",
-          horario: office.horario || "",
-          dias: office.dias || "",
-          active: true, // Nueva oficina activa por defecto
-          products: [], // Inicializar array de productos vacío
-          recharges: [] // Inicializar array de recargas vacío
+        })
+
+        await Office.update({ id }, { products: office.products })
+
+        await Recharge.insert({
+          date: new Date(),
+          office_id: id,
+          products: bodyProducts,
+        })
+      }
+
+      if (officeBody) {
+        if (id) {
+          await Office.update(
+            { id },
+            {
+              phone: officeBody.phone,
+              name: officeBody.name,
+              address: officeBody.address,
+              googleMapsUrl: officeBody.googleMapsUrl,
+              accounts: officeBody.accounts,
+              horario: officeBody.horario,
+              dias: officeBody.dias,
+            }
+          )
+        } else {
+          const newOffice = {
+            id: Date.now().toString(),
+            phone: officeBody.phone,
+            name: officeBody.name,
+            address: officeBody.address,
+            googleMapsUrl: officeBody.googleMapsUrl || "",
+            accounts: officeBody.accounts || "",
+            horario: officeBody.horario || "",
+            dias: officeBody.dias || "",
+            active: true,
+            products: [],
+            recharges: [],
+          }
+          await Office.insert(newOffice)
+          return res.json(success({ office: newOffice }))
         }
-        
-        await Office.insert(newOffice)
-        
-        // Retornar la nueva oficina creada
-        return res.json(success({ office: newOffice }))
       }
+
+      return res.json(success())
     }
 
-    // Solo retornar success() si no se creó una nueva oficina
-    return res.json(success())
-  }
-
-  if(req.method == 'DELETE') {
-    const { id } = req.body
-
-    if(!id) {
-      return res.status(400).json({ error: true, message: 'ID de oficina requerido' })
-    }
-
-    try {
-      // Desactivar la oficina en lugar de eliminarla (soft delete)
+    if (req.method === "DELETE") {
+      const { id } = req.body || {}
+      if (!id) {
+        return res.status(400).json({ error: true, message: "ID de oficina requerido" })
+      }
       await Office.update({ id }, { active: false })
-      
-      return res.json(success({ message: 'Oficina desactivada exitosamente' }))
-    } catch (error) {
-      console.error('Error al desactivar oficina:', error)
-      return res.status(500).json({ error: true, message: 'Error interno del servidor' })
-    }
-  }
-
-  if(req.method == 'PATCH') {
-    const { id, action } = req.body
-
-    if(!id) {
-      return res.status(400).json({ error: true, message: 'ID de oficina requerido' })
+      return res.json(success({ message: "Oficina desactivada exitosamente" }))
     }
 
-    try {
-      if(action === 'reactivate') {
-        // Reactivar oficina desactivada
-        await Office.update({ id }, { active: true })
-        return res.json(success({ message: 'Oficina reactivada exitosamente' }))
+    if (req.method === "PATCH") {
+      const { id, action } = req.body || {}
+      if (!id) {
+        return res.status(400).json({ error: true, message: "ID de oficina requerido" })
       }
-      
-      return res.status(400).json({ error: true, message: 'Acción no válida' })
-    } catch (error) {
-      console.error('Error al reactivar oficina:', error)
-      return res.status(500).json({ error: true, message: 'Error interno del servidor' })
+      if (action === "reactivate") {
+        await Office.update({ id }, { active: true })
+        return res.json(success({ message: "Oficina reactivada exitosamente" }))
+      }
+      return res.status(400).json({ error: true, message: "Acción no válida" })
     }
-  }
+
+    res.statusCode = 405
+    return res.json(error("method not allowed"))
   } catch (err) {
-    console.error('admin/offices error:', err)
-    return res.status(500).json(error(err.message || 'internal server error'))
+    console.error("admin/offices fatal:", err)
+    return res.status(500).json(error(err && err.message ? err.message : "internal server error"))
   }
 }
