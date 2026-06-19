@@ -3,62 +3,73 @@ import lib from "../../../components/lib"
 import { requireAdmin } from "../../../components/adminAuth";
 
 const { Office, Product, Recharge } = db
-const { success, midd } = lib
+const { success, error, midd } = lib
 
+function normalizeOfficeProducts(office, products) {
+  if (!Array.isArray(office.products)) {
+    office.products = []
+  }
+
+  for (const product of products) {
+    const exists = office.products.find((e) => e.id == product.id)
+    if (!exists) {
+      office.products.push({
+        id: product.id,
+        total: 0,
+      })
+    }
+  }
+
+  office.products = office.products.map((p) => {
+    const product = products.find((e) => e.id == p.id)
+    return {
+      ...p,
+      name: product ? product.name : (p.name || "Producto"),
+    }
+  })
+
+  return office
+}
 
 export default async (req, res) => {
   await midd(req, res)
   const auth = await requireAdmin(req, res);
   if (!auth) return;
 
-  let offices   = await Office.find({}) // Admin ve todas las oficinas
-  let products  = await Product.find({})
-  let recharges = await Recharge.find({})
+  try {
+    let offices = await Office.find({})
+    const products = await Product.find({})
+    const recharges = await Recharge.find({})
 
-  for (let office of offices) {
-    for (let product of products) {
-      const p = office.products.find(e => e.id == product.id)
-
-      if(!p)
-        office.products.push({
-          id: product.id,
-          total: 0,
-        })
+    for (const office of offices) {
+      normalizeOfficeProducts(office, products)
     }
-  }
 
-  if(req.method == 'GET') {
-
-    offices = offices.map(office => {
-
-      office.products = office.products.map(p => {
-        const product = products.find(e => e.id == p.id)
-        p.name = product.name
-
-        return p
+    if (req.method == 'GET') {
+      offices = offices.map((office) => {
+        office.recharges = recharges.filter((r) => r.office_id == office.id)
+        return office
       })
 
-      office.recharges = recharges.filter(r => r.office_id == office.id)
-
-      return office
-    })
-
-    return res.json(success({ offices }))
-  }
+      return res.json(success({ offices }))
+    }
 
   if(req.method == 'POST') {
 
-    const { id, products, office } = req.body
+    const { id, products: bodyProducts, office } = req.body
     // console.log({ products })
 
-    if(products) {
-      // const office = await Office.findOne({ id })
+    if(bodyProducts) {
       const office = offices.find(e => e.id == id)
-      // console.log(office)
+      if (!office) {
+        return res.status(404).json(error('office not found'))
+      }
+      normalizeOfficeProducts(office, products)
 
-      products.forEach((p, i) => {
-        // console.log({ i , p })
-        office.products[i].total += products[i].total
+      bodyProducts.forEach((p, i) => {
+        if (office.products[i]) {
+          office.products[i].total += bodyProducts[i].total
+        }
       })
 
       // console.log(office)
@@ -71,7 +82,7 @@ export default async (req, res) => {
       await Recharge.insert({
         date:    new Date(),
         office_id: id,
-        products
+        products: bodyProducts
       })
 
     }
@@ -157,5 +168,9 @@ export default async (req, res) => {
       console.error('Error al reactivar oficina:', error)
       return res.status(500).json({ error: true, message: 'Error interno del servidor' })
     }
+  }
+  } catch (err) {
+    console.error('admin/offices error:', err)
+    return res.status(500).json(error(err.message || 'internal server error'))
   }
 }
