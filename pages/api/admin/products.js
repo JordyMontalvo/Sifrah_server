@@ -1,9 +1,14 @@
 import db from "../../../components/db";
 import lib from "../../../components/lib";
 import { requireAdmin } from "../../../components/adminAuth";
+import {
+  ensureProductSortOrders,
+  getNextProductSortOrder,
+  PRODUCT_SORT_MONGO,
+} from "../../../lib/productSort";
 
 const { Product, Plan, SavingsCategory } = db;
-const { midd, success, rand } = lib;
+const { midd, success, error, rand } = lib;
 
 const SIFRAH_SAVINGS_CATEGORY_NAME = "Productos SIFRAH";
 
@@ -58,9 +63,9 @@ export default async (req, res) => {
   if (!auth) return;
 
   if (req.method == "GET") {
-    let products = await Product.find({});
+    let products = await Product.find({}, { sort: PRODUCT_SORT_MONGO });
+    products = await ensureProductSortOrders(products, Product);
 
-    // response
     return res.json(
       success({
         products,
@@ -71,6 +76,21 @@ export default async (req, res) => {
   if (req.method == "POST") {
     console.log("[API Admin Products] POST recibido:", req.body);
     const { action } = req.body;
+
+    if (action == "reorder") {
+      const { items } = req.body;
+      if (!Array.isArray(items) || !items.length) {
+        return res.json(error("items required"));
+      }
+      for (const item of items) {
+        if (!item || !item.id) continue;
+        await Product.update(
+          { id: item.id },
+          { sort_order: Number(item.sort_order) || 0 }
+        );
+      }
+      return res.json(success());
+    }
 
     if (action == "toggle_savings_bonus") {
       const { id, enabled, savings_price: savingsPriceInput } = req.body;
@@ -296,6 +316,7 @@ export default async (req, res) => {
         promotion_active: promotion_active !== false,
         available_quantity: Number(available_quantity) || 0,
         savings_category_id: categoryFields.savings_category_id,
+        sort_order: await getNextProductSortOrder(Product),
       };
 
       if (is_savings_bonus) {

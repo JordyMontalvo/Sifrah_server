@@ -1,6 +1,7 @@
 import db from "../../../../components/db";
 import lib from "../../../../components/lib";
 import { mainCatalogMongoFilter } from "../../../../lib/productCatalog";
+import { sortProducts } from "../../../../lib/productSort";
 const { applyCORS } = require("../../../../middleware/middleware-cors");
 
 const { User, Product, Session, Banner } = db;
@@ -54,6 +55,8 @@ export default async (req, res) => {
     if (!user.activated) {
       _products = _products.filter((p) => p.type != "Promoción");
     }
+
+    _products = sortProducts(_products);
 
     // ⭐ Obtener banners de activación - MISMA LÓGICA que /api/app/activation-banners
     let activationBanners = await Banner.findOne({ id: "activation_banners" });

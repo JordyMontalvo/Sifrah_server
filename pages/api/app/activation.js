@@ -11,6 +11,7 @@ import {
   enrichPromotionForStore,
   validatePromotionOrder,
 } from "../../../lib/promotionStock"
+import { sortProducts } from "../../../lib/productSort"
 
 const { User, Session, Product, Activation, Affiliation, Office, Transaction } = db
 const { error, success, midd, map, rand, acum } = lib
@@ -161,6 +162,8 @@ export default async (req, res) => {
     }
     _products = enriched;
   }
+
+  _products = sortProducts(_products);
 
 
 

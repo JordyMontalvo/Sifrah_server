@@ -427,11 +427,13 @@ class Prom {
 }
 
 class Product {
-  async find(query) {
+  async find(query, opts = {}) {
     const client = new Client(URL, { useUnifiedTopology: true });
     const conn = await client.connect();
     const db = conn.db(name);
-    const products = await db.collection("products").find(query).toArray();
+    let cursor = db.collection("products").find(query);
+    if (opts.sort) cursor = cursor.sort(opts.sort);
+    const products = await cursor.toArray();
     client.close();
     return products;
   }

@@ -10,6 +10,7 @@ import {
   validatePromotionOrder,
 } from "../../../lib/promotionStock";
 import { mapCategoriesForStore } from "../../../lib/savingsCategoryDefaults";
+import { sortProducts } from "../../../lib/productSort";
 
 const { User, Session, Product, Activation, Office, Transaction, Period, SavingsCategory } = db
 const { success, error, midd, rand } = lib
@@ -59,6 +60,8 @@ export default async (req, res) => {
         if (!isPromotionProduct(p)) return true
         return p.promotion_active !== false
       })
+
+      products = sortProducts(products)
 
       const formattedProducts = []
       for (const p of products) {
