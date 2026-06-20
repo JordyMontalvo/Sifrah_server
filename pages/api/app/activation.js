@@ -7,7 +7,7 @@ import {
   isPromotionProduct,
 } from "../../../lib/productCatalog"
 import {
-  countPromotionSold,
+  countPromotionPurchasedByUser,
   enrichPromotionForStore,
   validatePromotionOrder,
 } from "../../../lib/promotionStock"
@@ -149,8 +149,12 @@ export default async (req, res) => {
     const enriched = [];
     for (const p of _products) {
       if (isPromotionProduct(p)) {
-        const sold = await countPromotionSold(p.id, Activation);
-        const enrichedP = enrichPromotionForStore(p, sold);
+        const purchased = await countPromotionPurchasedByUser(
+          p.id,
+          user.id,
+          Activation
+        );
+        const enrichedP = enrichPromotionForStore(p, purchased);
         const max = Number(p.available_quantity) || 0;
         if (max > 0 && enrichedP.promotion_remaining === 0) {
           continue;
@@ -268,7 +272,8 @@ export default async (req, res) => {
     const stockError = await validatePromotionOrder(
       products,
       catalogById,
-      Activation
+      Activation,
+      user.id
     );
     if (stockError) {
       return res.json(error(stockError.error));

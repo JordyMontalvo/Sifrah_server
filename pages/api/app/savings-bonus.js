@@ -5,7 +5,7 @@ import {
   isPromotionProduct,
 } from "../../../lib/productCatalog";
 import {
-  countPromotionSold,
+  countPromotionPurchasedByUser,
   enrichPromotionForStore,
   validatePromotionOrder,
 } from "../../../lib/promotionStock";
@@ -87,11 +87,22 @@ export default async (req, res) => {
         };
 
         if (isPromotionProduct(p)) {
-          const sold = await countPromotionSold(p.id, Activation)
-          base = enrichPromotionForStore({ ...base, available_quantity: p.available_quantity }, sold)
+          const purchased = await countPromotionPurchasedByUser(
+            p.id,
+            user.id,
+            Activation
+          );
+          base = enrichPromotionForStore(
+            { ...base, available_quantity: p.available_quantity },
+            purchased
+          );
+          const max = Number(p.available_quantity) || 0;
+          if (max > 0 && base.promotion_remaining === 0) {
+            continue;
+          }
         }
 
-        formattedProducts.push(base)
+        formattedProducts.push(base);
       }
 
       const transactions = await Transaction.find({
@@ -147,7 +158,8 @@ export default async (req, res) => {
       const stockError = await validatePromotionOrder(
         products,
         catalogMap,
-        Activation
+        Activation,
+        user.id
       )
       if (stockError) {
         return res.json(error(stockError.error))
