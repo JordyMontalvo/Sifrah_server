@@ -155,7 +155,7 @@ const Register = async (req, res) => {
     _activated:  false,
     activated:  false,
     plan:      'default',
-    photo:     'https://ik.imagekit.io/asu/impulse/avatar_cWVgh_GNP.png',
+    photo:     '/avatar.png',
     points: 0,
     tree: true,
     token: token,
