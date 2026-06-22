@@ -82,9 +82,13 @@ func (e *CierreEngine) CalculateRank(id string) string {
 		return "none"
 	}
 
+	if user.Status == "eliminated" {
+		return "none"
+	}
+
 	treeNode, ok := e.TreeNodes[id]
 	if !ok {
-		return "ACTIVO"
+		treeNode = &models.TreeNode{ID: id, Childs: []string{}}
 	}
 
 	// Prepare legs for VMP calculation
@@ -167,7 +171,7 @@ func (e *CierreEngine) CalculateRank(id string) string {
 // no user.Rank de la BD: si alguien cierra BRONCE pero en BD seguía PLATA, antes se pagaban 5 niveles por error.
 func (e *CierreEngine) CalculateResidualBonus(id string, closedRank string) ([]models.Transaction, float64) {
 	user, ok := e.Users[id]
-	if !ok {
+	if !ok || user.Status == "eliminated" {
 		return nil, 0
 	}
 	if closedRank == "none" || closedRank == "" {
@@ -267,8 +271,11 @@ func (e *CierreEngine) CalculateResidualBonus(id string, closedRank string) ([]m
 }
 
 func (e *CierreEngine) CalculateGenerationalBonus(id string, closedRank string, closedRanksMap map[string]string) ([]models.Transaction, float64) {
-	_, ok := e.Users[id]
-	if !ok || closedRank == "none" || closedRank == "" {
+	user, ok := e.Users[id]
+	if !ok || user.Status == "eliminated" {
+		return nil, 0
+	}
+	if closedRank == "none" || closedRank == "" {
 		return nil, 0
 	}
 
@@ -355,7 +362,7 @@ func (e *CierreEngine) CalculateGenerationalBonus(id string, closedRank string, 
 
 func (e *CierreEngine) CalculateExcedentBonus(id string) []models.Transaction {
 	user, ok := e.Users[id]
-	if !ok {
+	if !ok || user.Status == "eliminated" {
 		return nil
 	}
 
@@ -404,7 +411,7 @@ func (e *CierreEngine) CalculateExcedentBonus(id string) []models.Transaction {
 
 func (e *CierreEngine) CalculateSavingsBonus(id string) ([]models.Transaction, float64) {
 	user, ok := e.Users[id]
-	if !ok {
+	if !ok || user.Status == "eliminated" {
 		return nil, 0
 	}
 	
