@@ -113,7 +113,7 @@ func (e *CierreEngine) CalculateRank(id string) string {
 		}
 
 		// 1. Check Reconsumo
-		if !user.Activated && reconsumo < r.ReconsumoRequired {
+		if !user.ActivatedInternal && reconsumo < r.ReconsumoRequired {
 			continue
 		}
 
