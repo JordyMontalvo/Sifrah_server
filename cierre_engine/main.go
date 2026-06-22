@@ -36,6 +36,9 @@ type PreviewNode struct {
 	ID                string                       `json:"id"`
 	Name              string                       `json:"name"`
 	Points            float64                      `json:"points"`
+	ReconsumoPoints   float64                      `json:"reconsumo_points"`
+	AffiliationPoints float64                      `json:"affiliation_points"`
+	PersonalPoints    float64                      `json:"personal_points"`
 	Total             float64                      `json:"_total"`
 	Rank              string                       `json:"rank"`
 	ResidualBonus     float64                      `json:"residual_bonus"`
@@ -94,12 +97,15 @@ func buildSnapshotTree(ce *engine.CierreEngine, userID string, updatedUserByID m
 	}
 	
 	node := &models.SnapshotNode{
-		UserID:      u.ID,
-		Name:        u.Name + " " + u.LastName,
-		DNI:         u.DNI,
-		Rank:        u.Rank,
-		Points:      u.LastPoints,
-		TotalPoints: u.LastTotalPoints,
+		UserID:            u.ID,
+		Name:              u.Name + " " + u.LastName,
+		DNI:               u.DNI,
+		Rank:              u.Rank,
+		Points:            u.LastPoints,
+		ReconsumoPoints:   u.LastPoints,
+		AffiliationPoints: u.LastAffiliationPoints,
+		PersonalPoints:    u.LastPersonalPoints,
+		TotalPoints:       u.LastTotalPoints,
 	}
 
 	if treeNode, ok := ce.TreeNodes[userID]; ok && len(treeNode.Childs) > 0 {
@@ -297,6 +303,8 @@ func main() {
 			uPreview := users[idxPreview]
 			// Simulate the LastPoints etc. for the snapshot since preview is before reset
 			uPreview.LastPoints = uPreview.Points
+			uPreview.LastAffiliationPoints = uPreview.AffiliationPoints
+			uPreview.LastPersonalPoints = uPreview.Points + uPreview.AffiliationPoints
 			uPreview.LastTotalPoints = ce.MemoPoints[uPreview.ID]
 			updatedUserByIDPreview[uPreview.ID] = &uPreview
 		}
@@ -306,6 +314,9 @@ func main() {
 				ID:                user.ID,
 				Name:              user.Name + " " + user.LastName,
 				Points:            user.Points,
+				ReconsumoPoints:   user.Points,
+				AffiliationPoints: user.AffiliationPoints,
+				PersonalPoints:    user.Points + user.AffiliationPoints,
 				Total:             calculatedTotalPoints,
 				Rank:              rank,
 				ResidualBonus:     resTotal,
@@ -346,6 +357,8 @@ func main() {
 		// Store for history BEFORE resetting
 		user.LastTotalPoints       = calculatedTotalPoints
 		user.LastPoints            = user.Points
+		user.LastAffiliationPoints = user.AffiliationPoints
+		user.LastPersonalPoints    = user.Points + user.AffiliationPoints
 		user.LastActivated         = user.Activated
 		user.LastActivatedInt      = user.ActivatedInternal
 		user.LastResidualBonus     = resTotal
@@ -455,6 +468,9 @@ func main() {
 				DNI:               u.DNI,
 				Rank:              u.Rank,
 				Points:            u.LastPoints,
+				ReconsumoPoints:   u.LastPoints,
+				AffiliationPoints: u.LastAffiliationPoints,
+				PersonalPoints:    u.LastPersonalPoints,
 				TotalPoints:       u.LastTotalPoints,
 				Activated:         u.LastActivated,
 				ActivatedInt:      u.LastActivatedInt,

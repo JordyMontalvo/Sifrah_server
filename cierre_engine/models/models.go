@@ -39,6 +39,8 @@ type User struct {
 	LastSavingsBonus      float64   `bson:"-" json:"-"`
 	LastTotalPoints       float64   `bson:"-" json:"-"`
 	LastPoints            float64   `bson:"-" json:"-"`
+	LastAffiliationPoints float64   `bson:"-" json:"-"`
+	LastPersonalPoints    float64   `bson:"-" json:"-"`
 	LastActivated         bool      `bson:"-" json:"-"`
 	LastActivatedInt      bool      `bson:"-" json:"-"`
 }
@@ -83,6 +85,9 @@ type SnapshotNode struct {
 	DNI         string          `bson:"dni,omitempty" json:"dni,omitempty"`
 	Rank        string          `bson:"rank" json:"rank"`
 	Points      float64         `bson:"points" json:"points"`
+	ReconsumoPoints   float64         `bson:"reconsumo_points" json:"reconsumo_points"`
+	AffiliationPoints float64         `bson:"affiliation_points" json:"affiliation_points"`
+	PersonalPoints    float64         `bson:"personal_points" json:"personal_points"`
 	TotalPoints float64         `bson:"total_points" json:"_total"`
 	Childs      []*SnapshotNode `bson:"childs,omitempty" json:"childs,omitempty"`
 }
@@ -115,6 +120,9 @@ type ClosedUserEntry struct {
 	DNI               string              `bson:"dni,omitempty" json:"dni,omitempty"`
 	Rank              string              `bson:"rank" json:"rank"`
 	Points            float64             `bson:"points" json:"points"`
+	ReconsumoPoints   float64             `bson:"reconsumo_points" json:"reconsumo_points"`
+	AffiliationPoints float64             `bson:"affiliation_points" json:"affiliation_points"`
+	PersonalPoints    float64             `bson:"personal_points" json:"personal_points"`
 	TotalPoints       float64             `bson:"total_points" json:"_total"`
 	Activated         bool                `bson:"activated" json:"activated"`
 	ActivatedInt      bool                `bson:"_activated" json:"_activated"`
