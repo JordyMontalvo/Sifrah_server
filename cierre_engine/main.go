@@ -485,6 +485,21 @@ func main() {
 		}
 	}
 
+	// Calculate overall summary metrics
+	var totalResidual, totalGenerational, totalSavings float64
+	var usersWithRank, activosFull int
+	for _, u := range usersSummary {
+		totalResidual += u.ResidualBonus
+		totalGenerational += u.GenerationalBonus
+		totalSavings += u.SavingsBonus
+		if u.Rank != "none" && u.Rank != "" {
+			activosFull++
+			if u.Rank != "active" {
+				usersWithRank++
+			}
+		}
+	}
+
 	// 6. Persistence Phase
 	if *dryRun {
 		log.Println("DRY-RUN: Skipping database updates")
@@ -524,6 +539,11 @@ func main() {
 		"timestamp":              time.Now(),
 		"dry_run":                *dryRun,
 		"virtual_balance_resets": resetDetail,
+		"total_residual":         totalResidual,
+		"total_generational":     totalGenerational,
+		"total_savings":          totalSavings,
+		"users_with_rank":        usersWithRank,
+		"activos_full":           activosFull,
 	}
 
 	if !*dryRun {

@@ -1,0 +1,542 @@
+📊 AMELIA CORREA PIZURI (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="none")
+📊 JOSE MESCUA FLORES (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="none")
+📊 NORMA RAMOS FERNANDEZ (rango cierre="BRONCE" → residual "BRONCE"; rank BD="PLATA")
+   Nivel 1: SALVADOR RICARDO HUAMAN POMA (PR: 170.00) → 24.90
+   Nivel 2: VILMA CAMPOS GALINDO (PR: 160.00) → 24.00
+   Nivel 3: MARIBEL VILMA ARTEAGA SANCHEZ (PR: 159.00) → 23.85
+   Nivel 4: Elvis Dany  Villanueva  (PR: 130.00) → 6.50
+   Nivel 4: Jazmín Mileth Vilca arteaga  (PR: 160.00) → 8.00
+   Nivel 3: Miker Neymar  Montoya Campos  (PR: 127.00) → 19.05
+   Nivel 4: Antonia Maria Reyes Gil (PR: 120.00) → 6.00
+   Nivel 4: Vilma Esther Bernuy Carrión (PR: 249.00) → 10.67
+   Nivel 4: Monica Leonor  Cueto vivanco  (PR: 160.00) → 8.00
+   Nivel 3: Gregoria  Escobar enrriquez  (PR: 160.00) → 24.00
+   Nivel 4: Eunise Condor (PR: 280.00) → 11.60
+   Nivel 4: Lucero  Capcha Pacheco  (PR: 160.00) → 8.00
+   Nivel 4: Odon Mayta (PR: 110.00) → 5.50
+   Nivel 4: OLGA castro cueto (PR: 197.00) → 9.11
+   Nivel 4: Herica Ayala Escobar (PR: 75.00) → 3.75
+   Nivel 4: Juanita  Ccencho Escobar  (PR: 220.00) → 9.80
+   Nivel 3: Edison  beimar  Ramos claros (PR: 40.00) → 6.00
+   Nivel 2: BRYAN ALEXANDER ARIAS MAMANI (PR: 169.00) → 24.81
+   Nivel 3: Dan Fritz Manihuari (PR: 135.00) → 20.25
+   Nivel 3: Yehosua Kewin  Gamarra Fritz  (PR: 125.00) → 18.75
+   Nivel 4: Santos Eusebia  Rodríguez Gormas  (PR: 30.00) → 1.50
+   Nivel 4: Nadiesca Esquivel Sifuentes  (PR: 157.00) → 7.85
+   Nivel 3: GUILLERMINA  TARAPAQUI LEON  (PR: 120.00) → 18.00
+   Nivel 4: Karen Karina  Lezama Chávez  (PR: 40.00) → 2.00
+   Nivel 3: Naysha Adriana  Torres Pareja (PR: 190.00) → 26.70
+   Nivel 4: Celestino maximo Cahuana (PR: 40.00) → 2.00
+   Nivel 4: Jose Luis Martinez Anticona (PR: 250.00) → 10.70
+   Nivel 4: ROBERT ROJAS CHAVEZ (PR: 120.00) → 6.00
+   Nivel 1: Mario Luis  crespo palomino (PR: 170.00) → 24.90
+   Nivel 2: Aida Quintana Granizo (PR: 175.00) → 25.35
+   Nivel 1: Epifania Juana Cruz Arias (PR: 80.00) → 12.00
+   💰 Total bono residual: 409.54
+📊 VILMA CAMPOS GALINDO (rango cierre="ORO" → residual "ORO"; rank BD="ORO")
+   Nivel 1: MARIBEL VILMA ARTEAGA SANCHEZ (PR: 159.00) → 23.85
+   Nivel 2: Elvis Dany  Villanueva  (PR: 130.00) → 19.50
+   Nivel 3: Lupita jessenia Altamirano Asuncion (PR: 240.00) → 31.20
+   Nivel 3: Candelario  Polo Garcia  (PR: 120.00) → 18.00
+   Nivel 2: Jazmín Mileth Vilca arteaga  (PR: 160.00) → 24.00
+   Nivel 3: Digna Enma Gervacio oruna (PR: 120.00) → 18.00
+   Nivel 3: HERMIMDA FLOR ASEVEDO RUIZ (PR: 144.00) → 21.60
+   Nivel 1: Miker Neymar  Montoya Campos  (PR: 127.00) → 19.05
+   Nivel 2: Antonia Maria Reyes Gil (PR: 120.00) → 18.00
+   Nivel 3: Hugo Hernández Cabrera (PR: 167.00) → 24.63
+   Nivel 2: Vilma Esther Bernuy Carrión (PR: 249.00) → 32.01
+   Nivel 3: Ermencia Ulloa Pizan (PR: 310.00) → 37.50
+   Nivel 3: Anali Esther  Luis Bernuy  (PR: 175.00) → 25.35
+   Nivel 4: Anadela Marquina Vasquez  (PR: 80.00) → 12.00
+   Nivel 3: Maria Trinidad Bernuy Carrión (PR: 160.00) → 24.00
+   Nivel 4: Francisco  Acebedo águilas  (PR: 160.00) → 24.00
+   Nivel 5: Sixto Martin  Acebedo Bernui  (PR: 160.00) → 8.00
+   Nivel 5: Alejandrina Gloria  Flores Barrios  (PR: 80.00) → 4.00
+   Nivel 4: Antonieta Elizabeth  Lopez pizan  (PR: 190.00) → 26.70
+   Nivel 5: Trinidad Virginia  Benites Huaman (PR: 15.00) → 0.75
+   Nivel 4: Luisa Gladis  Solorsano polo (PR: 25.00) → 3.75
+   Nivel 4: Veronica Escobedo Ruiz (PR: 200.00) → 27.60
+   Nivel 5: Martha Vilca Garcia (PR: 30.00) → 1.50
+   Nivel 5: Marcionila Escobedo Ruiz (PR: 220.00) → 9.80
+   Nivel 5: Bonifacio Valera  Escobedo Ruiz  (PR: 160.00) → 8.00
+   Nivel 5: Angélica  Escobedo Vilca  (PR: 240.00) → 10.40
+   Nivel 5: Maribel Doris  Gervacio Romero  (PR: 185.00) → 8.75
+   Nivel 4: Sara Elizabeth  Ruiz Chuquimango (PR: 97.00) → 14.55
+   Nivel 5: Floricielo  Huaman Ruiz  (PR: 126.00) → 6.30
+   Nivel 4: Delmira Yolanda Chavez Acebedo  (PR: 520.00) → 56.40
+   Nivel 5: Mariquita Acebedo Orbegoso  (PR: 30.00) → 1.50
+   Nivel 4: María  Acebedo Orbegoso (PR: 160.00) → 24.00
+   Nivel 4: Valentina  Chavez Luna (PR: 160.00) → 24.00
+   Nivel 3: Domingo Oswaldo  La torre Abanto  (PR: 370.00) → 42.90
+   Nivel 3: Elizabeth  Paredes Marquina  (PR: 110.00) → 16.50
+   Nivel 3: Tania Yanina  Fabián cruz  (PR: 120.00) → 18.00
+   Nivel 2: Monica Leonor  Cueto vivanco  (PR: 160.00) → 24.00
+   Nivel 3: Nelly  Pastrana Mercado  (PR: 160.00) → 24.00
+   Nivel 4: Rosa Bendezu Albina (PR: 200.00) → 27.60
+   Nivel 3: Gladys Irma  Lazo blancas (PR: 40.00) → 6.00
+   Nivel 1: Gregoria  Escobar enrriquez  (PR: 160.00) → 24.00
+   Nivel 2: Eunise Condor (PR: 280.00) → 34.80
+   Nivel 3: Lourdes Dina  Mendoza Aire (PR: 422.00) → 47.58
+   Nivel 3: Marcelina Giovana  Mamani carmargo  (PR: 160.00) → 24.00
+   Nivel 3: Maite zamira  Chupayo cóndor  (PR: 388.00) → 44.52
+   Nivel 2: Lucero  Capcha Pacheco  (PR: 160.00) → 24.00
+   Nivel 3: ANALY ROSA CANTO DE LA CRUZ  (PR: 215.00) → 28.95
+   Nivel 4: Jose Miguel soto (PR: 65.00) → 9.75
+   Nivel 5: Teodora  Enrriquez Quinto (PR: 120.00) → 6.00
+   Nivel 2: Odon Mayta (PR: 110.00) → 16.50
+   Nivel 2: OLGA castro cueto (PR: 197.00) → 27.33
+   Nivel 2: Herica Ayala Escobar (PR: 75.00) → 11.25
+   Nivel 2: Juanita  Ccencho Escobar  (PR: 220.00) → 29.40
+   Nivel 1: Edison  beimar  Ramos claros (PR: 40.00) → 6.00
+   💰 Total bono residual: 1101.77
+   Gen VIP 1: MARIBEL VILMA ARTEAGA SANCHEZ (PR: 159.00) → 3.18
+   Gen VIP 1: Elvis Dany  Villanueva  (PR: 130.00) → 2.60
+   Gen VIP 1: Lupita jessenia Altamirano Asuncion (PR: 240.00) → 4.16
+   Gen VIP 1: Candelario  Polo Garcia  (PR: 120.00) → 2.40
+   Gen VIP 1: Jazmín Mileth Vilca arteaga  (PR: 160.00) → 3.20
+   Gen VIP 1: Digna Enma Gervacio oruna (PR: 120.00) → 2.40
+   Gen VIP 1: HERMIMDA FLOR ASEVEDO RUIZ (PR: 144.00) → 2.88
+   Gen VIP 1: Miker Neymar  Montoya Campos  (PR: 127.00) → 2.54
+   Gen VIP 2: Antonia Maria Reyes Gil (PR: 120.00) → 2.40
+   Gen VIP 2: Hugo Hernández Cabrera (PR: 167.00) → 3.28
+   Gen VIP 2: Vilma Esther Bernuy Carrión (PR: 249.00) → 4.27
+   Gen VIP 3: Ermencia Ulloa Pizan (PR: 310.00) → 2.50
+   Gen VIP 3: Anali Esther  Luis Bernuy  (PR: 175.00) → 1.69
+   Gen VIP 3: Anadela Marquina Vasquez  (PR: 80.00) → 0.80
+   Gen VIP 3: Maria Trinidad Bernuy Carrión (PR: 160.00) → 1.60
+   Gen VIP 3: Domingo Oswaldo  La torre Abanto  (PR: 370.00) → 2.86
+   Gen VIP 3: Elizabeth  Paredes Marquina  (PR: 110.00) → 1.10
+   Gen VIP 3: Tania Yanina  Fabián cruz  (PR: 120.00) → 1.20
+   Gen VIP 2: Monica Leonor  Cueto vivanco  (PR: 160.00) → 3.20
+   Gen VIP 2: Nelly  Pastrana Mercado  (PR: 160.00) → 3.20
+   Gen VIP 2: Rosa Bendezu Albina (PR: 200.00) → 3.68
+   Gen VIP 2: Gladys Irma  Lazo blancas (PR: 40.00) → 0.80
+   Gen VIP 1: Gregoria  Escobar enrriquez  (PR: 160.00) → 3.20
+   Gen VIP 2: Eunise Condor (PR: 280.00) → 4.64
+   Gen VIP 2: Lourdes Dina  Mendoza Aire (PR: 422.00) → 6.34
+   Gen VIP 2: Marcelina Giovana  Mamani carmargo  (PR: 160.00) → 3.20
+   Gen VIP 2: Maite zamira  Chupayo cóndor  (PR: 388.00) → 5.94
+   Gen VIP 2: Lucero  Capcha Pacheco  (PR: 160.00) → 3.20
+   Gen VIP 2: ANALY ROSA CANTO DE LA CRUZ  (PR: 215.00) → 3.86
+   Gen VIP 2: Jose Miguel soto (PR: 65.00) → 1.30
+   Gen VIP 2: Teodora  Enrriquez Quinto (PR: 120.00) → 2.40
+   Gen VIP 2: Odon Mayta (PR: 110.00) → 2.20
+   Gen VIP 2: OLGA castro cueto (PR: 197.00) → 3.64
+   Gen VIP 2: Herica Ayala Escobar (PR: 75.00) → 1.50
+   Gen VIP 2: Juanita  Ccencho Escobar  (PR: 220.00) → 3.92
+   Gen VIP 1: Edison  beimar  Ramos claros (PR: 40.00) → 0.80
+   💎 Total bono generacional VIP: 102.09
+📊 Miker Neymar  Montoya Campos  (rango cierre="PLATA" → residual "PLATA"; rank BD="PLATA")
+   Nivel 1: Antonia Maria Reyes Gil (PR: 120.00) → 18.00
+   Nivel 2: Hugo Hernández Cabrera (PR: 167.00) → 24.63
+   Nivel 1: Vilma Esther Bernuy Carrión (PR: 249.00) → 32.01
+   Nivel 2: Ermencia Ulloa Pizan (PR: 310.00) → 37.50
+   Nivel 2: Anali Esther  Luis Bernuy  (PR: 175.00) → 25.35
+   Nivel 3: Anadela Marquina Vasquez  (PR: 80.00) → 12.00
+   Nivel 2: Maria Trinidad Bernuy Carrión (PR: 160.00) → 24.00
+   Nivel 3: Francisco  Acebedo águilas  (PR: 160.00) → 24.00
+   Nivel 4: Sixto Martin  Acebedo Bernui  (PR: 160.00) → 16.00
+   Nivel 4: Alejandrina Gloria  Flores Barrios  (PR: 80.00) → 8.00
+   Nivel 3: Antonieta Elizabeth  Lopez pizan  (PR: 190.00) → 26.70
+   Nivel 4: Trinidad Virginia  Benites Huaman (PR: 15.00) → 1.50
+   Nivel 3: Luisa Gladis  Solorsano polo (PR: 25.00) → 3.75
+   Nivel 3: Veronica Escobedo Ruiz (PR: 200.00) → 27.60
+   Nivel 4: Martha Vilca Garcia (PR: 30.00) → 3.00
+   Nivel 4: Marcionila Escobedo Ruiz (PR: 220.00) → 19.60
+   Nivel 4: Bonifacio Valera  Escobedo Ruiz  (PR: 160.00) → 16.00
+   Nivel 4: Angélica  Escobedo Vilca  (PR: 240.00) → 20.80
+   Nivel 4: Maribel Doris  Gervacio Romero  (PR: 185.00) → 17.50
+   Nivel 3: Sara Elizabeth  Ruiz Chuquimango (PR: 97.00) → 14.55
+   Nivel 4: Floricielo  Huaman Ruiz  (PR: 126.00) → 12.60
+   Nivel 3: Delmira Yolanda Chavez Acebedo  (PR: 520.00) → 56.40
+   Nivel 4: Mariquita Acebedo Orbegoso  (PR: 30.00) → 3.00
+   Nivel 3: María  Acebedo Orbegoso (PR: 160.00) → 24.00
+   Nivel 3: Valentina  Chavez Luna (PR: 160.00) → 24.00
+   Nivel 2: Domingo Oswaldo  La torre Abanto  (PR: 370.00) → 42.90
+   Nivel 2: Elizabeth  Paredes Marquina  (PR: 110.00) → 16.50
+   Nivel 2: Tania Yanina  Fabián cruz  (PR: 120.00) → 18.00
+   Nivel 1: Monica Leonor  Cueto vivanco  (PR: 160.00) → 24.00
+   Nivel 2: Nelly  Pastrana Mercado  (PR: 160.00) → 24.00
+   Nivel 3: Rosa Bendezu Albina (PR: 200.00) → 27.60
+   Nivel 2: Gladys Irma  Lazo blancas (PR: 40.00) → 6.00
+   💰 Total bono residual: 651.49
+   Gen VIP 1: Antonia Maria Reyes Gil (PR: 120.00) → 2.40
+   Gen VIP 1: Hugo Hernández Cabrera (PR: 167.00) → 3.28
+   Gen VIP 1: Vilma Esther Bernuy Carrión (PR: 249.00) → 4.27
+   Gen VIP 2: Ermencia Ulloa Pizan (PR: 310.00) → 2.50
+   Gen VIP 2: Anali Esther  Luis Bernuy  (PR: 175.00) → 1.69
+   Gen VIP 2: Anadela Marquina Vasquez  (PR: 80.00) → 0.80
+   Gen VIP 2: Maria Trinidad Bernuy Carrión (PR: 160.00) → 1.60
+   Gen VIP 2: Domingo Oswaldo  La torre Abanto  (PR: 370.00) → 2.86
+   Gen VIP 2: Elizabeth  Paredes Marquina  (PR: 110.00) → 1.10
+   Gen VIP 2: Tania Yanina  Fabián cruz  (PR: 120.00) → 1.20
+   Gen VIP 1: Monica Leonor  Cueto vivanco  (PR: 160.00) → 3.20
+   Gen VIP 2: Nelly  Pastrana Mercado  (PR: 160.00) → 1.60
+   Gen VIP 2: Gladys Irma  Lazo blancas (PR: 40.00) → 0.40
+   💎 Total bono generacional VIP: 26.90
+📊 SALVADOR RICARDO HUAMAN POMA (rango cierre="BRONCE" → residual "BRONCE"; rank BD="PLATA")
+   Nivel 1: VILMA CAMPOS GALINDO (PR: 160.00) → 24.00
+   Nivel 2: MARIBEL VILMA ARTEAGA SANCHEZ (PR: 159.00) → 23.85
+   Nivel 3: Elvis Dany  Villanueva  (PR: 130.00) → 19.50
+   Nivel 4: Lupita jessenia Altamirano Asuncion (PR: 240.00) → 10.40
+   Nivel 4: Candelario  Polo Garcia  (PR: 120.00) → 6.00
+   Nivel 3: Jazmín Mileth Vilca arteaga  (PR: 160.00) → 24.00
+   Nivel 4: Digna Enma Gervacio oruna (PR: 120.00) → 6.00
+   Nivel 4: HERMIMDA FLOR ASEVEDO RUIZ (PR: 144.00) → 7.20
+   Nivel 2: Miker Neymar  Montoya Campos  (PR: 127.00) → 19.05
+   Nivel 3: Antonia Maria Reyes Gil (PR: 120.00) → 18.00
+   Nivel 4: Hugo Hernández Cabrera (PR: 167.00) → 8.21
+   Nivel 3: Vilma Esther Bernuy Carrión (PR: 249.00) → 32.01
+   Nivel 4: Ermencia Ulloa Pizan (PR: 310.00) → 12.50
+   Nivel 4: Anali Esther  Luis Bernuy  (PR: 175.00) → 8.45
+   Nivel 4: Maria Trinidad Bernuy Carrión (PR: 160.00) → 8.00
+   Nivel 4: Domingo Oswaldo  La torre Abanto  (PR: 370.00) → 14.30
+   Nivel 4: Elizabeth  Paredes Marquina  (PR: 110.00) → 5.50
+   Nivel 4: Tania Yanina  Fabián cruz  (PR: 120.00) → 6.00
+   Nivel 3: Monica Leonor  Cueto vivanco  (PR: 160.00) → 24.00
+   Nivel 4: Nelly  Pastrana Mercado  (PR: 160.00) → 8.00
+   Nivel 4: Gladys Irma  Lazo blancas (PR: 40.00) → 2.00
+   Nivel 2: Gregoria  Escobar enrriquez  (PR: 160.00) → 24.00
+   Nivel 3: Eunise Condor (PR: 280.00) → 34.80
+   Nivel 4: Lourdes Dina  Mendoza Aire (PR: 422.00) → 15.86
+   Nivel 4: Marcelina Giovana  Mamani carmargo  (PR: 160.00) → 8.00
+   Nivel 4: Maite zamira  Chupayo cóndor  (PR: 388.00) → 14.84
+   Nivel 3: Lucero  Capcha Pacheco  (PR: 160.00) → 24.00
+   Nivel 4: ANALY ROSA CANTO DE LA CRUZ  (PR: 215.00) → 9.65
+   Nivel 3: Odon Mayta (PR: 110.00) → 16.50
+   Nivel 3: OLGA castro cueto (PR: 197.00) → 27.33
+   Nivel 3: Herica Ayala Escobar (PR: 75.00) → 11.25
+   Nivel 3: Juanita  Ccencho Escobar  (PR: 220.00) → 29.40
+   Nivel 2: Edison  beimar  Ramos claros (PR: 40.00) → 6.00
+   Nivel 1: BRYAN ALEXANDER ARIAS MAMANI (PR: 169.00) → 24.81
+   Nivel 2: Dan Fritz Manihuari (PR: 135.00) → 20.25
+   Nivel 2: Yehosua Kewin  Gamarra Fritz  (PR: 125.00) → 18.75
+   Nivel 3: Santos Eusebia  Rodríguez Gormas  (PR: 30.00) → 4.50
+   Nivel 3: Nadiesca Esquivel Sifuentes  (PR: 157.00) → 23.55
+   Nivel 2: GUILLERMINA  TARAPAQUI LEON  (PR: 120.00) → 18.00
+   Nivel 3: Karen Karina  Lezama Chávez  (PR: 40.00) → 6.00
+   Nivel 2: Naysha Adriana  Torres Pareja (PR: 190.00) → 26.70
+   Nivel 3: Celestino maximo Cahuana (PR: 40.00) → 6.00
+   Nivel 3: Jose Luis Martinez Anticona (PR: 250.00) → 32.10
+   Nivel 3: ROBERT ROJAS CHAVEZ (PR: 120.00) → 18.00
+   💰 Total bono residual: 707.26
+   Ahorro: SALVADOR RICARDO HUAMAN POMA (Pts Extras: 10.00) → 4.00
+📊 MARIBEL VILMA ARTEAGA SANCHEZ (rango cierre="BRONCE" → residual "BRONCE"; rank BD="PLATA")
+   Nivel 1: Elvis Dany  Villanueva  (PR: 130.00) → 19.50
+   Nivel 2: Lupita jessenia Altamirano Asuncion (PR: 240.00) → 31.20
+   Nivel 2: Candelario  Polo Garcia  (PR: 120.00) → 18.00
+   Nivel 1: Jazmín Mileth Vilca arteaga  (PR: 160.00) → 24.00
+   Nivel 2: Digna Enma Gervacio oruna (PR: 120.00) → 18.00
+   Nivel 2: HERMIMDA FLOR ASEVEDO RUIZ (PR: 144.00) → 21.60
+   💰 Total bono residual: 132.30
+📊 Antonia Maria Reyes Gil (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="ACTIVO")
+   Nivel 1: Hugo Hernández Cabrera (PR: 167.00) → 24.63
+   💰 Total bono residual: 24.63
+📊 Vilma Esther Bernuy Carrión (rango cierre="PLATA" → residual "PLATA"; rank BD="ORO")
+   Nivel 1: Ermencia Ulloa Pizan (PR: 310.00) → 37.50
+   Nivel 1: Anali Esther  Luis Bernuy  (PR: 175.00) → 25.35
+   Nivel 2: Anadela Marquina Vasquez  (PR: 80.00) → 12.00
+   Nivel 1: Maria Trinidad Bernuy Carrión (PR: 160.00) → 24.00
+   Nivel 2: Francisco  Acebedo águilas  (PR: 160.00) → 24.00
+   Nivel 3: Sixto Martin  Acebedo Bernui  (PR: 160.00) → 24.00
+   Nivel 3: Alejandrina Gloria  Flores Barrios  (PR: 80.00) → 12.00
+   Nivel 2: Antonieta Elizabeth  Lopez pizan  (PR: 190.00) → 26.70
+   Nivel 3: Trinidad Virginia  Benites Huaman (PR: 15.00) → 2.25
+   Nivel 2: Luisa Gladis  Solorsano polo (PR: 25.00) → 3.75
+   Nivel 2: Veronica Escobedo Ruiz (PR: 200.00) → 27.60
+   Nivel 3: Martha Vilca Garcia (PR: 30.00) → 4.50
+   Nivel 3: Marcionila Escobedo Ruiz (PR: 220.00) → 29.40
+   Nivel 3: Bonifacio Valera  Escobedo Ruiz  (PR: 160.00) → 24.00
+   Nivel 3: Angélica  Escobedo Vilca  (PR: 240.00) → 31.20
+   Nivel 3: Maribel Doris  Gervacio Romero  (PR: 185.00) → 26.25
+   Nivel 2: Sara Elizabeth  Ruiz Chuquimango (PR: 97.00) → 14.55
+   Nivel 3: Floricielo  Huaman Ruiz  (PR: 126.00) → 18.90
+   Nivel 2: Delmira Yolanda Chavez Acebedo  (PR: 520.00) → 56.40
+   Nivel 3: Mariquita Acebedo Orbegoso  (PR: 30.00) → 4.50
+   Nivel 2: María  Acebedo Orbegoso (PR: 160.00) → 24.00
+   Nivel 2: Valentina  Chavez Luna (PR: 160.00) → 24.00
+   Nivel 1: Domingo Oswaldo  La torre Abanto  (PR: 370.00) → 42.90
+   Nivel 1: Elizabeth  Paredes Marquina  (PR: 110.00) → 16.50
+   Nivel 1: Tania Yanina  Fabián cruz  (PR: 120.00) → 18.00
+   💰 Total bono residual: 554.25
+   Gen VIP 1: Ermencia Ulloa Pizan (PR: 310.00) → 5.00
+   Gen VIP 1: Anali Esther  Luis Bernuy  (PR: 175.00) → 3.38
+   Gen VIP 1: Anadela Marquina Vasquez  (PR: 80.00) → 1.60
+   Gen VIP 1: Maria Trinidad Bernuy Carrión (PR: 160.00) → 3.20
+   Gen VIP 2: Francisco  Acebedo águilas  (PR: 160.00) → 1.60
+   Gen VIP 2: Sixto Martin  Acebedo Bernui  (PR: 160.00) → 1.60
+   Gen VIP 2: Alejandrina Gloria  Flores Barrios  (PR: 80.00) → 0.80
+   Gen VIP 2: Antonieta Elizabeth  Lopez pizan  (PR: 190.00) → 1.78
+   Gen VIP 2: Trinidad Virginia  Benites Huaman (PR: 15.00) → 0.15
+   Gen VIP 2: Luisa Gladis  Solorsano polo (PR: 25.00) → 0.25
+   Gen VIP 2: Veronica Escobedo Ruiz (PR: 200.00) → 1.84
+   Gen VIP 2: Sara Elizabeth  Ruiz Chuquimango (PR: 97.00) → 0.97
+   Gen VIP 2: Floricielo  Huaman Ruiz  (PR: 126.00) → 1.26
+   Gen VIP 2: Delmira Yolanda Chavez Acebedo  (PR: 520.00) → 3.76
+   Gen VIP 2: María  Acebedo Orbegoso (PR: 160.00) → 1.60
+   Gen VIP 2: Valentina  Chavez Luna (PR: 160.00) → 1.60
+   Gen VIP 1: Domingo Oswaldo  La torre Abanto  (PR: 370.00) → 5.72
+   Gen VIP 1: Elizabeth  Paredes Marquina  (PR: 110.00) → 2.20
+   Gen VIP 1: Tania Yanina  Fabián cruz  (PR: 120.00) → 2.40
+   💎 Total bono generacional VIP: 40.71
+   Ahorro: Vilma Esther Bernuy Carrión (Pts Extras: 89.00) → 35.60
+📊 Ermencia Ulloa Pizan (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="BRONCE")
+   Ahorro: Ermencia Ulloa Pizan (Pts Extras: 150.00) → 31.50
+📊 Hugo Hernández Cabrera (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="none")
+📊 Mario Luis  crespo palomino (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="BRONCE")
+   Nivel 1: Aida Quintana Granizo (PR: 175.00) → 25.35
+   💰 Total bono residual: 25.35
+   Ahorro: Mario Luis  crespo palomino (Pts Extras: 10.00) → 2.10
+📊 Elvis Dany  Villanueva  (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="ACTIVO")
+   Nivel 1: Lupita jessenia Altamirano Asuncion (PR: 240.00) → 31.20
+   Nivel 1: Candelario  Polo Garcia  (PR: 120.00) → 18.00
+   💰 Total bono residual: 49.20
+📊 Lupita jessenia Altamirano Asuncion (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="none")
+   Ahorro: Lupita jessenia Altamirano Asuncion (Pts Extras: 80.00) → 16.80
+📊 Aida Quintana Granizo (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="ACTIVO")
+   Ahorro: Aida Quintana Granizo (Pts Extras: 15.00) → 3.15
+📊 BRYAN ALEXANDER ARIAS MAMANI (rango cierre="BRONCE" → residual "BRONCE"; rank BD="PLATA")
+   Nivel 1: Dan Fritz Manihuari (PR: 135.00) → 20.25
+   Nivel 1: Yehosua Kewin  Gamarra Fritz  (PR: 125.00) → 18.75
+   Nivel 2: Santos Eusebia  Rodríguez Gormas  (PR: 30.00) → 4.50
+   Nivel 2: Nadiesca Esquivel Sifuentes  (PR: 157.00) → 23.55
+   Nivel 1: GUILLERMINA  TARAPAQUI LEON  (PR: 120.00) → 18.00
+   Nivel 2: Karen Karina  Lezama Chávez  (PR: 40.00) → 6.00
+   Nivel 1: Naysha Adriana  Torres Pareja (PR: 190.00) → 26.70
+   Nivel 2: Celestino maximo Cahuana (PR: 40.00) → 6.00
+   Nivel 2: Jose Luis Martinez Anticona (PR: 250.00) → 32.10
+   Nivel 2: ROBERT ROJAS CHAVEZ (PR: 120.00) → 18.00
+   💰 Total bono residual: 173.85
+   Ahorro: BRYAN ALEXANDER ARIAS MAMANI (Pts Extras: 9.00) → 3.60
+📊 Gregoria  Escobar enrriquez  (rango cierre="ORO" → residual "ORO"; rank BD="PLATA")
+   Nivel 1: Eunise Condor (PR: 280.00) → 34.80
+   Nivel 2: Lourdes Dina  Mendoza Aire (PR: 422.00) → 47.58
+   Nivel 2: Marcelina Giovana  Mamani carmargo  (PR: 160.00) → 24.00
+   Nivel 2: Maite zamira  Chupayo cóndor  (PR: 388.00) → 44.52
+   Nivel 1: Lucero  Capcha Pacheco  (PR: 160.00) → 24.00
+   Nivel 2: ANALY ROSA CANTO DE LA CRUZ  (PR: 215.00) → 28.95
+   Nivel 3: Jose Miguel soto (PR: 65.00) → 9.75
+   Nivel 4: Teodora  Enrriquez Quinto (PR: 120.00) → 18.00
+   Nivel 1: Odon Mayta (PR: 110.00) → 16.50
+   Nivel 1: OLGA castro cueto (PR: 197.00) → 27.33
+   Nivel 1: Herica Ayala Escobar (PR: 75.00) → 11.25
+   Nivel 1: Juanita  Ccencho Escobar  (PR: 220.00) → 29.40
+   💰 Total bono residual: 316.08
+   Gen VIP 1: Eunise Condor (PR: 280.00) → 4.64
+   Gen VIP 1: Lourdes Dina  Mendoza Aire (PR: 422.00) → 6.34
+   Gen VIP 1: Marcelina Giovana  Mamani carmargo  (PR: 160.00) → 3.20
+   Gen VIP 1: Maite zamira  Chupayo cóndor  (PR: 388.00) → 5.94
+   Gen VIP 1: Lucero  Capcha Pacheco  (PR: 160.00) → 3.20
+   Gen VIP 1: ANALY ROSA CANTO DE LA CRUZ  (PR: 215.00) → 3.86
+   Gen VIP 1: Jose Miguel soto (PR: 65.00) → 1.30
+   Gen VIP 1: Teodora  Enrriquez Quinto (PR: 120.00) → 2.40
+   Gen VIP 1: Odon Mayta (PR: 110.00) → 2.20
+   Gen VIP 1: OLGA castro cueto (PR: 197.00) → 3.64
+   Gen VIP 1: Herica Ayala Escobar (PR: 75.00) → 1.50
+   Gen VIP 1: Juanita  Ccencho Escobar  (PR: 220.00) → 3.92
+   💎 Total bono generacional VIP: 42.14
+📊 Anali Esther  Luis Bernuy  (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="BRONCE")
+   Nivel 1: Anadela Marquina Vasquez  (PR: 80.00) → 12.00
+   💰 Total bono residual: 12.00
+   Ahorro: Anali Esther  Luis Bernuy  (Pts Extras: 15.00) → 6.00
+📊 Brigida Fritz Manihuare  (rango cierre="BRONCE" → residual "BRONCE"; rank BD="ORO")
+   Nivel 1: Dan Fritz Manihuari (PR: 135.00) → 20.25
+   Nivel 1: Yehosua Kewin  Gamarra Fritz  (PR: 125.00) → 18.75
+   Nivel 2: Santos Eusebia  Rodríguez Gormas  (PR: 30.00) → 4.50
+   Nivel 2: Nadiesca Esquivel Sifuentes  (PR: 157.00) → 23.55
+   Nivel 1: GUILLERMINA  TARAPAQUI LEON  (PR: 120.00) → 18.00
+   Nivel 2: Karen Karina  Lezama Chávez  (PR: 40.00) → 6.00
+   💰 Total bono residual: 91.05
+📊 Dan Fritz Manihuari (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="ACTIVO")
+📊 Monica Leonor  Cueto vivanco  (rango cierre="BRONCE" → residual "BRONCE"; rank BD="PLATA")
+   Nivel 1: Nelly  Pastrana Mercado  (PR: 160.00) → 24.00
+   Nivel 2: Rosa Bendezu Albina (PR: 200.00) → 27.60
+   Nivel 1: Gladys Irma  Lazo blancas (PR: 40.00) → 6.00
+   💰 Total bono residual: 57.60
+📊 Maria Trinidad Bernuy Carrión (rango cierre="ORO" → residual "ORO"; rank BD="ORO")
+   Nivel 1: Francisco  Acebedo águilas  (PR: 160.00) → 24.00
+   Nivel 2: Sixto Martin  Acebedo Bernui  (PR: 160.00) → 24.00
+   Nivel 2: Alejandrina Gloria  Flores Barrios  (PR: 80.00) → 12.00
+   Nivel 1: Antonieta Elizabeth  Lopez pizan  (PR: 190.00) → 26.70
+   Nivel 2: Trinidad Virginia  Benites Huaman (PR: 15.00) → 2.25
+   Nivel 1: Luisa Gladis  Solorsano polo (PR: 25.00) → 3.75
+   Nivel 1: Veronica Escobedo Ruiz (PR: 200.00) → 27.60
+   Nivel 2: Martha Vilca Garcia (PR: 30.00) → 4.50
+   Nivel 2: Marcionila Escobedo Ruiz (PR: 220.00) → 29.40
+   Nivel 2: Bonifacio Valera  Escobedo Ruiz  (PR: 160.00) → 24.00
+   Nivel 2: Angélica  Escobedo Vilca  (PR: 240.00) → 31.20
+   Nivel 2: Maribel Doris  Gervacio Romero  (PR: 185.00) → 26.25
+   Nivel 1: Sara Elizabeth  Ruiz Chuquimango (PR: 97.00) → 14.55
+   Nivel 2: Floricielo  Huaman Ruiz  (PR: 126.00) → 18.90
+   Nivel 1: Delmira Yolanda Chavez Acebedo  (PR: 520.00) → 56.40
+   Nivel 2: Mariquita Acebedo Orbegoso  (PR: 30.00) → 4.50
+   Nivel 1: María  Acebedo Orbegoso (PR: 160.00) → 24.00
+   Nivel 1: Valentina  Chavez Luna (PR: 160.00) → 24.00
+   💰 Total bono residual: 378.00
+   Gen VIP 1: Francisco  Acebedo águilas  (PR: 160.00) → 3.20
+   Gen VIP 1: Sixto Martin  Acebedo Bernui  (PR: 160.00) → 3.20
+   Gen VIP 1: Alejandrina Gloria  Flores Barrios  (PR: 80.00) → 1.60
+   Gen VIP 1: Antonieta Elizabeth  Lopez pizan  (PR: 190.00) → 3.56
+   Gen VIP 1: Trinidad Virginia  Benites Huaman (PR: 15.00) → 0.30
+   Gen VIP 1: Luisa Gladis  Solorsano polo (PR: 25.00) → 0.50
+   Gen VIP 1: Veronica Escobedo Ruiz (PR: 200.00) → 3.68
+   Gen VIP 1: Martha Vilca Garcia (PR: 30.00) → 0.60
+   Gen VIP 1: Marcionila Escobedo Ruiz (PR: 220.00) → 3.92
+   Gen VIP 1: Bonifacio Valera  Escobedo Ruiz  (PR: 160.00) → 3.20
+   Gen VIP 1: Angélica  Escobedo Vilca  (PR: 240.00) → 4.16
+   Gen VIP 1: Maribel Doris  Gervacio Romero  (PR: 185.00) → 3.50
+   Gen VIP 1: Sara Elizabeth  Ruiz Chuquimango (PR: 97.00) → 1.94
+   Gen VIP 1: Floricielo  Huaman Ruiz  (PR: 126.00) → 2.52
+   Gen VIP 1: Delmira Yolanda Chavez Acebedo  (PR: 520.00) → 7.52
+   Gen VIP 1: Mariquita Acebedo Orbegoso  (PR: 30.00) → 0.60
+   Gen VIP 1: María  Acebedo Orbegoso (PR: 160.00) → 3.20
+   Gen VIP 1: Valentina  Chavez Luna (PR: 160.00) → 3.20
+   💎 Total bono generacional VIP: 50.40
+📊 Yehosua Kewin  Gamarra Fritz  (rango cierre="BRONCE" → residual "BRONCE"; rank BD="BRONCE")
+   Nivel 1: Santos Eusebia  Rodríguez Gormas  (PR: 30.00) → 4.50
+   Nivel 1: Nadiesca Esquivel Sifuentes  (PR: 157.00) → 23.55
+   💰 Total bono residual: 28.05
+📊 Maruja  Huayllas Huayllas  (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="PLATA")
+   Nivel 1: Santos Eusebia  Rodríguez Gormas  (PR: 30.00) → 4.50
+   💰 Total bono residual: 4.50
+📊 Jazmín Mileth Vilca arteaga  (rango cierre="BRONCE" → residual "BRONCE"; rank BD="ACTIVO")
+   Nivel 1: Digna Enma Gervacio oruna (PR: 120.00) → 18.00
+   Nivel 1: HERMIMDA FLOR ASEVEDO RUIZ (PR: 144.00) → 21.60
+   💰 Total bono residual: 39.60
+📊 Nelly  Pastrana Mercado  (rango cierre="BRONCE" → residual "BRONCE"; rank BD="ACTIVO")
+   Nivel 1: Rosa Bendezu Albina (PR: 200.00) → 27.60
+   💰 Total bono residual: 27.60
+📊 Naysha Adriana  Torres Pareja (rango cierre="BRONCE" → residual "BRONCE"; rank BD="ACTIVO")
+   Nivel 1: Celestino maximo Cahuana (PR: 40.00) → 6.00
+   Nivel 1: Jose Luis Martinez Anticona (PR: 250.00) → 32.10
+   Nivel 1: ROBERT ROJAS CHAVEZ (PR: 120.00) → 18.00
+   💰 Total bono residual: 56.10
+   Ahorro: Naysha Adriana  Torres Pareja (Pts Extras: 30.00) → 12.00
+📊 Digna Enma Gervacio oruna (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="ACTIVO")
+📊 Eunise Condor (rango cierre="BRONCE" → residual "BRONCE"; rank BD="BRONCE")
+   Nivel 1: Lourdes Dina  Mendoza Aire (PR: 422.00) → 47.58
+   Nivel 1: Marcelina Giovana  Mamani carmargo  (PR: 160.00) → 24.00
+   Nivel 1: Maite zamira  Chupayo cóndor  (PR: 388.00) → 44.52
+   💰 Total bono residual: 116.10
+   Ahorro: Eunise Condor (Pts Extras: 120.00) → 25.20
+📊 Lucero  Capcha Pacheco  (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="none")
+   Nivel 1: ANALY ROSA CANTO DE LA CRUZ  (PR: 215.00) → 28.95
+   Nivel 2: Jose Miguel soto (PR: 65.00) → 9.75
+   💰 Total bono residual: 38.70
+📊 Francisco  Acebedo águilas  (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="BRONCE")
+   Nivel 1: Sixto Martin  Acebedo Bernui  (PR: 160.00) → 24.00
+   Nivel 1: Alejandrina Gloria  Flores Barrios  (PR: 80.00) → 12.00
+   💰 Total bono residual: 36.00
+📊 Antonieta Elizabeth  Lopez pizan  (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="ACTIVO")
+   Nivel 1: Trinidad Virginia  Benites Huaman (PR: 15.00) → 2.25
+   💰 Total bono residual: 2.25
+   Ahorro: Antonieta Elizabeth  Lopez pizan  (Pts Extras: 30.00) → 6.30
+📊 Celestino maximo Cahuana (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="none")
+📊 Nadiesca Esquivel Sifuentes  (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="none")
+📊 Gladys Irma  Lazo blancas (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="ACTIVO")
+📊 José Luis  Galarza Beserra (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="BRONCE")
+   Nivel 1: Santos Eusebia  Rodríguez Gormas  (PR: 30.00) → 4.50
+   💰 Total bono residual: 4.50
+📊 Ricardo  Escalante De La Vega (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="ACTIVO")
+📊 Veronica Escobedo Ruiz (rango cierre="BRONCE" → residual "BRONCE"; rank BD="PLATA")
+   Nivel 1: Martha Vilca Garcia (PR: 30.00) → 4.50
+   Nivel 1: Marcionila Escobedo Ruiz (PR: 220.00) → 29.40
+   Nivel 1: Bonifacio Valera  Escobedo Ruiz  (PR: 160.00) → 24.00
+   Nivel 1: Angélica  Escobedo Vilca  (PR: 240.00) → 31.20
+   Nivel 1: Maribel Doris  Gervacio Romero  (PR: 185.00) → 26.25
+   💰 Total bono residual: 115.35
+   Ahorro: Veronica Escobedo Ruiz (Pts Extras: 40.00) → 16.00
+📊 OLGA castro cueto (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="none")
+   Ahorro: OLGA castro cueto (Pts Extras: 37.00) → 14.80
+📊 Edison  beimar  Ramos claros (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="none")
+📊 Herica Ayala Escobar (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="ACTIVO")
+📊 ANALY ROSA CANTO DE LA CRUZ  (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="ACTIVO")
+   Nivel 1: Jose Miguel soto (PR: 65.00) → 9.75
+   Nivel 2: Teodora  Enrriquez Quinto (PR: 120.00) → 18.00
+   💰 Total bono residual: 27.75
+   Ahorro: ANALY ROSA CANTO DE LA CRUZ  (Pts Extras: 55.00) → 11.55
+📊 Sixto Martin  Acebedo Bernui  (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="ACTIVO")
+📊 Odon Mayta (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="none")
+📊 Alejandrina Gloria  Flores Barrios  (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="ACTIVO")
+📊 Rosa Bendezu Albina (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="ACTIVO")
+   Ahorro: Rosa Bendezu Albina (Pts Extras: 40.00) → 8.40
+📊 Marcionila Escobedo Ruiz (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="ACTIVO")
+   Ahorro: Marcionila Escobedo Ruiz (Pts Extras: 60.00) → 12.60
+📊 Juanita  Ccencho Escobar  (rango cierre="BRONCE" → residual "BRONCE"; rank BD="ACTIVO")
+   Ahorro: Juanita  Ccencho Escobar  (Pts Extras: 60.00) → 12.60
+📊 Anadela Marquina Vasquez  (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="ACTIVO")
+📊 Bonifacio Valera  Escobedo Ruiz  (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="none")
+📊 Candelario  Polo Garcia  (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="ACTIVO")
+📊 HERMIMDA FLOR ASEVEDO RUIZ (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="none")
+📊 Jose Miguel soto (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="none")
+   Nivel 1: Teodora  Enrriquez Quinto (PR: 120.00) → 18.00
+   💰 Total bono residual: 18.00
+📊 Lourdes Dina  Mendoza Aire (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="ACTIVO")
+   Ahorro: Lourdes Dina  Mendoza Aire (Pts Extras: 262.00) → 55.02
+📊 Sara Elizabeth  Ruiz Chuquimango (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="BRONCE")
+   Nivel 1: Floricielo  Huaman Ruiz  (PR: 126.00) → 18.90
+   💰 Total bono residual: 18.90
+📊 Domingo Oswaldo  La torre Abanto  (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="ACTIVO")
+   Ahorro: Domingo Oswaldo  La torre Abanto  (Pts Extras: 210.00) → 44.10
+📊 Delmira Yolanda Chavez Acebedo  (rango cierre="BRONCE" → residual "BRONCE"; rank BD="ACTIVO")
+   Nivel 1: Mariquita Acebedo Orbegoso  (PR: 30.00) → 4.50
+   💰 Total bono residual: 4.50
+   Ahorro: Delmira Yolanda Chavez Acebedo  (Pts Extras: 360.00) → 75.60
+📊 María  Acebedo Orbegoso (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="ACTIVO")
+📊 Elizabeth  Paredes Marquina  (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="ACTIVO")
+📊 GUILLERMINA  TARAPAQUI LEON  (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="BRONCE")
+   Nivel 1: Karen Karina  Lezama Chávez  (PR: 40.00) → 6.00
+   💰 Total bono residual: 6.00
+📊 Marcelina Giovana  Mamani carmargo  (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="ACTIVO")
+📊 Waldir Valderrama del aguila (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="BRONCE")
+   Nivel 1: Darly  Saavedra Obando (PR: 160.00) → 24.00
+   💰 Total bono residual: 24.00
+📊 Valentina  Chavez Luna (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="BRONCE")
+📊 Darly  Saavedra Obando (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="ACTIVO")
+📊 Angélica  Escobedo Vilca  (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="ACTIVO")
+   Ahorro: Angélica  Escobedo Vilca  (Pts Extras: 80.00) → 24.00
+📊 Tania Yanina  Fabián cruz  (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="ACTIVO")
+📊 Maribel Doris  Gervacio Romero  (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="ACTIVO")
+   Ahorro: Maribel Doris  Gervacio Romero  (Pts Extras: 25.00) → 5.25
+📊 Maite zamira  Chupayo cóndor  (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="ACTIVO")
+   Ahorro: Maite zamira  Chupayo cóndor  (Pts Extras: 228.00) → 47.88
+📊 Epifania Juana Cruz Arias (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="none")
+   Ahorro: Epifania Juana Cruz Arias (Pts Extras: 80.00) → 16.80
+📊 Karen Karina  Lezama Chávez  (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="none")
+📊 Floricielo  Huaman Ruiz  (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="ACTIVO")
+📊 Teodora  Enrriquez Quinto (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="ACTIVO")
+📊 Jose Luis Martinez Anticona (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="none")
+   Ahorro: Jose Luis Martinez Anticona (Pts Extras: 250.00) → 52.50
+📊 ROBERT ROJAS CHAVEZ (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="ACTIVO")
+📊 Martha Mariela  Silupu silva (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="none")
+📊 Karla Maricela Cortez Sanchez (rango cierre="PLATA" → residual "PLATA"; rank BD="")
+   Nivel 1: katty Marisol Peña Chumbe (PR: 185.00) → 26.25
+   💰 Total bono residual: 26.25
+   Gen VIP 1: katty Marisol Peña Chumbe (PR: 185.00) → 3.50
+   💎 Total bono generacional VIP: 3.50
+📊 Angel Gabriel  Vivas castro  (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="")
+📊 katty Marisol Peña Chumbe (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="")
+   Ahorro: katty Marisol Peña Chumbe (Pts Extras: 185.00) → 74.00
+📊 Santos Eusebia  Rodríguez Gormas  (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="")
+   Ahorro: Santos Eusebia  Rodríguez Gormas  (Pts Extras: 30.00) → 9.00
+📊 Juan Manuel  Huertas Remigio (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="")
+📊 Gladys Sonia Ortiz Quispe (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="")
+📊 Javier  Quispe Otiniano (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="")
+📊 violeta Elvira Mamani chamorro  (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="")
+📊 Dora Chicchón Terán  (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="user")
+📊 Mileni Marilin domiguez arquinigo (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="")
+📊 Benjamín  Chavez Acevedo (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="")
+📊 Betty Edith Cornelio romero  (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="")
+📊 Carmen Escobar Enrriquez  (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="")
+📊 Julisa Escobar Quinchco (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="")
+📊 Anadela  Ulloa Quiliche  (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="")
+📊 Yerson David Enrriquez  Ccencho (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="")
+📊 Modesto  Ccencho Gamboa  (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="")
+📊 Santos Cecilia Ulloa Joaquin (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="")
+📊 Alicia   Ayala  Escobar  (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="")
+📊 Mariquita Acebedo Orbegoso  (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="")
+   Ahorro: Mariquita Acebedo Orbegoso  (Pts Extras: 30.00) → 6.30
+📊 Santos Rosas Ruiz Chuquimango  (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="")
+📊 LOURDES DINA  CÓNDOR MENDOZA  (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="")
+📊 pruebabono bono (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="")
+📊 Public p (rango cierre="ACTIVO" → residual "ACTIVO"; rank BD="")
