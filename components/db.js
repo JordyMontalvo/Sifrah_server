@@ -648,6 +648,20 @@ class Transaction {
     const client = new Client(URL, { useUnifiedTopology: true });
     const conn = await client.connect();
     const db = conn.db(name);
+    
+    // Auto-inject active period if missing
+    if (!transaction.period_key) {
+      try {
+        const activePeriod = await db.collection("periods").findOne({ status: "open" });
+        if (activePeriod) {
+          transaction.period_key = activePeriod.key;
+          transaction.period_label = activePeriod.label || activePeriod.key;
+        }
+      } catch (err) {
+        console.error("Error auto-injecting period into transaction:", err);
+      }
+    }
+
     await db.collection("transactions").insertOne(transaction);
     return client.close();
   }

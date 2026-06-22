@@ -80,15 +80,34 @@ func (db *MongoDB) SaveTransactions(ctx context.Context, txs []models.Transactio
 		return nil
 	}
 
+	// Determine active period
+	var activePeriod bson.M
+	err := db.DB.Collection("periods").FindOne(ctx, bson.M{"status": "open"}).Decode(&activePeriod)
+	var periodKey, periodLabel string
+	if err == nil && activePeriod != nil {
+		if key, ok := activePeriod["key"].(string); ok {
+			periodKey = key
+		}
+		if label, ok := activePeriod["label"].(string); ok {
+			periodLabel = label
+		} else {
+			periodLabel = periodKey
+		}
+	}
+
 	var docs []interface{}
 	for _, tx := range txs {
 		if tx.Date.IsZero() {
 			tx.Date = time.Now()
 		}
+		if tx.PeriodKey == "" && periodKey != "" {
+			tx.PeriodKey = periodKey
+			tx.PeriodLabel = periodLabel
+		}
 		docs = append(docs, tx)
 	}
 
-	_, err := db.DB.Collection("transactions").InsertMany(ctx, docs)
+	_, err = db.DB.Collection("transactions").InsertMany(ctx, docs)
 	return err
 }
 

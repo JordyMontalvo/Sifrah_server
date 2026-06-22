@@ -56,6 +56,8 @@ type Transaction struct {
 	ID                 string    `bson:"id" json:"id"`
 	UserID             string    `bson:"user_id" json:"user_id"`
 	FromUserID         string    `bson:"from_user_id,omitempty" json:"from_user_id,omitempty"`
+	PeriodKey          string    `bson:"period_key,omitempty" json:"period_key,omitempty"`
+	PeriodLabel        string    `bson:"period_label,omitempty" json:"period_label,omitempty"`
 	Type               string    `bson:"type" json:"type"` // "in", "out"
 	Value              float64   `bson:"value" json:"value"`
 	Name               string    `bson:"name" json:"name"`
