@@ -160,7 +160,7 @@ func (e *CierreEngine) CalculateRank(id string) string {
 		}
 	}
 
-	return "ACTIVO"
+	return "none"
 }
 
 // closedRank es el rango calculado en ESTE cierre (CalculateRank). El residual debe usar ese rango,
