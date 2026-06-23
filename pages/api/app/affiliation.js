@@ -259,6 +259,8 @@ export default async (req, res) => {
           value: a,
           name: "affiliation",
           virtual: true,
+          period_key: period.key,
+          period_label: period.label,
         });
       }
 
@@ -272,6 +274,8 @@ export default async (req, res) => {
           value: b,
           name: "affiliation",
           virtual: false,
+          period_key: period.key,
+          period_label: period.label,
         });
       }
     } else {

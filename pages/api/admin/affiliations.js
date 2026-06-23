@@ -219,7 +219,9 @@ async function pay_bonus(
   amount,
   migration,
   plan_afiliado,
-  _id
+  _id,
+  periodKey,
+  periodLabel
 ) {
   const user = users.find((e) => e.id == id);
   const node = tree.find((e) => e.id == id);
@@ -245,6 +247,8 @@ async function pay_bonus(
       affiliation_id: aff_id,
       virtual,
       _user_id: _id,
+      period_key: periodKey,
+      period_label: periodLabel,
     });
     pays.push(transactionId);
   }
@@ -258,7 +262,9 @@ async function pay_bonus(
     amount,
     migration,
     plan_afiliado,
-    _id
+    _id,
+    periodKey,
+    periodLabel
   );
 }
 
@@ -516,7 +522,9 @@ const handler = async (req, res, auth) => {
         amount,
         false,
         plan,
-        user.id
+        user.id,
+        approvedPeriodKey,
+        approvedPeriodLabel
       );
 
       // Guardar transacciones de bonos

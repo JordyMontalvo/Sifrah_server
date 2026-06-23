@@ -504,6 +504,8 @@ export default async (req, res) => {
             activation_id: activation.d,
             virtual,
             _user_id: user.id,
+            period_key: approvedPeriodKey,
+            period_label: approvedPeriodLabel,
           });
 
           activation.transactions.push(id);
