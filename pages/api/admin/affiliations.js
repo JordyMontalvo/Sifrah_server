@@ -122,6 +122,7 @@ const {
   AuditLog,
 } = db;
 const { error, success, midd, ids, parent_ids, map, model, rand } = lib;
+const { syncOrderEgressPeriod } = require("../../../lib/transactionPeriod");
 
 /**
  * Determina el periodo correcto al momento de la aprobación.
@@ -482,6 +483,21 @@ const handler = async (req, res, auth) => {
         period_label: approvedPeriodLabel,
       });
 
+      const orderTransactionIds = Array.isArray(affiliation.transactions)
+        ? [...affiliation.transactions]
+        : [];
+
+      // Heredar período de la afiliación en egresos por saldo
+      if (approvedPeriodKey && orderTransactionIds.length) {
+        await syncOrderEgressPeriod(
+          Transaction,
+          orderTransactionIds,
+          approvedPeriodKey,
+          approvedPeriodLabel,
+          ["affiliation"]
+        );
+      }
+
       // update USER — acumular puntos de afiliación del mismo periodo (migraciones en el mes)
       const user = await User.findOne({ id: affiliation.userId });
 
@@ -527,8 +543,8 @@ const handler = async (req, res, auth) => {
         approvedPeriodLabel
       );
 
-      // Guardar transacciones de bonos
-      await Affiliation.update({ id }, { transactions: pays });
+      // Guardar transacciones de bonos (conservar egresos por saldo de la orden)
+      await Affiliation.update({ id }, { transactions: [...orderTransactionIds, ...pays] });
 
       // UPDATE STOCK
       const office_id = affiliation.office;

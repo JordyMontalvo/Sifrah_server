@@ -6,8 +6,10 @@ import { requireAdmin } from "../../../components/adminAuth";
 const URL = process.env.DB_URL;
 const name = process.env.DB_NAME;
 
-const { Activation, User, Office, Transaction, AuditLog } = db;
+const { Activation, User, Office, Transaction, AuditLog, Period } = db;
 const { error, success, midd, rand } = lib;
+const { syncOrderTransactionsPeriod } = require("../../../lib/transactionPeriod");
+const { resolvePeriodAtApproval } = require("../../../lib/periodAtApproval");
 
 const FIELDS = [
   "id",
@@ -132,6 +134,8 @@ async function refundSavingsBonusHold(redemption, reason) {
     virtual: false,
     wallet_tipo: "BONO_AHORRO",
     activation_id: redemption.id,
+    period_key: redemption.period_key || null,
+    period_label: redemption.period_label || null,
   });
 
   const transactions = Array.isArray(redemption.transactions)
@@ -306,6 +310,14 @@ export default async (req, res) => {
       if (price <= 0) return res.json(error("invalid price"));
 
       const approvedAt = new Date();
+      const resolvedPeriod = await resolvePeriodAtApproval(Period, approvedAt);
+      const approvedPeriodKey = resolvedPeriod
+        ? resolvedPeriod.key
+        : redemption.period_key || null;
+      const approvedPeriodLabel = resolvedPeriod
+        ? resolvedPeriod.label
+        : redemption.period_label || null;
+
       const hasHold =
         Array.isArray(redemption.transactions) &&
         redemption.transactions.length > 0;
@@ -334,6 +346,8 @@ export default async (req, res) => {
           virtual: false,
           wallet_tipo: "BONO_AHORRO",
           activation_id: id,
+          period_key: approvedPeriodKey,
+          period_label: approvedPeriodLabel,
         });
         await Activation.update(
           { id },
@@ -341,6 +355,8 @@ export default async (req, res) => {
             status: "approved",
             approved_at: approvedAt,
             delivered: false,
+            period_key: approvedPeriodKey,
+            period_label: approvedPeriodLabel,
             transactions: [txId],
           }
         );
@@ -351,8 +367,18 @@ export default async (req, res) => {
             status: "approved",
             approved_at: approvedAt,
             delivered: false,
+            period_key: approvedPeriodKey,
+            period_label: approvedPeriodLabel,
           }
         );
+        if (approvedPeriodKey && redemption.transactions?.length) {
+          await syncOrderTransactionsPeriod(
+            Transaction,
+            redemption.transactions,
+            approvedPeriodKey,
+            approvedPeriodLabel
+          );
+        }
       }
 
       await deductOfficeStock(redemption.office, redemption.products);

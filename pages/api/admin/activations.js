@@ -8,6 +8,7 @@ const name = process.env.DB_NAME;
 
 const { Activation, Affiliation, User, Tree, Token, Office, Transaction, Closed, Period, AuditLog } = db;
 const { error, success, midd, ids, map, model, rand } = lib;
+const { syncOrderEgressPeriod } = require("../../../lib/transactionPeriod");
 
 /**
  * Determina el periodo correcto al momento de la aprobación.
@@ -298,17 +299,13 @@ export default async (req, res) => {
 
       // Heredar el período de la compra en los egresos por saldo (name: activation)
       if (approvedPeriodKey && activation.transactions?.length) {
-        for (const transactionId of activation.transactions) {
-          const tx = await Transaction.findOne({ id: transactionId });
-          if (!tx || tx.name !== "activation" || tx.type !== "out") continue;
-          await Transaction.update(
-            { id: transactionId },
-            {
-              period_key: approvedPeriodKey,
-              period_label: approvedPeriodLabel,
-            }
-          );
-        }
+        await syncOrderEgressPeriod(
+          Transaction,
+          activation.transactions,
+          approvedPeriodKey,
+          approvedPeriodLabel,
+          ["activation"]
+        );
       }
 
       // update USER

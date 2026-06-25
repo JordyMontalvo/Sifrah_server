@@ -1,4 +1,9 @@
+/**
+ * DEPRECADO: asigna período por mes/año de tx.date (no usar en producción).
+ * Preferir: node scripts/backfill_order_transaction_periods.js
+ */
 require("dotenv").config();
+console.warn("⚠️  Este script infiere ciclo por FECHA. Usa backfill_order_transaction_periods.js en su lugar.");
 const { MongoClient } = require("mongodb");
 const URL = process.env.DB_URL || process.env.MONGODB_URI || "mongodb://localhost:27017";
 const name = process.env.DB_NAME || process.env.DB_NAME_FALLBACK || "sifrah";

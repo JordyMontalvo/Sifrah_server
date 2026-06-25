@@ -232,6 +232,8 @@ export default async (req, res) => {
     let transactions = [];
     let amounts;
 
+    const period = await getOrCreateOpenPeriod(new Date());
+
     // Toda afiliación se cobra completa. Si el usuario marca "usar saldo" (check),
     // se descuenta primero del saldo no disponible (_balance) y luego del saldo disponible (balance).
     // El resto queda como "pendiente" y se cubre con voucher/efectivo según pay_method.
@@ -286,7 +288,6 @@ export default async (req, res) => {
     amounts = [a, b, c];
     console.log({ a, b, c, price, check });
 
-    const period = await getOrCreateOpenPeriod(new Date());
     const affiliationId = rand();
     await Affiliation.insert({
       id: affiliationId,

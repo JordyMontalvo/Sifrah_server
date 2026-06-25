@@ -216,6 +216,8 @@ export default async (req, res) => {
         virtual: false,
         wallet_tipo: "BONO_AHORRO",
         activation_id: redemptionId,
+        period_key: period.key,
+        period_label: period.label,
       })
 
       await Activation.insert({
