@@ -1,12 +1,15 @@
 import db  from "../../../components/db"
 import lib from "../../../components/lib"
+import { requireAdmin } from "../../../components/adminAuth";
 
-const { Transaction, User } = db
+const { Transaction, User, Period } = db
 const { error, success, midd, rand } = lib
 
 
 export default async (req, res) => {
   await midd(req, res)
+  const auth = await requireAdmin(req, res);
+  if (!auth) return;
 
   if(req.method == 'GET') {
     const users = await User.find({})
@@ -25,8 +28,17 @@ export default async (req, res) => {
 
   if(req.method == 'POST') {
 
-    const { dni, amount, desc } = req.body
-    console.log({ dni, amount, desc })
+    const { dni, amount, desc, period_key } = req.body
+    console.log({ dni, amount, desc, period_key })
+
+    if (!period_key) {
+      return res.json(error('period_key is required'))
+    }
+
+    const period = await Period.findOne({ key: period_key })
+    if (!period) {
+      return res.json(error('period not found'))
+    }
 
     const user = await User.findOne({ dni })
 
@@ -41,6 +53,8 @@ export default async (req, res) => {
       desc,
       virtual: false,
       name: 'pay',
+      period_key: period.key,
+      period_label: period.label || period.key,
     })
 
     return res.json(success())
