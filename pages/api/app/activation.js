@@ -357,6 +357,9 @@ export default async (req, res) => {
     let transactions = []
     let amounts
 
+    const { Period } = db
+    const period = await getOrCreateOpenPeriod(Period, new Date())
+
     if (useCheck) {
 
       const a = _balance < price ? _balance : price
@@ -380,6 +383,8 @@ export default async (req, res) => {
           value: a,
           name: 'activation',
           virtual: true,
+          period_key: period.key,
+          period_label: period.label,
         })
       }
 
@@ -394,13 +399,13 @@ export default async (req, res) => {
           value: b,
           name: 'activation',
           virtual: false,
+          period_key: period.key,
+          period_label: period.label,
         })
       }
     }
 
     // save new activation
-    const { Period } = db
-    const period = await getOrCreateOpenPeriod(Period, new Date())
     const activationId = rand();
     await Activation.insert({
       id: activationId,

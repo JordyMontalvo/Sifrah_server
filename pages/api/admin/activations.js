@@ -296,6 +296,21 @@ export default async (req, res) => {
         period_label: approvedPeriodLabel,
       });
 
+      // Heredar el período de la compra en los egresos por saldo (name: activation)
+      if (approvedPeriodKey && activation.transactions?.length) {
+        for (const transactionId of activation.transactions) {
+          const tx = await Transaction.findOne({ id: transactionId });
+          if (!tx || tx.name !== "activation" || tx.type !== "out") continue;
+          await Transaction.update(
+            { id: transactionId },
+            {
+              period_key: approvedPeriodKey,
+              period_label: approvedPeriodLabel,
+            }
+          );
+        }
+      }
+
       // update USER
       const user = await User.findOne({ id: activation.userId });
 
