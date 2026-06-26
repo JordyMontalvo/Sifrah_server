@@ -190,29 +190,46 @@ export default async (req, res) => {
       bank_info,
       date,
       voucher_number,
+      voucher_number2,
       deliveryMethod,
       deliveryInfo
     } = req.body;
     const useCheck = check === true || check === "true";
 
-    // Validación de duplicidad de voucher
-    if (pay_method === "bank" && voucher_number) {
-      const vn = String(voucher_number).trim();
-      const dupAct = await Activation.findOne({
-        voucher_number: vn,
-        status: { $in: ["approved", "pending"] },
-      });
-      const dupAff = await Affiliation.findOne({
-        voucher_number: vn,
-        status: { $in: ["approved", "pending"] },
-        id: { $ne: req.body.id },
-      });
-      if (dupAct || dupAff) {
+    // Cada comprobante debe tener su propio número de operación
+    if (pay_method === "bank" && voucher2 && !voucher_number2) {
+      return res.json(error("Falta el número de operación del segundo comprobante de pago."));
+    }
+
+    // Validación de duplicidad de voucher (incluye ambos números de operación)
+    if (pay_method === "bank") {
+      const numbers = [voucher_number, voucher_number2]
+        .filter((n) => n != null && String(n).trim() !== "")
+        .map((n) => String(n).trim());
+
+      if (numbers.length === 2 && numbers[0] === numbers[1]) {
         return res.json(
-          error(
-            `El número de operación "${vn}" ya ha sido registrado previamente. Por favor, verifica los datos.`
-          )
+          error("Los dos comprobantes no pueden tener el mismo número de operación.")
         );
+      }
+
+      for (const vn of numbers) {
+        const dupAct = await Activation.findOne({
+          $or: [{ voucher_number: vn }, { voucher_number2: vn }],
+          status: { $in: ["approved", "pending"] },
+        });
+        const dupAff = await Affiliation.findOne({
+          $or: [{ voucher_number: vn }, { voucher_number2: vn }],
+          status: { $in: ["approved", "pending"] },
+          id: { $ne: req.body.id },
+        });
+        if (dupAct || dupAff) {
+          return res.json(
+            error(
+              `El número de operación "${vn}" ya ha sido registrado previamente. Por favor, verifica los datos.`
+            )
+          );
+        }
       }
     }
 
@@ -310,6 +327,7 @@ export default async (req, res) => {
       bank,
       voucher_date: date,
       voucher_number,
+      voucher_number2: voucher_number2 || null,
       type: "affiliation",
     });
 
