@@ -160,13 +160,30 @@ func (db *MongoDB) UpdateUserRanks(ctx context.Context, users []models.User) err
 }
 
 func (db *MongoDB) LogClosed(ctx context.Context, data bson.M, usersSummary []models.ClosedUserEntry) error {
-	doc := bson.M{
-		"id":    bson.NewObjectID().Hex(),
-		"date":  time.Now(),
-		"data":  data,
-		"users": usersSummary,
+	// Determine active period
+	var activePeriod bson.M
+	err := db.DB.Collection("periods").FindOne(ctx, bson.M{"status": "open"}).Decode(&activePeriod)
+	var periodKey, periodLabel string
+	if err == nil && activePeriod != nil {
+		if key, ok := activePeriod["key"].(string); ok {
+			periodKey = key
+		}
+		if label, ok := activePeriod["label"].(string); ok {
+			periodLabel = label
+		} else {
+			periodLabel = periodKey
+		}
 	}
-	_, err := db.DB.Collection("closeds").InsertOne(ctx, doc)
+
+	doc := bson.M{
+		"id":           bson.NewObjectID().Hex(),
+		"date":         time.Now(),
+		"period_key":   periodKey,
+		"period_label": periodLabel,
+		"data":         data,
+		"users":        usersSummary,
+	}
+	_, err = db.DB.Collection("closeds").InsertOne(ctx, doc)
 	return err
 }
 
