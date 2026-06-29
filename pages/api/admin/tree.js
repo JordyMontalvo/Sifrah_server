@@ -37,9 +37,7 @@ function find(id, n) {
 
   const node = tree.find(e => e.id == id)
 
-
-  if(node.childs.length == 0) return
-
+  if(!node || !node.childs || node.childs.length == 0) return
 
   node.childs.forEach(_id => {
     find(_id, n+1)
@@ -56,6 +54,7 @@ function find(id, n) {
 
 function found(id, __id) {
   const node = tree.find(e => e.id == id)
+  if(!node || !node.childs) return
 
   node.childs.forEach(_id => {
     if(_id == __id) is_found = true
@@ -110,13 +109,17 @@ export default async (req, res) => {
 
     find('5f0e0b67af92089b5866bcd0', 0)
 
-    const node = tree.find(e => e.id == '5f0e0b67af92089b5866bcd0')
-    console.log(node)
+    let rootNode = tree.find(e => e.id == '5f0e0b67af92089b5866bcd0');
+    if (!rootNode) {
+      rootNode = {
+        id: '5f0e0b67af92089b5866bcd0',
+        name: 'Raíz SIFRAH',
+        childs: [],
+        parent: null
+      };
+    }
 
-    // response
-    return res.json(success({
-      node
-    }))
+    return res.json(success({ node: rootNode }))
   }
 
   if(req.method == 'POST') {

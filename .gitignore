@@ -118,3 +118,5 @@ Thumbs.db
 cierre_engine/engine_linux
 cierre_engine/engine.exe
 cierre_engine/engine_mac
+
+/lib/generated/prisma

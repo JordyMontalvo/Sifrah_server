@@ -1,0 +1,443 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String    @id @default(uuid())
+  mongoId    String?   @map("_id") // Guardar el ObjectId original
+  date       DateTime  @default(now())
+  name       String
+  lastName   String?
+  dni        String    @unique
+  email      String?
+  phone      String?
+  department String?
+  city       String?
+  country    String?
+  address    String?
+  birthdate  DateTime?
+  photo      String?
+  password   String?
+  type       String?
+
+  planId String?
+  plan   Plan?   @relation(fields: [planId], references: [id])
+
+  affiliated         Boolean @default(false)
+  activated          Boolean @default(false)
+  internal_activated Boolean @default(false) @map("_activated")
+
+  token              String?
+  points             Float   @default(0)
+  affiliation_points Float   @default(0)
+  total_points       Float   @default(0)
+
+  rank         String?
+  rank_history Json?
+
+  tree Boolean? @default(false)
+
+  // Predictor ML Fields
+  last_prediction_update DateTime?
+  leadership_factors     Json?
+  leadership_level       String?
+  leadership_probability Float?
+  leadership_score       Float?
+
+  status         String    @default("active")
+  statusReason   String?
+  blocked_at     DateTime?
+  eliminated_at  DateTime?
+  reactivated_at DateTime?
+
+  parentId String?
+  parent   User?   @relation("UserSponsor", fields: [parentId], references: [id])
+  children User[]  @relation("UserSponsor")
+
+  transactions Transaction[]
+  activations  Activation[]
+  collects     Collect[]
+
+  @@map("users")
+}
+
+model Transaction {
+  id          String   @id @default(uuid())
+  mongoId     String?  @map("_id")
+  date        DateTime @default(now())
+  type        String // 'in' | 'out'
+  value       Float
+  name        String?
+  wallet_tipo String?
+  virtual     Boolean  @default(false)
+
+  affiliation_id  String?
+  internal_userId String? @map("_user_id") // El _user_id original que vimos en Mongo
+  period_key      String?
+  period_label    String?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@map("transactions")
+}
+
+model Activation {
+  id      String   @id @default(uuid())
+  mongoId String?  @map("_id")
+  date    DateTime @default(now())
+
+  products       Json // Almacenamos el array de productos temporalmente como JSON
+  price          Float
+  points         Float
+  total          Float
+  check          Boolean   @default(false)
+  voucher        String?
+  transactions   Json?
+  amounts        Json?
+  office         String?
+  status         String?
+  delivered      Boolean   @default(false)
+  pay_method     String?
+  bank           String?
+  voucher_date   DateTime?
+  voucher_number String?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@map("activations")
+}
+
+model Tree {
+  id       String  @id
+  mongoId  String? @map("_id")
+  parentId String?
+  childs   Json?
+
+  @@map("tree")
+}
+
+model Plan {
+  id                 String  @id
+  mongoId            String? @map("_id")
+  name               String
+  amount             Float
+  img                String?
+  affiliation_points Float
+  n                  Int
+  max_products       Int
+  kit                Float
+
+  users User[]
+
+  @@map("plans")
+}
+
+model Period {
+  id        String    @id
+  mongoId   String?   @map("_id")
+  key       String    @unique
+  year      Int
+  month     Int
+  label     String
+  status    String
+  createdAt DateTime  @default(now())
+  closedAt  DateTime?
+
+  @@map("periods")
+}
+
+// ==========================================
+// COLECCIONES RESTANTES
+// ==========================================
+
+model Collect {
+  id      String   @id @default(uuid())
+  mongoId String?  @map("_id")
+  date    DateTime @default(now())
+
+  cash         Boolean @default(false)
+  bank         String?
+  account      String?
+  account_type String?
+  amount       Float
+  office       String?
+  status       String?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@map("collects")
+}
+
+model Flyer {
+  id             String   @id @default(uuid())
+  mongoId        String?  @map("_id")
+  name           String
+  image_url      String?
+  base_image_url String?
+  active         Boolean  @default(true)
+  description    String?
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  @@map("flyers")
+}
+
+model AudioCategory {
+  id         String   @id @default(uuid())
+  mongoId    String?  @map("_id")
+  name       String
+  created_at DateTime @default(now())
+
+  @@map("audio_categories")
+}
+
+model BookCategory {
+  id         String   @id @default(uuid())
+  mongoId    String?  @map("_id")
+  name       String
+  created_at DateTime @default(now())
+
+  @@map("book_categories")
+}
+
+model DeliveryAgency {
+  id             String   @id @default(uuid()) // Usa agency_id si es único, si no UUID
+  mongoId        String?  @map("_id")
+  agency_id      String?  @unique
+  agency_name    String
+  agency_code    String?
+  coverage_areas Json?
+  active         Boolean  @default(true)
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  @@map("delivery_agencies")
+}
+
+model PaymentMethod {
+  id        String   @id @default(uuid())
+  mongoId   String?  @map("_id")
+  cuenta    String?
+  titular   String?
+  banco     String?
+  tipo      String?
+  cci       String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("payment_methods")
+}
+
+model Banner {
+  id      String  @id @default(uuid())
+  mongoId String? @map("_id")
+  img     String?
+  img2    String?
+  img3    String?
+
+  @@map("banner")
+}
+
+model Material {
+  id          String  @id @default(uuid())
+  mongoId     String? @map("_id")
+  title       String
+  description String?
+  image       String?
+  link        String?
+
+  @@map("materials")
+}
+
+model Office {
+  id            String  @id @default(uuid())
+  mongoId       String? @map("_id")
+  type          String?
+  name          String
+  email         String?
+  password      String?
+  products      Json?
+  accounts      String?
+  address       String?
+  profit        Float   @default(0)
+  googleMapsUrl String?
+  phone         String?
+  dias          String?
+  horario       String?
+
+  @@map("offices")
+}
+
+model DeliveryDistrict {
+  id            String   @id @default(uuid())
+  mongoId       String?  @map("_id")
+  department    String?
+  province      String?
+  district_name String
+  delivery_type String?
+  active        Boolean  @default(true)
+  zone_id       String?
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  @@map("delivery_districts")
+}
+
+model DashboardConfig {
+  id      String  @id @default(uuid())
+  mongoId String? @map("_id")
+  key     String?
+  value   String?
+  text    String?
+
+  @@map("dashboard_config")
+}
+
+model DeliveryZone {
+  id            String   @id @default(uuid())
+  mongoId       String?  @map("_id")
+  zone_id       String?  @unique
+  zone_name     String
+  price         Float    @default(0)
+  delivery_type String?
+  description   String?
+  active        Boolean  @default(true)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  @@map("delivery_zones")
+}
+
+// ==========================================
+// MODELOS COMODÍN (Wildcards para colecciones sin migrar)
+// ==========================================
+
+model Session {
+  id      String  @id @default(uuid())
+  mongoId String? @map("_id")
+  value   String?
+  data    Json?
+
+  @@map("sessions")
+}
+
+model Affiliation {
+  id      String  @id @default(uuid())
+  mongoId String? @map("_id")
+  data    Json?
+
+  @@map("affiliations")
+}
+
+model Product {
+  id      String  @id @default(uuid())
+  mongoId String? @map("_id")
+  data    Json?
+
+  @@map("products")
+}
+
+model Promo {
+  id      String  @id @default(uuid())
+  mongoId String? @map("_id")
+  data    Json?
+
+  @@map("promos")
+}
+
+model Prom {
+  id      String  @id @default(uuid())
+  mongoId String? @map("_id")
+  data    Json?
+
+  @@map("promo")
+}
+
+model Token {
+  id      String  @id @default(uuid())
+  mongoId String? @map("_id")
+  data    Json?
+
+  @@map("tokens")
+}
+
+model OfficeCollect {
+  id      String  @id @default(uuid())
+  mongoId String? @map("_id")
+  data    Json?
+
+  @@map("office_collects")
+}
+
+model Recharge {
+  id      String  @id @default(uuid())
+  mongoId String? @map("_id")
+  data    Json?
+
+  @@map("recharges")
+}
+
+model Closed {
+  id      String  @id @default(uuid())
+  mongoId String? @map("_id")
+  data    Json?
+
+  @@map("closeds")
+}
+
+model RankBonusPayment {
+  id      String  @id @default(uuid())
+  mongoId String? @map("_id")
+  data    Json?
+
+  @@map("rank_bonus_payments")
+}
+
+model Audio {
+  id      String  @id @default(uuid())
+  mongoId String? @map("_id")
+  data    Json?
+
+  @@map("audios")
+}
+
+model SavingsCategory {
+  id      String  @id @default(uuid())
+  mongoId String? @map("_id")
+  data    Json?
+
+  @@map("savings_categories")
+}
+
+model AgendaEvent {
+  id      String  @id @default(uuid())
+  mongoId String? @map("_id")
+  data    Json?
+
+  @@map("agenda_events")
+}
+
+model AuditLog {
+  id      String  @id @default(uuid())
+  mongoId String? @map("_id")
+  data    Json?
+
+  @@map("audit_logs")
+}
+
+model ReactivationRequest {
+  id      String  @id @default(uuid())
+  mongoId String? @map("_id")
+  data    Json?
+
+  @@map("reactivation_requests")
+}

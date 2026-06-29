@@ -35,7 +35,9 @@
     "sweetalert2": "^11.22.0"
   },
   "devDependencies": {
+    "@prisma/client": "^6.19.3",
     "concurrently": "^9.1.2",
-    "pdfkit": "^0.18.0"
+    "pdfkit": "^0.18.0",
+    "prisma": "^6.19.3"
   }
 }

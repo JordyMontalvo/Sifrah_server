@@ -91,13 +91,13 @@ class Lib {
   }
 
   ids(a) {
-    return a.map((i) => i.userId);
+    return [...new Set(a.map((i) => i.userId).filter(id => id != null))];
   }
   _ids(a) {
-    return a.map((i) => i.id);
+    return [...new Set(a.map((i) => i.id).filter(id => id != null))];
   }
   parent_ids(a) {
-    return a.map((i) => i.parentId);
+    return [...new Set(a.map((i) => i.parentId).filter(id => id != null))];
   }
 
   map(a) {

@@ -240,7 +240,7 @@ export default async (req, res) => {
 
   if (req.method == 'POST') {
 
-    let { products, office, check, voucher, voucher2, pay_method, bank, bank_info, date, voucher_number, voucher_number2, deliveryMethod, deliveryInfo } = req.body;
+    let { products, office, check, voucher, voucher2, pay_method, bank, bank_info, date, voucher_number, voucher_number2, deliveryMethod, deliveryInfo, transaction_id } = req.body;
     const useCheck = check === true || check === "true";
 
     if (!Array.isArray(products) || !products.length) {
@@ -449,6 +449,7 @@ export default async (req, res) => {
       voucher_date: date,
       voucher_number,
       voucher_number2: voucher_number2 || null,
+      transaction_id: req.body.transaction_id,
 
       //  CAMPOS DE DELIVERY CORREGIDOS
       delivery_info: {

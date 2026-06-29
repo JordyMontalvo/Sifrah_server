@@ -192,7 +192,8 @@ export default async (req, res) => {
       voucher_number,
       voucher_number2,
       deliveryMethod,
-      deliveryInfo
+      deliveryInfo,
+      transaction_id
     } = req.body;
     const useCheck = check === true || check === "true";
 
@@ -328,6 +329,7 @@ export default async (req, res) => {
       voucher_date: date,
       voucher_number,
       voucher_number2: voucher_number2 || null,
+      transaction_id: req.body.transaction_id,
       type: "affiliation",
     });
 
