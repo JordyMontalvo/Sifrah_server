@@ -1,11 +1,9 @@
 import axios from 'axios';
-import Cors from 'micro-cors';
+import lib from '../../../components/lib';
 
-const cors = Cors({
-  allowMethods: ['POST', 'OPTIONS'],
-});
+export default async function handler(req, res) {
+  await lib.midd(req, res);
 
-async function handler(req, res) {
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
@@ -20,17 +18,14 @@ async function handler(req, res) {
     return res.status(400).json({ error: 'Amount is required' });
   }
 
-  // TODO: El usuario debe configurar estas variables en server/.env
-  // Estas credenciales se obtienen desde Back Office Izipay (micuentaweb.pe)
-  const username = process.env.IZIPAY_USERNAME || '11223344'; // Shop ID
-  const password = process.env.IZIPAY_PASSWORD || 'testpassword_1234567890'; // Test/Prod password
+  const username = process.env.IZIPAY_USERNAME || '11223344';
+  const password = process.env.IZIPAY_PASSWORD || 'testpassword_1234567890';
 
-  // Autenticación Basic de Izipay (Base64)
   const authString = Buffer.from(`${username}:${password}`).toString('base64');
 
   try {
     const data = {
-      amount: Math.round(Number(amount) * 100), // Izipay espera centavos (Ej: S/ 10.50 -> 1050)
+      amount: Math.round(Number(amount) * 100),
       currency: 'PEN',
       orderId: orderId || `ORDER-${Date.now()}`,
       customer: {
@@ -66,5 +61,3 @@ async function handler(req, res) {
     return res.status(500).json({ error: 'Error al comunicarse con Izipay', details: error.response?.data || error.message });
   }
 }
-
-export default cors(handler);
