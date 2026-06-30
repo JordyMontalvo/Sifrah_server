@@ -219,6 +219,14 @@ class MongoWrapper {
     if (opts.skip) cursor = cursor.skip(opts.skip);
     return await cursor.toArray();
   }
+  async findPaginated(query, skip, limit, sort = {}) {
+    const col = await this._getCollection();
+    let cursor = col.find(query);
+    if (Object.keys(sort).length > 0) cursor = cursor.sort(sort);
+    if (skip) cursor = cursor.skip(skip);
+    if (limit) cursor = cursor.limit(limit);
+    return await cursor.toArray();
+  }
   async findOneLast(query) {
     const items = await this.find(query);
     return items.length ? items[items.length - 1] : null;
@@ -243,13 +251,16 @@ class MongoWrapper {
     await col.updateMany(query, { $set: values });
   }
   async delete(query) {
+    if (typeof query === 'string') query = { id: query };
     const col = await this._getCollection();
     await col.deleteOne(query);
   }
   async deleteOne(query) {
+    if (typeof query === 'string') query = { id: query };
     return this.delete(query);
   }
   async deleteMany(query) {
+    if (typeof query === 'string') query = { id: query };
     const col = await this._getCollection();
     await col.deleteMany(query);
   }
