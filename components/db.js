@@ -219,7 +219,7 @@ class MongoWrapper {
     if (opts.skip) cursor = cursor.skip(opts.skip);
     return await cursor.toArray();
   }
-  async findPaginated(query, skip, limit, sort = {}) {
+  async findPaginated(query, skip, limit, sort = { _id: -1 }) {
     const col = await this._getCollection();
     let cursor = col.find(query);
     if (Object.keys(sort).length > 0) cursor = cursor.sort(sort);
