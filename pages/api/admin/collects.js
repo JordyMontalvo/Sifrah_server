@@ -56,7 +56,7 @@ const handler = async (req, res) => {
     // PAGINACION
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const total = await Collect.count(qq);
-    let collects = await Collect.findPaginated(qq, skip, parseInt(limit));
+    let collects = await Collect.findPaginated(qq, skip, parseInt(limit), { date: -1 });
 
     // get users for collects
     let users = await User.find({ id: { $in: ids(collects) } });
