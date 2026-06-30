@@ -10,7 +10,7 @@ export default async (req, res) => {
   if (req.method === "GET") {
     try {
       const logs = await db.AuditLog.find(
-        { admin_id: { $in: ["system_auto_healer", "system_recovery"] } },
+        { admin_id: { $in: ["system_auto_healer", "system_fix"] } },
         { limit: 100, sort: { date: -1 } }
       );
       return res.json(lib.success({ logs }));
