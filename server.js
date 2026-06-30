@@ -48,5 +48,6 @@ app.prepare().then(() => {
       console.log(`> Port: ${port}`);
       console.log(`> Host: ${hostname}`);
       console.log(`> Timeout: ${config.serverTimeout}ms`);
+      require('./components/auto-healer').start();
     });
 });
