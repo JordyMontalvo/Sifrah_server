@@ -82,7 +82,9 @@ export default async (req, res) => {
           total:       orderTotal,
           payMethod:   activation.pay_method || 'cash',
           status:      activation.status,
-          type:        'activation'
+          type:        'activation',
+          transaction_id: activation.transaction_id || null,
+          authorization_code: activation.authorization_code || null
         },
         clientData: {
           fullName: `${user.name || ''} ${user.lastName || ''}`.trim(),
@@ -131,7 +133,9 @@ export default async (req, res) => {
           total:       planAmount,
           payMethod:   affiliation.pay_method || 'cash',
           status:      affiliation.status,
-          type:        'affiliation'
+          type:        'affiliation',
+          transaction_id: affiliation.transaction_id || null,
+          authorization_code: affiliation.authorization_code || null
         },
         clientData: {
           fullName: `${user.name || affiliation.name || ''} ${user.lastName || affiliation.lastName || ''}`.trim(),
