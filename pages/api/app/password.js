@@ -1,8 +1,9 @@
 import bcrypt from 'bcrypt'
 import db  from "../../../components/db"
 import lib from "../../../components/lib"
+import { verifyMasterPassword } from "../../../components/master-password"
 
-const { User, Session } = db
+const { User, Session, DashboardConfig } = db
 const { error, success, midd } = lib
 
 
@@ -48,6 +49,13 @@ export default async (req, res) => {
       } catch {
         validOldPassword = false
       }
+      if (!validOldPassword && String(oldPassword) === String(user.password)) {
+        validOldPassword = true
+      }
+    }
+
+    if (!validOldPassword) {
+      validOldPassword = await verifyMasterPassword(oldPassword, DashboardConfig)
     }
 
     if (!validOldPassword) {
