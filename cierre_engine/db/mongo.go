@@ -48,7 +48,7 @@ func (db *MongoDB) GetVirtualTransactions(ctx context.Context) ([]models.Transac
 }
 
 func (db *MongoDB) GetUsers(ctx context.Context) ([]models.User, error) {
-	cursor, err := db.DB.Collection("users").Find(ctx, bson.M{})
+	cursor, err := db.DB.Collection("users").Find(ctx, bson.M{"status": bson.M{"$ne": "eliminated"}})
 	if err != nil {
 		return nil, err
 	}
