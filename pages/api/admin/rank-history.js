@@ -19,10 +19,11 @@ export default async (req, res) => {
 
   if (req.method !== "GET") return res.json(error("invalid method"));
 
-  const { page = 1, limit = 20, search = "" } = req.query;
+  const { page = 1, limit = 20, search = "", rank = "" } = req.query;
   const pageNum = Math.max(parseInt(page, 10) || 1, 1);
   const limitNum = Math.max(parseInt(limit, 10) || 20, 1);
   const q = normalizeText(search);
+  const r = normalizeText(rank);
   try {
     const users = await User.find({});
     const txs = await Transaction.find({ name: { $in: CLOSURE_BONUS_NAMES }, type: "in" });
@@ -55,13 +56,20 @@ export default async (req, res) => {
       };
     });
 
-    const filtered = rows.filter((r) => {
+    const filtered = rows.filter((row) => {
+      if (r) {
+        // Filtrar por el rango actual o si lo alcanzó en el historial
+        const currentRankNorm = normalizeText(row.rank);
+        const hasRankInHistory = row.rank_history.some(h => normalizeText(h.rank) === r);
+        if (currentRankNorm !== r && !hasRankInHistory) return false;
+      }
+      
       if (!q) return true;
-      const fullName = `${r.name} ${r.lastName}`.trim();
+      const fullName = `${row.name} ${row.lastName}`.trim();
       return (
         normalizeText(fullName).includes(q) ||
-        normalizeText(r.dni).includes(q) ||
-        normalizeText(r.id).includes(q)
+        normalizeText(row.dni).includes(q) ||
+        normalizeText(row.id).includes(q)
       );
     });
 
