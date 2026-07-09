@@ -116,7 +116,20 @@ func (db *MongoDB) UpdateUserRanks(ctx context.Context, users []models.User) err
 		return nil
 	}
 
+	var activePeriod bson.M
+	err := db.DB.Collection("periods").FindOne(ctx, bson.M{"status": "open"}).Decode(&activePeriod)
+	var periodKey string
+	if err == nil && activePeriod != nil {
+		if key, ok := activePeriod["key"].(string); ok {
+			periodKey = key
+		}
+	}
+	if periodKey == "" {
+		periodKey = time.Now().Format("2006-01")
+	}
+
 	var models_write []mongo.WriteModel
+
 	for _, user := range users {
 		filter := bson.M{"id": user.ID}
 		now := time.Now()
@@ -124,7 +137,7 @@ func (db *MongoDB) UpdateUserRanks(ctx context.Context, users []models.User) err
 		historyEntry := bson.M{
 			"rank":               user.Rank,
 			"date":               now,
-			"period":             now.Format("2006-01"),
+			"period":             periodKey,
 			"residual_bonus":     user.LastResidualBonus,
 			"generational_bonus": user.LastGenerationalBonus,
 			"savings_bonus":      user.LastSavingsBonus,
@@ -155,7 +168,7 @@ func (db *MongoDB) UpdateUserRanks(ctx context.Context, users []models.User) err
 		models_write = append(models_write, mongo.NewUpdateOneModel().SetFilter(filter).SetUpdate(update))
 	}
 
-	_, err := db.DB.Collection("users").BulkWrite(ctx, models_write)
+	_, err = db.DB.Collection("users").BulkWrite(ctx, models_write)
 	return err
 }
 
