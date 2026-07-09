@@ -9,7 +9,7 @@ import {
   enrichPromotionForStore,
   validatePromotionOrder,
 } from "../../../lib/promotionStock";
-import { mapCategoriesForStore } from "../../../lib/savingsCategoryDefaults";
+import { resolveStoreCategories } from "../../../lib/savingsCategoryDefaults";
 import { sortProducts } from "../../../lib/productSort";
 
 const { User, Session, Product, Activation, Office, Transaction, Period, SavingsCategory } = db
@@ -112,7 +112,7 @@ export default async (req, res) => {
       const savingsBalance = lib.calcSavingsBonusBalance(transactions)
 
       const allCategories = await SavingsCategory.find({})
-      const categories = mapCategoriesForStore(allCategories)
+      const categories = resolveStoreCategories(formattedProducts, allCategories)
 
       return res.json(
         success({
