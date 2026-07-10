@@ -6,14 +6,6 @@ import { verifyMasterPassword } from "../../../components/master-password"
 const { User, Session, DashboardConfig } = db
 const { error, success, midd } = lib
 
-function isValidPassword(password) {
-  const value = String(password || '')
-  if (value.length < 5) return false
-  const hasLetter = /[a-zA-ZáéíóúÁÉÍÓÚñÑ]/.test(value)
-  const hasNumber = /\d/.test(value)
-  return hasLetter && hasNumber
-}
-
 
 export default async (req, res) => {
   await midd(req, res)
@@ -46,7 +38,7 @@ export default async (req, res) => {
       return res.json(error('missing fields'))
     }
 
-    if (!isValidPassword(newPassword)) {
+    if (String(newPassword).length < 4) {
       return res.json(error('weak password'))
     }
 

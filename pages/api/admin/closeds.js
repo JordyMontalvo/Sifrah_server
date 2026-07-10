@@ -121,12 +121,7 @@ function buildLegDetails(previewTree, usersList, treeList) {
 
   return (previewTree || []).map((node) => {
     const sourceNode = treeById.get(node.id)
-    const validChilds = (sourceNode?.childs || []).filter((childId) => {
-      const childUser = userById.get(childId)
-      return childUser && childUser.status !== "eliminated"
-    })
-    
-    const legs = validChilds.map((childId, index) => {
+    const legs = (sourceNode?.childs || []).map((childId, index) => {
       const childUser = userById.get(childId)
       return {
         idx: index + 1,

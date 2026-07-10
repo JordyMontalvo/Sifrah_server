@@ -268,6 +268,24 @@ class MongoWrapper {
 
 // Personalización especial para productos en Mongo
 class ProductWrapper extends MongoWrapper {
+  async find(query = {}, opts = {}) {
+    const res = await super.find(query, opts);
+    return res.filter(p => !p.name || !p.name.toLowerCase().includes("trapeador"));
+  }
+
+  async findOne(query) {
+    const res = await super.findOne(query);
+    if (res && res.name && res.name.toLowerCase().includes("trapeador")) {
+      return null;
+    }
+    return res;
+  }
+
+  async findPaginated(query, skip, limit, sort = { _id: -1 }) {
+    const res = await super.findPaginated(query, skip, limit, sort);
+    return res.filter(p => !p.name || !p.name.toLowerCase().includes("trapeador"));
+  }
+
   async un_update(query, values) {
     const col = await this._getCollection();
     await col.updateOne(query, { $unset: values });
