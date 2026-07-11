@@ -34,6 +34,8 @@ const FIELDS = [
   "bank_info",
   "payment_breakdown",
   "voucher_number",
+  "transaction_id",
+  "authorization_code",
 ];
 const USER_FIELDS = ["name", "lastName", "dni", "phone"];
 
@@ -54,31 +56,86 @@ function productsLabel(products) {
   return label || "—";
 }
 
-function savingsPaymentSplit(item) {
-  const price = Number(item.price) || 0;
+function externalPayLabel(item) {
+  if (!item) return null;
+  if (item.pay_method === "credit-card") return "Tarjeta Izipay";
+  if (item.pay_method === "cash") return "Efectivo";
 
-  // Canje Bono Ahorro: el total se reserva/desconta del monedero BONO_AHORRO (no voucher externo).
-  // amounts [0,0,price] reutiliza el formato de activaciones pero NO significa "faltante por pagar".
+  const info = item.bank_info || {};
+  const name = String(info.name || item.bank || "").trim();
+  const type = String(info.type || "").trim();
+  const blob = `${name} ${type}`.toLowerCase();
+
+  if (blob.includes("efectivo")) return "Efectivo";
+  if (blob.includes("yape")) return "Yape";
+  if (blob.includes("plin")) return "Plin";
+  if (blob.includes("interbank")) return "Interbank";
+  if (blob.includes("bcp")) return "Transferencia BCP";
+  if (blob.includes("bbva")) return "Transferencia BBVA";
+  if (blob.includes("scotiabank")) return "Transferencia Scotiabank";
+  if (blob.includes("banbif")) return "Transferencia BanBif";
+
+  if (name) {
+    if (type && /transfer/i.test(type)) return `Transferencia ${name}`;
+    return name;
+  }
+  if (item.pay_method === "bank") return "Transferencia";
+  return null;
+}
+
+function buildPayMethodLabel(item, paymentSplit) {
+  const parts = [];
+  const paidSavings = Number(paymentSplit?.paid_savings || 0);
+  const due = Number(paymentSplit?.due || 0);
+
   if (
+    paidSavings > 0.0001 ||
     item.pay_method === "savings_bonus" ||
-    item.order_type === SAVINGS_ORDER_TYPE
+    due <= 0.0001
   ) {
-    return {
-      paid_savings: price,
-      due: 0,
-      mode: "savings_bonus_only",
-      modeLabel: "Bono Ahorro",
-    };
+    parts.push("Bono Ahorro");
   }
 
+  const hasExternal =
+    due > 0.0001 ||
+    item.pay_method === "bank" ||
+    item.pay_method === "credit-card" ||
+    item.pay_method === "cash" ||
+    !!item.bank_info ||
+    !!(typeof item.voucher === "string" && item.voucher.trim()) ||
+    !!(item.voucher && item.voucher.url) ||
+    !!item.transaction_id;
+
+  if (hasExternal) {
+    const external = externalPayLabel(item);
+    if (external) parts.push(external);
+  }
+
+  if (!parts.length) parts.push("Bono Ahorro");
+  return parts.join(" + ");
+}
+
+function savingsPaymentSplit(item) {
+  const price = Number(item.price) || 0;
   const pb = item.payment_breakdown;
 
+  // Preferir breakdown explícito (incluye canjes mixtos con voucher)
   if (pb && !pb.legacy_missing_amounts) {
     return {
       paid_savings: Number(pb.paid_savings ?? pb.paid_balance ?? price),
       due: Number(pb.due || 0),
       mode: pb.mode || "savings_bonus_only",
       modeLabel: pb.modeLabel || "Bono Ahorro",
+    };
+  }
+
+  // Canje 100% Bono Ahorro (sin pago externo)
+  if (item.pay_method === "savings_bonus") {
+    return {
+      paid_savings: price,
+      due: 0,
+      mode: "savings_bonus_only",
+      modeLabel: "Bono Ahorro",
     };
   }
 
@@ -94,6 +151,15 @@ function savingsPaymentSplit(item) {
         modeLabel: due <= 0.0001 ? "Bono Ahorro" : "Mixto",
       };
     }
+  }
+
+  if (item.order_type === SAVINGS_ORDER_TYPE) {
+    return {
+      paid_savings: price,
+      due: 0,
+      mode: "savings_bonus_only",
+      modeLabel: "Bono Ahorro",
+    };
   }
 
   return {
@@ -119,8 +185,34 @@ async function restoreOfficeStock(officeId, products) {
 }
 
 async function refundSavingsBonusHold(redemption, reason) {
-  const price = Number(redemption.price) || 0;
-  if (price <= 0) return null;
+  // Solo devolver lo descontado del Bono Ahorro (no el cash del pedido mixto).
+  const split = savingsPaymentSplit(redemption);
+  let refundAmount = Number(split.paid_savings) || 0;
+
+  if (Array.isArray(redemption.transactions) && redemption.transactions.length) {
+    const txs =
+      (await Transaction.find({
+        id: { $in: redemption.transactions },
+      })) || [];
+    const held = txs
+      .filter(
+        (t) =>
+          t.type === "out" &&
+          (t.name === "savings_bonus_redemption" ||
+            t.wallet_tipo === "BONO_AHORRO")
+      )
+      .reduce((sum, t) => sum + (Number(t.value) || 0), 0);
+    const alreadyRefunded = txs
+      .filter((t) => t.type === "in" && t.name === "savings_bonus_refund")
+      .reduce((sum, t) => sum + (Number(t.value) || 0), 0);
+    if (held > 0.0001) {
+      refundAmount = Math.max(0, held - alreadyRefunded);
+    } else if (alreadyRefunded > 0.0001) {
+      refundAmount = 0;
+    }
+  }
+
+  if (refundAmount <= 0.0001) return null;
 
   const refundId = rand();
   await Transaction.insert({
@@ -128,7 +220,7 @@ async function refundSavingsBonusHold(redemption, reason) {
     date: new Date(),
     user_id: redemption.userId,
     type: "in",
-    value: price,
+    value: refundAmount,
     name: "savings_bonus_refund",
     desc: reason,
     virtual: false,
@@ -233,6 +325,7 @@ export default async (req, res) => {
           ? formatVoucherField(row.voucher2)
           : null;
         const paymentSplit = savingsPaymentSplit(row);
+        const payMethodLabel = buildPayMethodLabel(row, paymentSplit);
 
         return {
           ...row,
@@ -240,7 +333,7 @@ export default async (req, res) => {
           officeName: officeMap[row.office] || row.office || "—",
           product: productsLabel(row.products),
           productsSummary: productsLabel(row.products),
-          payMethodLabel: "Bono Ahorro",
+          payMethodLabel,
           voucher,
           voucher2,
           paymentSplit,
@@ -309,6 +402,9 @@ export default async (req, res) => {
       const price = Number(redemption.price) || 0;
       if (price <= 0) return res.json(error("invalid price"));
 
+      const paymentSplit = savingsPaymentSplit(redemption);
+      const deductSavings = Number(paymentSplit.paid_savings) || 0;
+
       const approvedAt = new Date();
       const resolvedPeriod = await resolvePeriodAtApproval(Period, approvedAt);
       const approvedPeriodKey = resolvedPeriod
@@ -324,42 +420,55 @@ export default async (req, res) => {
 
       // Órdenes antiguas sin reserva: descontar al aprobar (compatibilidad)
       if (!hasHold) {
-        const userTx = await Transaction.find({
-          user_id: user.id,
-          virtual: { $in: [null, false] },
-        });
-        const savingsBalance = lib.calcSavingsBonusBalance(userTx);
-        if (savingsBalance < price) {
-          return res.json(
-            error("Saldo Bono Ahorro insuficiente para aprobar el canje")
-          );
-        }
-        const txId = rand();
-        await Transaction.insert({
-          id: txId,
-          date: approvedAt,
-          user_id: user.id,
-          type: "out",
-          value: price,
-          name: "savings_bonus_redemption",
-          desc: `Canje Bono Ahorro #${id}`,
-          virtual: false,
-          wallet_tipo: "BONO_AHORRO",
-          activation_id: id,
-          period_key: approvedPeriodKey,
-          period_label: approvedPeriodLabel,
-        });
-        await Activation.update(
-          { id },
-          {
-            status: "approved",
-            approved_at: approvedAt,
-            delivered: false,
+        if (deductSavings > 0.0001) {
+          const userTx = await Transaction.find({
+            user_id: user.id,
+            virtual: { $in: [null, false] },
+          });
+          const savingsBalance = lib.calcSavingsBonusBalance(userTx);
+          if (savingsBalance < deductSavings) {
+            return res.json(
+              error("Saldo Bono Ahorro insuficiente para aprobar el canje")
+            );
+          }
+          const txId = rand();
+          await Transaction.insert({
+            id: txId,
+            date: approvedAt,
+            user_id: user.id,
+            type: "out",
+            value: deductSavings,
+            name: "savings_bonus_redemption",
+            desc: `Canje Bono Ahorro #${id}`,
+            virtual: false,
+            wallet_tipo: "BONO_AHORRO",
+            activation_id: id,
             period_key: approvedPeriodKey,
             period_label: approvedPeriodLabel,
-            transactions: [txId],
-          }
-        );
+          });
+          await Activation.update(
+            { id },
+            {
+              status: "approved",
+              approved_at: approvedAt,
+              delivered: false,
+              period_key: approvedPeriodKey,
+              period_label: approvedPeriodLabel,
+              transactions: [txId],
+            }
+          );
+        } else {
+          await Activation.update(
+            { id },
+            {
+              status: "approved",
+              approved_at: approvedAt,
+              delivered: false,
+              period_key: approvedPeriodKey,
+              period_label: approvedPeriodLabel,
+            }
+          );
+        }
       } else {
         await Activation.update(
           { id },

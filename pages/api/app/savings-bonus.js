@@ -129,7 +129,19 @@ export default async (req, res) => {
 
   if (req.method === "POST") {
     try {
-      let { products, office, deliveryMethod, deliveryInfo } = req.body
+      let {
+        products,
+        office,
+        deliveryMethod,
+        deliveryInfo,
+        pay_method,
+        bank,
+        bank_info,
+        voucher,
+        voucher_number,
+        transaction_id,
+        authorization_code,
+      } = req.body
 
       if (!Array.isArray(products) || !products.length) {
         return res.json(error("No hay productos en la orden."))
@@ -196,31 +208,64 @@ export default async (req, res) => {
       })
       const savingsBalance = lib.calcSavingsBonusBalance(userTx)
       if (price <= 0) return res.json(error("Monto de canje inválido."))
-      if (savingsBalance < price) {
-        return res.json(error("Saldo Bono Ahorro insuficiente."))
+      if ((Number(savingsBalance) || 0) < 1) {
+        return res.json(
+          error("Necesitas al menos 1 coin de Bono Ahorro para realizar un canje.")
+        )
+      }
+
+      const usedBonus = Math.min(Number(savingsBalance) || 0, price)
+      const cashDue = Math.max(0, price - usedBonus)
+      const isMixed = cashDue > 0.0001
+
+      if (isMixed) {
+        const method = String(pay_method || "")
+        if (method === "bank") {
+          if (!bank) {
+            return res.json(error("Selecciona el banco de la transferencia."))
+          }
+          if (!voucher_number || !String(voucher_number).trim()) {
+            return res.json(error("Ingresa el número de operación/voucher."))
+          }
+          if (!voucher || !String(voucher).trim()) {
+            return res.json(error("Sube el comprobante de pago."))
+          }
+        } else if (method === "credit-card") {
+          if (!transaction_id || !String(transaction_id).trim()) {
+            return res.json(error("El pago con tarjeta no se completó correctamente."))
+          }
+        } else {
+          return res.json(
+            error("Para completar el saldo pendiente usa transferencia o tarjeta.")
+          )
+        }
       }
 
       const period = await getOrCreateOpenPeriod(new Date())
       const redemptionId = rand()
-      const holdTxId = rand()
+      const holdTxIds = []
 
-      // Reservar saldo de inmediato (evita doble gasto con varias solicitudes pendientes)
-      await Transaction.insert({
-        id: holdTxId,
-        date: new Date(),
-        user_id: user.id,
-        type: "out",
-        value: price,
-        name: "savings_bonus_redemption",
-        desc: `Reserva canje Bono Ahorro #${redemptionId} (pendiente)`,
-        virtual: false,
-        wallet_tipo: "BONO_AHORRO",
-        activation_id: redemptionId,
-        period_key: period.key,
-        period_label: period.label,
-      })
+      // Reservar solo el monto cubierto con Bono Ahorro
+      if (usedBonus > 0.0001) {
+        const holdTxId = rand()
+        holdTxIds.push(holdTxId)
+        await Transaction.insert({
+          id: holdTxId,
+          date: new Date(),
+          user_id: user.id,
+          type: "out",
+          value: usedBonus,
+          name: "savings_bonus_redemption",
+          desc: `Reserva canje Bono Ahorro #${redemptionId} (pendiente)`,
+          virtual: false,
+          wallet_tipo: "BONO_AHORRO",
+          activation_id: redemptionId,
+          period_key: period.key,
+          period_label: period.label,
+        })
+      }
 
-      await Activation.insert({
+      const activationDoc = {
         id: redemptionId,
         date: new Date(),
         userId: user.id,
@@ -231,16 +276,23 @@ export default async (req, res) => {
         period_key: period.key,
         period_label: period.label,
         check: false,
-        pay_method: "savings_bonus",
+        pay_method: isMixed ? String(pay_method) : "savings_bonus",
         order_type: SAVINGS_ORDER_TYPE,
         office: officeId,
         status: "pending",
         delivered: false,
-        transactions: [holdTxId],
-        amounts: [0, 0, price],
+        transactions: holdTxIds,
+        amounts: [0, usedBonus, cashDue],
+        payment_breakdown: {
+          paid_savings: usedBonus,
+          due: cashDue,
+          mode: isMixed ? "mixed" : "savings_bonus_only",
+          modeLabel: isMixed ? "Mixto" : "Bono Ahorro",
+        },
         delivery_info: {
           method: deliveryMethod || "pickup",
           has_delivery: deliveryMethod === "delivery",
+          receipt_type: deliveryInfo?.receiptType || "none",
           ...(deliveryMethod === "delivery" &&
             deliveryInfo && {
               recipient_name: deliveryInfo.recipientName,
@@ -249,7 +301,23 @@ export default async (req, res) => {
               delivery_price: deliveryInfo.deliveryPrice || 0,
             }),
         },
-      })
+      }
+
+      if (isMixed && String(pay_method) === "bank") {
+        activationDoc.bank = bank
+        activationDoc.bank_info = bank_info || null
+        activationDoc.voucher = String(voucher).trim()
+        activationDoc.voucher_number = String(voucher_number).trim()
+      }
+
+      if (isMixed && String(pay_method) === "credit-card") {
+        activationDoc.transaction_id = String(transaction_id).trim()
+        activationDoc.authorization_code = authorization_code
+          ? String(authorization_code).trim()
+          : null
+      }
+
+      await Activation.insert(activationDoc)
 
       return res.json(success({ orderNumber: redemptionId, id: redemptionId }))
     } catch (e) {
