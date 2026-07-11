@@ -229,31 +229,52 @@ export default async (req, res) => {
         mergedProduct
       );
 
+      let resolvedCatalogType =
+        catalog_type || existing.catalog_type || "";
+      let resolvedSavingsBonus = !!is_savings_bonus;
+      let resolvedPoints = is_promotion ? 0 : _points;
+
+      if (resolvedCatalogType === "sifrah") {
+        resolvedSavingsBonus = false;
+      } else if (resolvedCatalogType === "both") {
+        resolvedSavingsBonus = true;
+      } else if (resolvedCatalogType === "savings") {
+        resolvedSavingsBonus = true;
+        resolvedPoints = 0;
+      }
+
       const updatePayload = {
         code: _code,
         name: _name,
         type: categoryFields.type || _type,
         price: _price,
-        points: is_promotion ? 0 : _points,
+        points: resolvedPoints,
         img: _img,
         description: _description,
         subdescription: _subdescription,
         plans: plansObject,
         weight: _weight,
         prices: _prices,
-        is_savings_bonus,
-        savings_price,
+        is_savings_bonus: resolvedSavingsBonus,
+        savings_price:
+          resolvedSavingsBonus && !(Number(savings_price) > 0)
+            ? Number(_price) || 0
+            : savings_price,
         savings_description,
         savings_img,
         savings_category_id: categoryFields.savings_category_id,
       };
+
+      mergedProduct.catalog_type = resolvedCatalogType || mergedProduct.catalog_type;
+      mergedProduct.is_savings_bonus = resolvedSavingsBonus;
+      mergedProduct.points = resolvedPoints;
 
       await applySifrahSavingsCategoryIfNeeded(mergedProduct, updatePayload);
 
       if (is_promotion !== undefined) updatePayload.is_promotion = !!is_promotion;
       if (promotion_active !== undefined) updatePayload.promotion_active = promotion_active !== false;
       if (available_quantity !== undefined) updatePayload.available_quantity = Number(available_quantity) || 0;
-      if (catalog_type) updatePayload.catalog_type = catalog_type;
+      if (resolvedCatalogType) updatePayload.catalog_type = resolvedCatalogType;
 
       await Product.update({ id }, updatePayload);
     }
@@ -289,9 +310,27 @@ export default async (req, res) => {
       });
 
       const isPromo = !!is_promotion || catalog_type === "promotion";
+      let resolvedCatalogType = catalog_type || (isPromo ? "promotion" : "");
+      let resolvedSavingsBonus = !!is_savings_bonus;
+      let resolvedPoints = isPromo ? 0 : points || 0;
+
+      if (resolvedCatalogType === "sifrah") {
+        resolvedSavingsBonus = false;
+      } else if (resolvedCatalogType === "both") {
+        resolvedSavingsBonus = true;
+      } else if (resolvedCatalogType === "savings") {
+        resolvedSavingsBonus = true;
+        resolvedPoints = 0;
+      }
+
       const categoryFields = await resolveSavingsCategoryFields(
-        { savings_category_id, catalog_type },
-        { catalog_type, points, plans: plansObject, is_promotion: isPromo }
+        { savings_category_id, catalog_type: resolvedCatalogType },
+        {
+          catalog_type: resolvedCatalogType,
+          points: resolvedPoints,
+          plans: plansObject,
+          is_promotion: isPromo,
+        }
       );
 
       const insertPayload = {
@@ -300,18 +339,18 @@ export default async (req, res) => {
         name,
         type: isPromo ? "Promoción" : categoryFields.type || type,
         price: price || 0,
-        points: isPromo ? 0 : points || 0,
+        points: resolvedPoints,
         img: img || "",
         description: description || "",
         subdescription,
         plans: plansObject,
         weight: weight || 0,
         prices: prices || {},
-        is_savings_bonus: !!is_savings_bonus,
+        is_savings_bonus: resolvedSavingsBonus,
         savings_price: savings_price || price || 0,
         savings_description,
         savings_img: savings_img || img || "",
-        catalog_type: catalog_type || (isPromo ? "promotion" : ""),
+        catalog_type: resolvedCatalogType || (isPromo ? "promotion" : ""),
         is_promotion: isPromo,
         promotion_active: promotion_active !== false,
         available_quantity: Number(available_quantity) || 0,
@@ -319,7 +358,7 @@ export default async (req, res) => {
         sort_order: await getNextProductSortOrder(Product),
       };
 
-      if (is_savings_bonus) {
+      if (resolvedSavingsBonus) {
         await applySifrahSavingsCategoryIfNeeded(
           {
             catalog_type: insertPayload.catalog_type,
@@ -328,6 +367,7 @@ export default async (req, res) => {
             code,
             price,
             is_promotion: isPromo,
+            is_savings_bonus: true,
           },
           insertPayload
         );
