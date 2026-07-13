@@ -114,13 +114,26 @@ export default async (req, res) => {
               : Number(product.price) || 0;
       }
 
+      let catalog_type = product.catalog_type || "";
+      if (isEnabled) {
+        if (!catalog_type || catalog_type === "sifrah") {
+          catalog_type = "both";
+        }
+      } else if (catalog_type === "both" || catalog_type === "sifrah" || !catalog_type) {
+        catalog_type = "sifrah";
+      }
+
       const update = {
         is_savings_bonus: isEnabled,
         savings_price,
+        catalog_type,
       };
 
       if (isEnabled) {
-        await applySifrahSavingsCategoryIfNeeded(product, update);
+        await applySifrahSavingsCategoryIfNeeded(
+          { ...product, catalog_type, is_savings_bonus: true },
+          update
+        );
       }
 
       await Product.update({ id }, update);
@@ -129,6 +142,7 @@ export default async (req, res) => {
         success({
           is_savings_bonus: isEnabled,
           savings_price,
+          catalog_type,
           savings_category_id: update.savings_category_id ?? product.savings_category_id ?? null,
         })
       );
