@@ -18,6 +18,11 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Amount is required' });
   }
 
+  // Izipay rechaza emails inválidos (ej. *.local). Usar fallback seguro.
+  const rawEmail = String(email || '').trim();
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail) && !/\.local$/i.test(rawEmail);
+  const safeEmail = emailOk ? rawEmail : 'cliente@sifrah.com';
+
   const username = process.env.IZIPAY_USERNAME || '11223344';
   const password = process.env.IZIPAY_PASSWORD || 'testpassword_1234567890';
 
@@ -29,7 +34,7 @@ export default async function handler(req, res) {
       currency: 'PEN',
       orderId: orderId || `ORDER-${Date.now()}`,
       customer: {
-        email: email || 'cliente@sifrah.com',
+        email: safeEmail,
         billingDetails: {
           firstName: customerName || 'Cliente',
         }

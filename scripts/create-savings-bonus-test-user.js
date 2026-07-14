@@ -34,7 +34,7 @@ const TEST_USER = {
   password: process.env.BONO_TEST_PASSWORD || "BonoTest2024!",
   name: "Usuario",
   lastName: "Bono Ahorro",
-  email: "bono.test@sifrah.local",
+  email: "bono.test@gmail.com",
   phone: "999888777",
   coins: Number(process.env.BONO_TEST_COINS || 100),
 };
