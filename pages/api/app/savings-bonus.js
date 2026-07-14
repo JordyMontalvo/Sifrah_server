@@ -152,16 +152,44 @@ export default async (req, res) => {
         (deliveryInfo && deliveryInfo.officeId
           ? String(deliveryInfo.officeId).trim()
           : "")
-      if (!officeId) {
+
+      const isDelivery = String(deliveryMethod || "") === "delivery"
+
+      if (!isDelivery && !officeId) {
         return res.json(error("Selecciona una Oficina de Recojo (PDE)."))
       }
 
-      const officeDoc = await Office.findOne({
-        id: officeId,
-        active: { $ne: false },
-      })
-      if (!officeDoc) {
-        return res.json(error("La Oficina de Recojo seleccionada no es válida."))
+      if (isDelivery) {
+        const d = deliveryInfo || {}
+        if (
+          !d.recipientName ||
+          !d.document ||
+          !d.recipientPhone ||
+          !d.department ||
+          !d.province ||
+          !d.district
+        ) {
+          return res.json(
+            error("Completa los datos de dirección para el delivery.")
+          )
+        }
+        const needsAgency =
+          (d.department && d.department !== "lima") ||
+          (d.province && d.province !== "lima")
+        if (needsAgency && !d.agency) {
+          return res.json(error("Selecciona la agencia de transporte."))
+        }
+      }
+
+      let officeDoc = null
+      if (officeId) {
+        officeDoc = await Office.findOne({
+          id: officeId,
+          active: { $ne: false },
+        })
+        if (!officeDoc) {
+          return res.json(error("La Oficina de Recojo seleccionada no es válida."))
+        }
       }
 
       const catalog = await Product.find(savingsCatalogMongoFilter())
@@ -215,7 +243,11 @@ export default async (req, res) => {
       }
 
       const usedBonus = Math.min(Number(savingsBalance) || 0, price)
-      const cashDue = Math.max(0, price - usedBonus)
+      const deliveryPrice =
+        isDelivery && deliveryInfo
+          ? Math.max(0, Number(deliveryInfo.deliveryPrice) || 0)
+          : 0
+      const cashDue = Math.max(0, price - usedBonus) + deliveryPrice
       const isMixed = cashDue > 0.0001
 
       if (isMixed) {
@@ -278,7 +310,7 @@ export default async (req, res) => {
         check: false,
         pay_method: isMixed ? String(pay_method) : "savings_bonus",
         order_type: SAVINGS_ORDER_TYPE,
-        office: officeId,
+        office: officeId || null,
         status: "pending",
         delivered: false,
         transactions: holdTxIds,
@@ -286,19 +318,31 @@ export default async (req, res) => {
         payment_breakdown: {
           paid_savings: usedBonus,
           due: cashDue,
+          delivery_price: deliveryPrice,
           mode: isMixed ? "mixed" : "savings_bonus_only",
           modeLabel: isMixed ? "Mixto" : "Bono Ahorro",
         },
         delivery_info: {
           method: deliveryMethod || "pickup",
-          has_delivery: deliveryMethod === "delivery",
+          has_delivery: isDelivery,
           receipt_type: deliveryInfo?.receiptType || "none",
-          ...(deliveryMethod === "delivery" &&
+          ...(isDelivery &&
             deliveryInfo && {
               recipient_name: deliveryInfo.recipientName,
               recipient_document: deliveryInfo.document,
               recipient_phone: deliveryInfo.recipientPhone,
-              delivery_price: deliveryInfo.deliveryPrice || 0,
+              department: deliveryInfo.department,
+              province: deliveryInfo.province,
+              district: deliveryInfo.district,
+              agency: deliveryInfo.agency || null,
+              delivery_price: deliveryPrice,
+              delivery_type: deliveryInfo.deliveryType || null,
+              delivery_zone: deliveryInfo.deliveryZone || null,
+            }),
+          ...(!isDelivery &&
+            officeId && {
+              office_id: officeId,
+              office_name: officeDoc ? officeDoc.name : null,
             }),
         },
       }
