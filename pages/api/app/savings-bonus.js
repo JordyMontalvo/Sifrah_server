@@ -326,6 +326,14 @@ export default async (req, res) => {
           method: deliveryMethod || "pickup",
           has_delivery: isDelivery,
           receipt_type: deliveryInfo?.receiptType || "none",
+          ...(deliveryInfo?.receiptType === "boleta" && {
+            proof_document: deliveryInfo.proofDocument || null,
+          }),
+          ...(deliveryInfo?.receiptType === "factura" && {
+            proof_ruc: deliveryInfo.proofRUC || null,
+            proof_razon_social: deliveryInfo.proofRazonSocial || null,
+            proof_direccion_fiscal: deliveryInfo.proofDireccionFiscal || null,
+          }),
           ...(isDelivery &&
             deliveryInfo && {
               recipient_name: deliveryInfo.recipientName,
