@@ -59,11 +59,11 @@ export default async (req, res) => {
     affiliated:      user.affiliated,
     activated:       user.activated,
     date:            user.date,
-    affiliationDate: user.affiliationDate,
+    affiliationDate: user.affiliationDate || user.affiliation_date || null,
     plan:            user.plan,
     country:         user.country,
     photo:           user.photo,
-
+    token:           user.token,
 
     rank:            user.rank,
     team,
