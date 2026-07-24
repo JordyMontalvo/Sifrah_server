@@ -52,6 +52,10 @@ export default async (req, res) => {
 
   if(user.activated) activateds--
 
+  let directs = await User.find({ parentId: user.id })
+  directs = (directs || []).filter((direct) => direct.status !== "eliminated")
+  const frontalsTotal = directs.length
+
   // response
   return res.json(success({
     name:            user.name,
@@ -69,6 +73,7 @@ export default async (req, res) => {
     points:          user.points || 0,
     total_points:    user.total_points || 0,
     team,
+    frontals_total:  frontalsTotal,
     activateds,
     unactivateds:    team - activateds,
   }))
