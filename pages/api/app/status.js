@@ -53,9 +53,13 @@ export default async (req, res) => {
   if(user.activated) activateds--
 
   // Frontales = socios patrocinados directamente (cualquier estado, excepto eliminados)
-  const directSponsored = await User.find({ parentId: user.id })
-  const frontals_total = directSponsored.filter(
+  const directSponsored = (await User.find({ parentId: user.id })).filter(
     (u) => u && u.status !== "eliminated"
+  )
+  const frontals_total = directSponsored.length
+  // Activos en el período actual: 120+ puntos personales
+  const frontals_active = directSponsored.filter(
+    (u) => (Number(u.points) || 0) >= 120
   ).length
 
   // response
@@ -76,6 +80,7 @@ export default async (req, res) => {
     total_points:    user.total_points || 0,
     team,
     frontals_total,
+    frontals_active,
     activateds,
     unactivateds:    team - activateds,
   }))
