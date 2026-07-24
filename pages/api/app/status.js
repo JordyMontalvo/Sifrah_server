@@ -66,6 +66,8 @@ export default async (req, res) => {
     token:           user.token,
 
     rank:            user.rank,
+    points:          user.points || 0,
+    total_points:    user.total_points || 0,
     team,
     activateds,
     unactivateds:    team - activateds,
