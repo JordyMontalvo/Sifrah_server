@@ -2,7 +2,7 @@ import db from "../../../components/db"
 import lib from "../../../components/lib"
 
 const { User, Session, Tree, Closed } = db
-const { error, success, midd, map } = lib
+const { error, success, midd } = lib
 
 const ACTIVE_POINTS_THRESHOLD = 120
 
@@ -63,23 +63,56 @@ function resolveLastClosedRank(user, lastClosed) {
 }
 
 function isEliminated(u) {
-  return u && u.status === "eliminated"
+  if (!u) return true
+  const s = String(u.status || "")
+    .toLowerCase()
+    .trim()
+  if (s === "eliminated" || s === "eliminado") return true
+  if (u.eliminated_at) return true
+  return false
 }
 
+function getUser(id) {
+  if (id == null || id === "") return null
+  return (
+    users.get(id) ||
+    users.get(String(id)) ||
+    (Number.isFinite(Number(id)) ? users.get(Number(id)) : null) ||
+    null
+  )
+}
+
+function getTreeNode(id) {
+  if (id == null || id === "") return null
+  return tree[id] || tree[String(id)] || null
+}
+
+/**
+ * Cuenta personas en la organización excluyendo eliminados.
+ * Si un eliminado quedó en el árbol sin comprimir, no se suma,
+ * pero sí se recorre su descendencia válida.
+ */
 function count(id) {
-  if (!tree[id]) return 0
+  const node = getTreeNode(id)
+  if (!node) return 0
 
-  const u = users.get(id)
-  if (!u || isEliminated(u)) return 0
+  const u = getUser(id)
+  const selfEliminated = isEliminated(u)
 
-  if (u.activated) activateds++
+  if (u && !selfEliminated && u.activated) activateds++
 
   let ret = 0
-  for (const childId of tree[id].childs || []) {
-    if (childId == null) continue
-    const child = users.get(childId)
-    if (!child || isEliminated(child)) continue
-    ret += count(childId) + 1
+  for (const childId of node.childs || []) {
+    if (childId == null || childId === "") continue
+    const child = getUser(childId)
+    const childEliminated = isEliminated(child)
+    const sub = count(childId)
+    if (childEliminated) {
+      // No contar al eliminado; conservar solo descendientes válidos
+      ret += sub
+    } else {
+      ret += sub + 1
+    }
   }
   return ret
 }
@@ -100,11 +133,19 @@ export default async (req, res) => {
   activateds = 0
 
   const ids = tree.map((e) => e.id)
-  users = await User.find({ id: { $in: ids } })
-  users = map(users)
+  const usersList = await User.find({ id: { $in: ids } })
+  users = new Map()
+  for (const u of usersList) {
+    if (!u || u.id == null) continue
+    users.set(u.id, u)
+    users.set(String(u.id), u)
+    const n = Number(u.id)
+    if (!Number.isNaN(n)) users.set(n, u)
+  }
 
   tree = tree.reduce((a, b) => {
     a[`${b.id}`] = b
+    if (b.id != null) a[b.id] = b
     return a
   }, {})
 
