@@ -1,87 +1,161 @@
-import db  from "../../../components/db"
+import db from "../../../components/db"
 import lib from "../../../components/lib"
 
-const { User, Session, Tree } = db
+const { User, Session, Tree, Closed } = db
 const { error, success, midd, map } = lib
 
+const ACTIVE_POINTS_THRESHOLD = 120
 
 let tree
 let users
 let activateds
 
-function count(id) {
-
-  if(!tree[id]) return 0
-
-  if(users.get(id).activated) activateds++
-
-  const a = tree[id].childs
-
-  let ret = 0
-
-  a.forEach(id => { if(id != null) ret += (count(id) + 1) })
-
-  return ret
+async function fetchLastClosed() {
+  const all = await Closed.find({})
+  if (!all || !all.length) return null
+  all.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+  return all[0]
 }
 
+function getClosedUsersList(lastClosed) {
+  if (!lastClosed) return []
+  if (Array.isArray(lastClosed.users)) return lastClosed.users
+  const dataUsers =
+    lastClosed.data && Array.isArray(lastClosed.data.users)
+      ? lastClosed.data.users
+      : []
+  return dataUsers
+}
+
+function getUserIdFromClosedEntry(u) {
+  if (!u) return null
+  return u.user_id || u.userId || u.id || null
+}
+
+function normalizeRankFromClosedEntry(u) {
+  const r = u && u.rank != null ? String(u.rank).trim() : ""
+  return r || null
+}
+
+function resolveLastClosedRank(user, lastClosed) {
+  if (!user || !lastClosed) return user?.rank || "none"
+  const list = getClosedUsersList(lastClosed)
+  const uid = String(user.id)
+  const dni = user.dni != null ? String(user.dni).trim() : ""
+
+  for (const entry of list) {
+    const entryId = getUserIdFromClosedEntry(entry)
+    if (entryId && String(entryId) === uid) {
+      return normalizeRankFromClosedEntry(entry) || user.rank || "none"
+    }
+  }
+
+  if (dni) {
+    for (const entry of list) {
+      const entryDni = entry?.dni != null ? String(entry.dni).trim() : ""
+      if (entryDni && entryDni === dni) {
+        return normalizeRankFromClosedEntry(entry) || user.rank || "none"
+      }
+    }
+  }
+
+  return user.rank || "none"
+}
+
+function isEliminated(u) {
+  return u && u.status === "eliminated"
+}
+
+function count(id) {
+  if (!tree[id]) return 0
+
+  const u = users.get(id)
+  if (!u || isEliminated(u)) return 0
+
+  if (u.activated) activateds++
+
+  let ret = 0
+  for (const childId of tree[id].childs || []) {
+    if (childId == null) continue
+    const child = users.get(childId)
+    if (!child || isEliminated(child)) continue
+    ret += count(childId) + 1
+  }
+  return ret
+}
 
 export default async (req, res) => {
   await midd(req, res)
 
   let { session } = req.query
 
-  // valid session
   session = await Session.findOne({ value: session })
-  if(!session) return res.json(error('invalid session'))
+  if (!session) return res.json(error("invalid session"))
 
-  // get USER
-  const user = await User.findOne({ id: session.userId })
+  const userId = session.id || session.userId
+  const user = await User.findOne({ id: userId })
+  if (!user) return res.json(error("user not found"))
 
-  // get team
   tree = await Tree.find({})
   activateds = 0
 
-  const ids = tree.map(e => e.id)
-
+  const ids = tree.map((e) => e.id)
   users = await User.find({ id: { $in: ids } })
   users = map(users)
 
-  tree = tree.reduce((a, b) => { a[`${b.id}`] = b; return a }, {})
+  tree = tree.reduce((a, b) => {
+    a[`${b.id}`] = b
+    return a
+  }, {})
 
+  // Equipo = personas en la organización (activos, inactivos y registrados), sin eliminados
   const team = count(user.id)
+  if (user.activated && !isEliminated(user)) activateds--
 
-  if(user.activated) activateds--
-
-  // Frontales = socios patrocinados directamente (cualquier estado, excepto eliminados)
+  // Frontales = patrocinados directamente, cualquier estado excepto eliminados
   const directSponsored = (await User.find({ parentId: user.id })).filter(
-    (u) => u && u.status !== "eliminated"
+    (u) => u && !isEliminated(u)
   )
   const frontals_total = directSponsored.length
-  // Activos en el período actual: 120+ puntos personales
+  // Frontales activos del período: 120+ puntos personales
   const frontals_active = directSponsored.filter(
-    (u) => (Number(u.points) || 0) >= 120
+    (u) => (Number(u.points) || 0) >= ACTIVE_POINTS_THRESHOLD
   ).length
 
-  // response
-  return res.json(success({
-    name:            user.name,
-    lastName:        user.lastName,
-    affiliated:      user.affiliated,
-    activated:       user.activated,
-    date:            user.date,
-    affiliationDate: user.affiliationDate || user.affiliation_date || null,
-    plan:            user.plan,
-    country:         user.country,
-    photo:           user.photo,
-    token:           user.token,
+  const points = Number(user.points) || 0
+  const period_active = points >= ACTIVE_POINTS_THRESHOLD
 
-    rank:            user.rank,
-    points:          user.points || 0,
-    total_points:    user.total_points || 0,
-    team,
-    frontals_total,
-    frontals_active,
-    activateds,
-    unactivateds:    team - activateds,
-  }))
+  let lastClosed = null
+  try {
+    lastClosed = await fetchLastClosed()
+  } catch (e) {
+    lastClosed = null
+  }
+  const rank = resolveLastClosedRank(user, lastClosed)
+
+  return res.json(
+    success({
+      name: user.name,
+      lastName: user.lastName,
+      affiliated: user.affiliated,
+      activated: user.activated,
+      _activated: user._activated,
+      period_active,
+      date: user.date,
+      affiliationDate: user.affiliationDate || user.affiliation_date || null,
+      plan: user.plan,
+      country: user.country,
+      photo: user.photo,
+      token: user.token,
+
+      rank,
+      points,
+      total_points: user.total_points || 0,
+      team,
+      frontals_total,
+      frontals_active,
+      activateds,
+      unactivateds: Math.max(0, team - activateds),
+    })
+  )
 }

@@ -338,6 +338,18 @@ export default async (req, res) => {
     peakEntry,
     historicalRankIndex
   )
+  let historicalRankDate = null
+  if (peakEntry?.date) {
+    const d = new Date(peakEntry.date)
+    if (!Number.isNaN(d.getTime())) {
+      const dd = String(d.getDate()).padStart(2, "0")
+      const mm = String(d.getMonth() + 1).padStart(2, "0")
+      const yyyy = d.getFullYear()
+      historicalRankDate = `${dd}/${mm}/${yyyy}`
+    }
+  } else if (peakEntry?.period) {
+    historicalRankDate = String(peakEntry.period).trim()
+  }
 
   let rankImages = await Banner.findOne({ id: RANK_IMAGE_ID })
   if (!rankImages) rankImages = emptyRankImagesDoc()
@@ -387,6 +399,7 @@ export default async (req, res) => {
     historicalRankLabel,
     historicalRankPercentage,
     historicalRankSubtitle,
+    historicalRankDate,
     historicalRankImage,
   }))
 }
