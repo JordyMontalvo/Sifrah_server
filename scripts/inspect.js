@@ -23,22 +23,18 @@ function countDescendants(node) {
   return count;
 }
 
+
 async function main() {
   const docs = await db.Closed.find({});
-  const testUserId = "d2v8hsi5u1"; // Norma Ramos Fernandez
-  
-  console.log(`Searching for test user ${testUserId} in ${docs.length} closures...`);
-  
-  for (const doc of docs) {
-    const node = findNodeInHierarchy(doc.users, testUserId);
-    if (node) {
-      const teamSize = countDescendants(node);
-      console.log(`- Date: ${doc.date}, User Found: ${node.name}, Team Size: ${teamSize}`);
-    } else {
-      console.log(`- Date: ${doc.date}, User not found in hierarchy`);
-    }
+  if (docs.length > 0) {
+    const doc = docs[0];
+    console.log("Closed document fields in Mongoose schema/document:");
+    console.log("Keys of doc object:", Object.keys(doc));
+    console.log("Keys of doc._doc object:", Object.keys(doc._doc || {}));
+    console.log("doc.tree:", doc.tree);
+  } else {
+    console.log("No Closed documents found.");
   }
-  
   process.exit(0);
 }
 
