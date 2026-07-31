@@ -176,12 +176,12 @@ function buildHistoricalRankSubtitle(peakEntry, historicalRankIndex) {
   return "Máximo rango histórico alcanzado"
 }
 
-function calculateClosedTeamSize(userId, treeNodes) {
-  if (!Array.isArray(treeNodes) || treeNodes.length === 0) return 0;
-  const nodesMap = new Map();
-  for (const node of treeNodes) {
-    if (node && node.id) {
-      nodesMap.set(node.id, node);
+function calculateClosedTeamSize(userId, usersList) {
+  if (!Array.isArray(usersList) || usersList.length === 0) return 0;
+  const usersMap = new Map();
+  for (const u of usersList) {
+    if (u && u.user_id) {
+      usersMap.set(u.user_id, u);
     }
   }
   let count = 0;
@@ -189,12 +189,14 @@ function calculateClosedTeamSize(userId, treeNodes) {
   function walk(id) {
     if (visited.has(id)) return;
     visited.add(id);
-    const node = nodesMap.get(id);
-    if (!node) return;
-    const children = node.childs || [];
-    for (const childId of children) {
-      count++;
-      walk(childId);
+    const userNode = usersMap.get(id);
+    if (!userNode) return;
+    const legs = userNode.grouped_points_legs || [];
+    for (const leg of legs) {
+      if (leg && leg.user_id) {
+        count++;
+        walk(leg.user_id);
+      }
     }
   }
   walk(userId);
@@ -393,8 +395,8 @@ export default async (req, res) => {
 
   const growthHistory = [];
   for (const doc of sortedCloseds) {
-    const treeNodes = doc.tree || [];
-    const teamSize = calculateClosedTeamSize(user.id, treeNodes);
+    const usersList = doc.users || [];
+    const teamSize = calculateClosedTeamSize(user.id, usersList);
     const d = doc.date ? new Date(doc.date) : null;
     let label = "Cierre";
     if (d && !Number.isNaN(d.getTime())) {
