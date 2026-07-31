@@ -178,20 +178,20 @@ function buildHistoricalRankSubtitle(peakEntry, historicalRankIndex) {
 
 function calculateClosedTeamSize(userId, treeNodes) {
   if (!Array.isArray(treeNodes) || treeNodes.length === 0) return 0;
-  const childrenMap = new Map();
+  const nodesMap = new Map();
   for (const node of treeNodes) {
-    if (!node) continue;
-    const parentId = node.parentId || node.parent_id || null;
-    if (parentId) {
-      if (!childrenMap.has(parentId)) {
-        childrenMap.set(parentId, []);
-      }
-      childrenMap.get(parentId).push(node.id || node.userId);
+    if (node && node.id) {
+      nodesMap.set(node.id, node);
     }
   }
   let count = 0;
+  const visited = new Set();
   function walk(id) {
-    const children = childrenMap.get(id) || [];
+    if (visited.has(id)) return;
+    visited.add(id);
+    const node = nodesMap.get(id);
+    if (!node) return;
+    const children = node.childs || [];
     for (const childId of children) {
       count++;
       walk(childId);
