@@ -176,6 +176,31 @@ function buildHistoricalRankSubtitle(peakEntry, historicalRankIndex) {
   return "Máximo rango histórico alcanzado"
 }
 
+function calculateClosedTeamSize(userId, treeNodes) {
+  if (!Array.isArray(treeNodes) || treeNodes.length === 0) return 0;
+  const childrenMap = new Map();
+  for (const node of treeNodes) {
+    if (!node) continue;
+    const parentId = node.parentId || node.parent_id || null;
+    if (parentId) {
+      if (!childrenMap.has(parentId)) {
+        childrenMap.set(parentId, []);
+      }
+      childrenMap.get(parentId).push(node.id || node.userId);
+    }
+  }
+  let count = 0;
+  function walk(id) {
+    const children = childrenMap.get(id) || [];
+    for (const childId of children) {
+      count++;
+      walk(childId);
+    }
+  }
+  walk(userId);
+  return count;
+}
+
 const D = ['id', 'name', 'lastName', 'affiliated', 'activated', 'tree', 'email', 'phone', 'address', 'rank', 'points', 'parentId', 'total_points']
 export default async (req, res) => {
   await midd(req, res)
@@ -359,6 +384,46 @@ export default async (req, res) => {
       ? String(rankImages[historicalRankImageKey]).trim()
       : ""
   const historicalRankImage = configuredRankImage || null
+  // Calculate monthly closure growth history
+  const sortedCloseds = [...closeds].sort((a, b) => {
+    const da = a.date ? new Date(a.date).getTime() : 0;
+    const db = b.date ? new Date(b.date).getTime() : 0;
+    return da - db;
+  });
+
+  const growthHistory = [];
+  for (const doc of sortedCloseds) {
+    const treeNodes = doc.tree || [];
+    const teamSize = calculateClosedTeamSize(user.id, treeNodes);
+    const d = doc.date ? new Date(doc.date) : null;
+    let label = "Cierre";
+    if (d && !Number.isNaN(d.getTime())) {
+      const months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+      label = `${months[d.getMonth()]} ${d.getFullYear()}`;
+    }
+    growthHistory.push({
+      label,
+      value: teamSize
+    });
+  }
+
+  // Slice to last 6 months and pad backwards if necessary
+  let last6MonthsGrowth = growthHistory.slice(-6);
+  if (last6MonthsGrowth.length < 6) {
+    const months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+    let pivotDate = new Date();
+    if (sortedCloseds.length > 0 && sortedCloseds[0].date) {
+      pivotDate = new Date(sortedCloseds[0].date);
+    }
+    while (last6MonthsGrowth.length < 6) {
+      pivotDate.setMonth(pivotDate.getMonth() - 1);
+      const label = `${months[pivotDate.getMonth()]} ${pivotDate.getFullYear()}`;
+      last6MonthsGrowth.unshift({
+        label,
+        value: 0
+      });
+    }
+  }
 
   // response
   return res.json(success({
@@ -401,5 +466,6 @@ export default async (req, res) => {
     historicalRankSubtitle,
     historicalRankDate,
     historicalRankImage,
+    growthHistory: last6MonthsGrowth,
   }))
 }
