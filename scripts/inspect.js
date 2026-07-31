@@ -28,10 +28,12 @@ async function main() {
   const docs = await db.Closed.find({});
   if (docs.length > 0) {
     const doc = docs[0];
-    console.log("Closed document fields in Mongoose schema/document:");
-    console.log("Keys of doc object:", Object.keys(doc));
-    console.log("Keys of doc._doc object:", Object.keys(doc._doc || {}));
-    console.log("doc.tree:", doc.tree);
+    console.log("Keys of doc.data:", Object.keys(doc.data || {}));
+    if (doc.data && doc.data.tree) {
+      console.log("doc.data.tree is array?", Array.isArray(doc.data.tree));
+      console.log("doc.data.tree length:", doc.data.tree.length);
+      console.log("Sample node in doc.data.tree:", JSON.stringify(doc.data.tree[0], null, 2));
+    }
   } else {
     console.log("No Closed documents found.");
   }
