@@ -1,8 +1,13 @@
 import db from "../../../components/db"
 import lib from "../../../components/lib"
 import { computeRankProgress } from "../../../lib/rankProgress"
+import {
+  RANK_IMAGE_ID,
+  emptyRankImagesDoc,
+  resolveRankImageUrl,
+} from "../../../lib/rankImages"
 
-const { User, Session, Tree } = db
+const { User, Session, Tree, Banner } = db
 const { error, success, midd } = lib
 
 export default async (req, res) => {
@@ -21,12 +26,17 @@ export default async (req, res) => {
   }
 
   try {
-    const [treeList, usersList] = await Promise.all([
+    const [treeList, usersList, rankImagesDoc] = await Promise.all([
       Tree.find({}),
       User.find({ tree: true }),
+      Banner.findOne({ id: RANK_IMAGE_ID }),
     ])
 
     const progress = computeRankProgress(user, usersList, treeList)
+    const rankImages = rankImagesDoc || emptyRankImagesDoc()
+
+    progress.currentRankImage = resolveRankImageUrl(rankImages, progress.currentRank)
+    progress.targetRankImage = resolveRankImageUrl(rankImages, progress.targetRank)
 
     return res.json(
       success({
