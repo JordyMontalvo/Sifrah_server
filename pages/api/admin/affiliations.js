@@ -337,15 +337,84 @@ const handler = async (req, res, auth) => {
         pageNum * limitNum
       );
 
-      // Obtener solo los usuarios necesarios para las afiliaciones paginadas
-      users = await User.find({ id: { $in: ids(affiliations) } });
+      // Obtener usuarios de la página + sus patrocinadores
+      const pageUserIds = affiliations.map((a) => a.userId).filter((id) => id != null);
+      users = await User.find({ id: { $in: pageUserIds } });
       users = map(users);
 
+      const parentIdList = [
+        ...new Set(
+          [...users.values()]
+            .map((u) => u.parentId)
+            .filter((id) => id != null && id !== "")
+        ),
+      ];
+
+      let parentsMap = new Map();
+      if (parentIdList.length) {
+        const parents = await User.find({ id: { $in: parentIdList } });
+        parentsMap = map(parents);
+      }
+
+      // Sponsors no afiliados: ¿tienen solicitud pendiente?
+      const unaffiliatedParentIds = parentIdList.filter((id) => {
+        const p = parentsMap.get(id);
+        return p && !p.affiliated;
+      });
+
+      const pendingSponsorIds = new Set();
+      if (unaffiliatedParentIds.length) {
+        const pendingRows = await Affiliation.find({
+          userId: { $in: unaffiliatedParentIds },
+          status: "pending",
+        });
+        for (const row of pendingRows || []) {
+          if (row && row.userId != null) pendingSponsorIds.add(row.userId);
+        }
+      }
+
+      const resolveSponsor = (affUser) => {
+        if (!affUser || affUser.parentId == null || affUser.parentId === "") {
+          return null;
+        }
+        const parent = parentsMap.get(affUser.parentId);
+        if (!parent) {
+          return {
+            id: affUser.parentId,
+            name: "—",
+            lastName: "",
+            dni: null,
+            status: "unknown",
+            statusLabel: "Patrocinador no encontrado",
+          };
+        }
+        let status;
+        let statusLabel;
+        if (parent.affiliated === true) {
+          status = "affiliated";
+          statusLabel = "Patrocinador afiliado";
+        } else if (pendingSponsorIds.has(parent.id)) {
+          status = "pending";
+          statusLabel = "Patrocinador con solicitud pendiente de aprobación";
+        } else {
+          status = "none";
+          statusLabel = "Patrocinador aún no ha enviado su solicitud de afiliación";
+        }
+        return {
+          id: parent.id,
+          name: parent.name || "",
+          lastName: parent.lastName || "",
+          dni: parent.dni || null,
+          status,
+          statusLabel,
+        };
+      };
+
       // enrich affiliations
-      affiliations = affiliations.map((a) => {
-        let u = users.get(a.userId);
-        a = model(a, A);
-        u = model(u, U);
+      affiliations = affiliations.map((raw) => {
+        const affUser = users.get(raw.userId);
+        let a = model(raw, A);
+        let u = model(affUser, U);
         // amounts: [paid_virtual, paid_balance, due_or_external]
         const amounts = Array.isArray(a.amounts) && a.amounts.length >= 3 ? a.amounts : null;
         const planAmt = a.plan && a.plan.amount != null ? Number(a.plan.amount) : 0;
@@ -389,6 +458,7 @@ const handler = async (req, res, auth) => {
         return {
           ...a,
           ...u,
+          patrocinador: resolveSponsor(affUser),
           payment_breakdown: {
             total,
             paid_virtual,
@@ -400,8 +470,6 @@ const handler = async (req, res, auth) => {
           },
         };
       });
-
-      let parents = await User.find({ id: { $in: parent_ids(affiliations) } });
 
       // Devolver los resultados con información de paginación
       return res.json(
