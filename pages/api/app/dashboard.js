@@ -417,6 +417,7 @@ export default async (req, res) => {
     if (sortedCloseds.length > 0 && sortedCloseds[0].date) {
       pivotDate = new Date(sortedCloseds[0].date);
     }
+    pivotDate.setDate(1); // Evita desbordamientos al restar meses (ej: 31 de agosto - 1 mes = 31 de julio/1 de julio)
     while (last6MonthsGrowth.length < 6) {
       pivotDate.setMonth(pivotDate.getMonth() - 1);
       const label = `${months[pivotDate.getMonth()]} ${pivotDate.getFullYear()}`;
