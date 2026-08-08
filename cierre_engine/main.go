@@ -309,7 +309,7 @@ func main() {
 			updatedUserByIDPreview[uPreview.ID] = &uPreview
 		}
 
-		if rank != "none" || calculatedTotalPoints > 0 || resTotal > 0 || genTotal > 0 || savTotal > 0 {
+		if rank != "none" {
 			previewNodes = append(previewNodes, PreviewNode{
 				ID:                user.ID,
 				Name:              user.Name + " " + user.LastName,
