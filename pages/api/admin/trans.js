@@ -2,8 +2,48 @@ import db from "../../../components/db";
 import lib from "../../../components/lib";
 import { requireAdmin } from "../../../components/adminAuth";
 
-const { Transaction, User } = db;
+const { Transaction, User, Period } = db;
 const { midd, success, rand } = lib;
+
+const MONTHS_ES = [
+  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+];
+
+function buildPeriodKey(year, month) {
+  const mm = String(month).padStart(2, "0");
+  return `${year}-${mm}`;
+}
+
+function buildPeriodLabel(year, month) {
+  const mName = MONTHS_ES[month - 1] || `Mes ${month}`;
+  return `${mName} ${year}`;
+}
+
+async function getOrCreateOpenPeriod(now = new Date()) {
+  const openPeriods = await Period.find({ status: "open" });
+  if (openPeriods && openPeriods.length) {
+    openPeriods.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    return openPeriods[0];
+  }
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+  const key = buildPeriodKey(year, month);
+  const existing = await Period.findOne({ key });
+  if (existing && existing.status !== "closed") return existing;
+  const period = {
+    id: rand(),
+    key,
+    year,
+    month,
+    label: buildPeriodLabel(year, month),
+    status: "open",
+    createdAt: now,
+    closedAt: null,
+  };
+  await Period.insert(period);
+  return period;
+}
 
 export default async (req, res) => {
   await midd(req, res);
@@ -167,6 +207,8 @@ export default async (req, res) => {
       const { user_id, type, value, name, affiliation_id, virtual, status } =
         req.body.data;
 
+      const period = await getOrCreateOpenPeriod(new Date());
+
       await Transaction.insert({
         id: rand(),
         date: new Date(),
@@ -177,6 +219,8 @@ export default async (req, res) => {
         affiliation_id,
         virtual,
         status,
+        period_key: period.key,
+        period_label: period.label,
       });
     }
 
