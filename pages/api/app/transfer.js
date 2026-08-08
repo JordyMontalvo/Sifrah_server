@@ -3,8 +3,55 @@ import lib    from "../../../components/lib"
 import bcrypt from "bcrypt"
 import { verifyMasterPassword } from "../../../components/master-password"
 
-const { User, Session, Transaction, Collect } = db
+const { User, Session, Transaction, Collect, Period } = db
 const { error, success, midd, rand } = lib
+
+const MONTHS_ES = [
+  "Enero",
+  "Febrero",
+  "Marzo",
+  "Abril",
+  "Mayo",
+  "Junio",
+  "Julio",
+  "Agosto",
+  "Septiembre",
+  "Octubre",
+  "Noviembre",
+  "Diciembre",
+];
+
+function buildPeriodKey(year, month) {
+  return `${year}${String(month).padStart(2, "0")}`;
+}
+
+function buildPeriodLabel(year, month) {
+  return `${MONTHS_ES[month - 1]} ${year}`;
+}
+
+async function getOrCreateOpenPeriod(now = new Date()) {
+  const openPeriods = await Period.find({ status: "open" });
+  if (openPeriods && openPeriods.length) {
+    openPeriods.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    return openPeriods[0];
+  }
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+  const key = buildPeriodKey(year, month);
+  const existing = await Period.findOne({ key });
+  if (existing && existing.status !== "closed") return existing;
+  const period = {
+    id: rand(),
+    key,
+    year,
+    month,
+    label: buildPeriodLabel(year, month),
+    status: "open",
+    createdAt: now,
+  };
+  await Period.insert(period);
+  return period;
+}
 
 const handler = async (req, res) => {
 
@@ -85,6 +132,8 @@ const handler = async (req, res) => {
         return res.json(error('amount exceeds the balance'))
       }
 
+      const period = await getOrCreateOpenPeriod(new Date())
+
       await Transaction.insert({
         date:     new Date(),
         user_id:  user.id,
@@ -94,6 +143,8 @@ const handler = async (req, res) => {
         name:    'wallet transfer',
         desc,
         virtual: false,
+        period_key: period.key,
+        period_label: period.label,
       })
 
       await Transaction.insert({
@@ -105,6 +156,8 @@ const handler = async (req, res) => {
         name:    'wallet transfer',
         desc,
         virtual: false,
+        period_key: period.key,
+        period_label: period.label,
       })
 
       return res.json(success())

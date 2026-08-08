@@ -5,18 +5,26 @@ const { User, Session, Transaction, Collect, Period } = db
 const { error, success, midd, rand } = lib
 
 const MONTHS_ES = [
-  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+  "Enero",
+  "Febrero",
+  "Marzo",
+  "Abril",
+  "Mayo",
+  "Junio",
+  "Julio",
+  "Agosto",
+  "Septiembre",
+  "Octubre",
+  "Noviembre",
+  "Diciembre",
 ];
 
 function buildPeriodKey(year, month) {
-  const mm = String(month).padStart(2, "0");
-  return `${year}-${mm}`;
+  return `${year}${String(month).padStart(2, "0")}`;
 }
 
 function buildPeriodLabel(year, month) {
-  const mName = MONTHS_ES[month - 1] || `Mes ${month}`;
-  return `${mName} ${year}`;
+  return `${MONTHS_ES[month - 1]} ${year}`;
 }
 
 async function getOrCreateOpenPeriod(now = new Date()) {
@@ -38,11 +46,11 @@ async function getOrCreateOpenPeriod(now = new Date()) {
     label: buildPeriodLabel(year, month),
     status: "open",
     createdAt: now,
-    closedAt: null,
   };
   await Period.insert(period);
   return period;
 }
+
 
 const handler = async (req, res) => {
 
@@ -101,6 +109,7 @@ const handler = async (req, res) => {
 
 
     const id = rand()
+
     const period = await getOrCreateOpenPeriod(new Date())
 
     // save new collect
