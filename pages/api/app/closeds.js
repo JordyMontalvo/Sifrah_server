@@ -360,6 +360,115 @@ function countOrgActive(snapshot) {
   }
 }
 
+/**
+ * Desglose de puntos de red desde el snapshot del cierre.
+ *
+ * Motor: total_red (_total) = ∑ (reconsumo + afiliación) de cada persona del árbol.
+ *
+ * Cierres nuevos: cada nodo trae reconsumo_points / affiliation_points.
+ * Cierres viejos: solo traen `points` (reconsumo) y el root `_total`;
+ *   → afiliación de red ≈ total − ∑points (no está en el nodo).
+ */
+function sumNetworkPointBreakdown(snapshot, entry) {
+  const result = {
+    affiliation: 0,
+    reconsumo: 0,
+    nodes: 0,
+    hasExplicitAffField: false,
+    source: "none",
+  }
+
+  if (!snapshot) {
+    // Sin árbol: solo lo personal del entry
+    const ownAff = Number(entry && entry.affiliation_points) || 0
+    const ownRec = Number(
+      entry && entry.reconsumo_points != null
+        ? entry.reconsumo_points
+        : entry && entry.points != null
+          ? entry.points
+          : 0
+    )
+    result.affiliation = ownAff
+    result.reconsumo = ownRec
+    result.source = "entry_only"
+    return result
+  }
+
+  let sumRec = 0
+  let sumAff = 0
+  let sawAffKey = false
+
+  const walk = (node) => {
+    if (!node) return
+    result.nodes++
+    if (
+      Object.prototype.hasOwnProperty.call(node, "affiliation_points") ||
+      Object.prototype.hasOwnProperty.call(node, "affiliationPoints")
+    ) {
+      sawAffKey = true
+    }
+    const aff = Number(
+      node.affiliation_points != null
+        ? node.affiliation_points
+        : node.affiliationPoints != null
+          ? node.affiliationPoints
+          : 0
+    )
+    sumAff += Number.isNaN(aff) ? 0 : aff
+
+    const recRaw =
+      node.reconsumo_points != null
+        ? node.reconsumo_points
+        : node.reconsumoPoints != null
+          ? node.reconsumoPoints
+          : node.points != null
+            ? node.points
+            : 0
+    const rec = Number(recRaw)
+    sumRec += Number.isNaN(rec) ? 0 : rec
+
+    const kids = node.childs || node.children || []
+    for (const ch of kids) walk(ch)
+  }
+
+  walk(snapshot)
+
+  const groupPts = Number(
+    entry &&
+      (entry.total_points != null
+        ? entry.total_points
+        : entry._total != null
+          ? entry._total
+          : entry.total != null
+            ? entry.total
+            : 0)
+  )
+
+  result.hasExplicitAffField = sawAffKey
+  result.reconsumo = sumRec
+
+  if (sawAffKey && sumAff > 0) {
+    // Snapshot completo con campos de afiliación
+    result.affiliation = sumAff
+    result.source = "snapshot_fields"
+  } else if (groupPts > 0) {
+    // Snapshot viejo/incompleto: lo que no es reconsumo sumado es afiliación de red
+    result.affiliation = Math.max(0, Math.round((groupPts - sumRec) * 100) / 100)
+    result.reconsumo =
+      result.affiliation > 0
+        ? Math.max(0, Math.round((groupPts - result.affiliation) * 100) / 100)
+        : sumRec > 0
+          ? sumRec
+          : groupPts
+    result.source = "inferred_from_total"
+  } else {
+    result.affiliation = sumAff
+    result.source = "snapshot_points_only"
+  }
+
+  return result
+}
+
 function sumAmounts(rows, key = "amount") {
   return (rows || []).reduce((s, r) => s + (Number(r[key]) || 0), 0)
 }
@@ -1064,15 +1173,7 @@ export default async (req, res) => {
 
     const org = countOrgActive(entry.tree_snapshot)
 
-    const personalPts = Number(
-      entry.personal_points != null
-        ? entry.personal_points
-        : (Number(entry.points) || 0) + (Number(entry.affiliation_points) || 0)
-    )
-    const reconsumoPts = Number(
-      entry.reconsumo_points != null ? entry.reconsumo_points : entry.points || 0
-    )
-    const affPts = Number(entry.affiliation_points || 0)
+    // Puntos del grupo (volumen total de red) del cierre
     const groupPts = Number(
       entry.total_points != null
         ? entry.total_points
@@ -1080,6 +1181,40 @@ export default async (req, res) => {
           ? entry._total
           : entry.total || 0
     )
+
+    // Afiliación / reconsumo de RED (todo el equipo del snapshot)
+    // Ventas realizadas = reconsumo PROPIO del socio (entry.points)
+    const snap = entry.tree_snapshot || entry.treeSnapshot || null
+    const network = sumNetworkPointBreakdown(snap, entry)
+
+    let networkAffPts = Number(network.affiliation) || 0
+    let networkRecPts = Number(network.reconsumo) || 0
+
+    // Coherencia: aff + rec = total de red
+    if (groupPts > 0) {
+      if (networkAffPts + networkRecPts === 0) {
+        networkAffPts = Number(entry.affiliation_points) || 0
+        networkRecPts = Math.max(0, groupPts - networkAffPts)
+      } else if (Math.abs(networkAffPts + networkRecPts - groupPts) > 0.5) {
+        // Ajustar reconsumo como residual del total (fuente de verdad: _total)
+        networkRecPts = Math.max(0, Math.round((groupPts - networkAffPts) * 100) / 100)
+      }
+    }
+
+    // Reconsumo propio del socio (compras personales en puntos)
+    const personalReconsumoPts = Number(
+      entry.reconsumo_points != null
+        ? entry.reconsumo_points
+        : entry.points != null
+          ? entry.points
+          : 0
+    )
+    const personalPts = Number(
+      entry.personal_points != null
+        ? entry.personal_points
+        : personalReconsumoPts + (Number(entry.affiliation_points) || 0)
+    )
+
     const personalSales = sumPersonalPurchases(
       userActivations,
       userAffiliations,
@@ -1110,16 +1245,20 @@ export default async (req, res) => {
       breakdown,
       volume: {
         total_points: groupPts,
-        affiliation_points: affPts,
-        reconsumo_points: reconsumoPts,
+        affiliation_points: networkAffPts,
+        reconsumo_points: networkRecPts,
         personal_points: personalPts,
+        personal_reconsumo_points: personalReconsumoPts,
         personal_sales: personalSales,
         affiliation_share:
-          groupPts > 0 ? Math.round((affPts / groupPts) * 1000) / 10 : 0,
+          groupPts > 0
+            ? Math.round((networkAffPts / groupPts) * 1000) / 10
+            : 0,
         reconsumo_share:
           groupPts > 0
-            ? Math.round((reconsumoPts / groupPts) * 1000) / 10
+            ? Math.round((networkRecPts / groupPts) * 1000) / 10
             : 0,
+        _source: network.source,
       },
       details: {
         affiliations: affiliation,
