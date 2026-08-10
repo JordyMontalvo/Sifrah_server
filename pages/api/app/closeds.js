@@ -322,20 +322,46 @@ function labelFromKey(key) {
   return `${MONTHS_ES[month - 1]} ${m[1]}`
 }
 
-function periodDateRange(periodKey, closedAt) {
+/**
+ * Rango real del periodo (mismo que admin / Periodos):
+ * - Inicio: period.createdAt (cuando se abrió ese mes–año)
+ * - Fin: period.closedAt (cuando se cerró)
+ * Fallback solo si no hay doc: día 1 del mes-key → cierre del closed.
+ */
+function periodDateRange(periodKey, closedAt, periodDoc) {
+  if (periodDoc) {
+    let start = null
+    let end = null
+    if (periodDoc.createdAt) {
+      const s = new Date(periodDoc.createdAt)
+      if (!Number.isNaN(s.getTime())) start = s
+    }
+    if (periodDoc.closedAt) {
+      const e = new Date(periodDoc.closedAt)
+      if (!Number.isNaN(e.getTime())) end = e
+    } else if (closedAt) {
+      const e = new Date(closedAt)
+      if (!Number.isNaN(e.getTime())) end = e
+    }
+    if (start || end) {
+      return { start, end }
+    }
+  }
+
   const m = String(periodKey || "").match(/^(\d{4})-(\d{2})$/)
   if (!m) {
     return {
       start: null,
-      end: closedAt || null,
+      end: closedAt ? new Date(closedAt) : null,
     }
   }
   const y = Number(m[1])
   const mo = Number(m[2]) - 1
-  const start = new Date(y, mo, 1, 0, 0, 0, 0)
-  let end = closedAt ? new Date(closedAt) : new Date(y, mo + 1, 0, 23, 59, 59, 999)
+  // Medio día Lima-friendly para evitar corrimiento UTC → día anterior
+  const start = new Date(y, mo, 1, 12, 0, 0, 0)
+  let end = closedAt ? new Date(closedAt) : new Date(y, mo + 1, 0, 12, 0, 0, 0)
   if (Number.isNaN(end.getTime())) {
-    end = new Date(y, mo + 1, 0, 23, 59, 59, 999)
+    end = new Date(y, mo + 1, 0, 12, 0, 0, 0)
   }
   return { start, end }
 }
@@ -784,7 +810,7 @@ export default async (req, res) => {
         periodDoc = null
       }
       const closedAt = (periodDoc && periodDoc.closedAt) || c.date || null
-      const range = periodDateRange(period_key, closedAt)
+      const range = periodDateRange(period_key, closedAt, periodDoc)
 
       if (!entry) {
         entry = buildSyntheticEntry(user, period_key, range, allUserTx)
@@ -836,7 +862,15 @@ export default async (req, res) => {
     for (const h of hist) {
       const key = h && (h.period || h.period_key)
       if (!key || seenKeys.has(String(key))) continue
-      const range = periodDateRange(key, h.date || null)
+      let periodDocHist = null
+      try {
+        periodDocHist = await Period.findOne({ key: String(key) })
+      } catch (_) {
+        periodDocHist = null
+      }
+      const histClosed =
+        (periodDocHist && periodDocHist.closedAt) || h.date || null
+      const range = periodDateRange(key, histClosed, periodDocHist)
       const entry = buildSyntheticEntry(user, key, range, allUserTx)
       if (!entry) continue
       seenKeys.add(String(key))
@@ -905,7 +939,21 @@ export default async (req, res) => {
 
     const { closed, entry, period_key, period_label } = selected
     const closedAt = selected.closedAt || closed.date || null
-    const range = selected.range || periodDateRange(period_key, closedAt)
+    // Releer rango desde admin Period (createdAt → closedAt)
+    let periodDocSelected = null
+    try {
+      periodDocSelected = await Period.findOne({ key: period_key })
+    } catch (_) {
+      periodDocSelected = null
+    }
+    const range =
+      periodDateRange(
+        period_key,
+        (periodDocSelected && periodDocSelected.closedAt) || closedAt,
+        periodDocSelected
+      ) ||
+      selected.range ||
+      periodDateRange(period_key, closedAt, null)
 
     const isAffTx = (tx) => {
       if (!isRealInTx(tx)) return false
@@ -1254,9 +1302,11 @@ export default async (req, res) => {
 
     const report = {
       period_key,
-      period_label,
+      period_label:
+        (periodDocSelected && periodDocSelected.label) || period_label,
       closed_id: closed.id,
-      closed_at: closedAt,
+      closed_at:
+        (periodDocSelected && periodDocSelected.closedAt) || closedAt,
       period_start: range.start,
       period_end: range.end,
       rank: entry.rank || null,
