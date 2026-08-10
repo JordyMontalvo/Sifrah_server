@@ -112,6 +112,23 @@ function txMatchesPeriod(tx, periodKey, range) {
   return d >= range.start && d <= end
 }
 
+/** Bono en sombra: no activo / no activado interno → no suma al total “real” */
+function isVirtualTx(tx) {
+  if (!tx) return false
+  return (
+    tx.virtual === true ||
+    tx.virtual === 1 ||
+    tx.virtual === "true" ||
+    tx.virtual === "1"
+  )
+}
+
+function isRealInTx(tx) {
+  if (!tx || tx.type === "out") return false
+  if (isVirtualTx(tx)) return false
+  return true
+}
+
 /** Compra del socio aprobada/finalizada (activación o afiliación propia) */
 function isPersonalPurchase(doc) {
   if (!doc) return false
@@ -168,7 +185,7 @@ function sumPersonalPurchases(activations, affiliations, periodKey, range) {
 function sumTxByNames(txs, names, periodKey, range) {
   return (txs || [])
     .filter((tx) => {
-      if (!tx || tx.type === "out") return false
+      if (!isRealInTx(tx)) return false
       const name = String(tx.name || "").toLowerCase()
       if (!names.has(name) && !names.has(tx.name)) return false
       return txMatchesPeriod(tx, periodKey, range)
@@ -179,7 +196,7 @@ function sumTxByNames(txs, names, periodKey, range) {
 function residualLinesFromTx(txs, periodKey, range) {
   return (txs || [])
     .filter((tx) => {
-      if (!tx || tx.type === "out") return false
+      if (!isRealInTx(tx)) return false
       const name = String(tx.name || "").toLowerCase()
       if (!RESIDUAL_TX.has(name)) return false
       return txMatchesPeriod(tx, periodKey, range)
@@ -199,7 +216,7 @@ function residualLinesFromTx(txs, periodKey, range) {
 function genLinesFromTx(txs, periodKey, range) {
   return (txs || [])
     .filter((tx) => {
-      if (!tx || tx.type === "out") return false
+      if (!isRealInTx(tx)) return false
       const name = String(tx.name || "").toLowerCase()
       if (!GEN_TX.has(name)) return false
       return txMatchesPeriod(tx, periodKey, range)
@@ -891,7 +908,7 @@ export default async (req, res) => {
     const range = selected.range || periodDateRange(period_key, closedAt)
 
     const isAffTx = (tx) => {
-      if (!tx || tx.type === "out") return false
+      if (!isRealInTx(tx)) return false
       const name = String(tx.name || "").toLowerCase()
       return AFF_NAMES.has(name)
     }
@@ -900,6 +917,19 @@ export default async (req, res) => {
       if (!isAffTx(tx)) return false
       return txMatchesPeriod(tx, period_key, range)
     })
+
+    // Virtual (socio inactivo): se listan aparte para no inflar el total real
+    const affTxsVirtual = allUserTx.filter((tx) => {
+      if (!tx || tx.type === "out") return false
+      if (!isVirtualTx(tx)) return false
+      const name = String(tx.name || "").toLowerCase()
+      if (!AFF_NAMES.has(name)) return false
+      return txMatchesPeriod(tx, period_key, range)
+    })
+    const virtualAffTotal = affTxsVirtual.reduce(
+      (s, t) => s + (Number(t.value) || 0),
+      0
+    )
 
     // Resolver nivel de red (afiliaciones casi nunca guardan `level` en la tx)
     let parentById = new Map()
@@ -999,7 +1029,7 @@ export default async (req, res) => {
     if (!logroRows.length) {
       logroRows = allUserTx
         .filter((tx) => {
-          if (!tx || tx.type === "out") return false
+          if (!isRealInTx(tx)) return false
           const name = String(tx.name || "").toLowerCase()
           if (!RANK_LOGRO_TX.has(name)) return false
           return txMatchesPeriod(tx, period_key, range)
@@ -1015,7 +1045,7 @@ export default async (req, res) => {
     if (!mantRows.length) {
       mantRows = allUserTx
         .filter((tx) => {
-          if (!tx || tx.type === "out") return false
+          if (!isRealInTx(tx)) return false
           const name = String(tx.name || "").toLowerCase()
           if (!RANK_MANT_TX.has(name)) return false
           return txMatchesPeriod(tx, period_key, range)
@@ -1241,6 +1271,8 @@ export default async (req, res) => {
         total,
         prev_total: prevTotal,
         growth_percent: growthPercent,
+        // Solo informativo: afiliaciones virtuales (socio no activo del periodo)
+        virtual_affiliations: Math.round(virtualAffTotal * 100) / 100,
       },
       breakdown,
       volume: {
