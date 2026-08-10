@@ -1052,7 +1052,7 @@ export default async (req, res) => {
       rows: residualLines,
     }
 
-    // Bono rango = mantenimiento (liderazgo); recalificación = logro
+    // rank_bonus_logro → Bono Logro; mantenimiento → Bono Recalificación
     const data = closed.data || {}
     const uid = String(user.id)
     let logroRows = (data.rank_bonus_logro || [])
@@ -1062,7 +1062,7 @@ export default async (req, res) => {
         tipo: "logro",
         rank: r.rank || entry.rank,
         amount: Number(r.amount) || 0,
-        label: r.label || "Bono inicio de rango / recalificación",
+        label: r.label || "Bono Logro",
       }))
     let mantRows = (data.rank_bonus_mantenimiento || [])
       .filter((r) => String(r.user_id || r.userId) === uid)
@@ -1071,7 +1071,7 @@ export default async (req, res) => {
         tipo: "mantenimiento",
         rank: r.rank || entry.rank,
         amount: Number(r.amount) || 0,
-        label: r.label || "Bono liderazgo / rango",
+        label: r.label || "Bono Recalificación",
       }))
 
     if (!logroRows.length) {
@@ -1087,7 +1087,7 @@ export default async (req, res) => {
           tipo: "logro",
           rank: entry.rank,
           amount: Number(tx.value) || 0,
-          label: "Bono inicio de rango / recalificación",
+          label: "Bono Logro",
         }))
     }
     if (!mantRows.length) {
@@ -1103,7 +1103,7 @@ export default async (req, res) => {
           tipo: "mantenimiento",
           rank: entry.rank,
           amount: Number(tx.value) || 0,
-          label: "Bono liderazgo / rango",
+          label: "Bono Recalificación",
         }))
     }
 
@@ -1131,7 +1131,7 @@ export default async (req, res) => {
     }
 
     // Generacional VIP se agrupa como apoyo de residuales o se muestra? Design shows:
-    // Afiliaciones, Residuales, Bono Liderazgo, Bono Inicio, Bono Ahorro
+    // Afiliaciones, Residuales, Bono Recalificación, Bono Logro, Bono Ahorro
     // Include generational inside residual total+list as "Residuales +" for honesty
     const genTotal = Number(entry.generational_bonus) || 0
     if (genTotal > 0 || genLines.length) {
@@ -1174,14 +1174,14 @@ export default async (req, res) => {
       },
       {
         key: "rank_lead",
-        label: "Bono Liderazgo (Rango)",
+        label: "Bono Recalificación",
         amount: rankLead.total,
         percent: pct(rankLead.total),
         color: "#7c3aed",
       },
       {
         key: "rank_start",
-        label: "Bono Inicio de Rango",
+        label: "Bono Logro",
         amount: rankStart.total,
         percent: pct(rankStart.total),
         color: "#eab308",
