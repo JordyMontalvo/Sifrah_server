@@ -118,6 +118,8 @@ export default async (req, res) => {
   let _products = await Product.find(productFilter);
 
   if (!isSavingsBonusFilter) {
+    // Incluir promociones activas en el catálogo para todos (visibles).
+    // La compra solo se permite si el usuario está activo (validado en POST / UI).
     const promoDocs = await Product.find({
       $or: [
         { is_promotion: true },
@@ -128,23 +130,15 @@ export default async (req, res) => {
 
     const byId = new Map(_products.map((p) => [String(p.id), p]));
 
-    if (userCanSeePromotions) {
-      for (const promo of promoDocs) {
-        if (promo.promotion_active === false) continue;
-        byId.set(String(promo.id), promo);
-      }
+    for (const promo of promoDocs) {
+      if (promo.promotion_active === false) continue;
+      byId.set(String(promo.id), promo);
     }
 
-    _products = Array.from(byId.values());
-
-    if (!userCanSeePromotions) {
-      _products = _products.filter((p) => !isPromotionProduct(p));
-    } else {
-      _products = _products.filter((p) => {
-        if (!isPromotionProduct(p)) return true;
-        return p.promotion_active !== false;
-      });
-    }
+    _products = Array.from(byId.values()).filter((p) => {
+      if (!isPromotionProduct(p)) return true;
+      return p.promotion_active !== false;
+    });
 
     const enriched = [];
     for (const p of _products) {
@@ -167,6 +161,7 @@ export default async (req, res) => {
     _products = enriched;
   }
 
+  // Promociones siempre primero en el catálogo
   _products = sortProducts(_products);
 
 
