@@ -110,11 +110,26 @@ export default async (req, res) => {
   console.log(user.plan)
   const { Period } = db
   const period = await getOrCreateOpenPeriod(Period, new Date())
-  const promotionEligibility = await getPromotionEligibility(
-    user,
-    period,
-    Affiliation
-  )
+  let promotionEligibility = {
+    eligible: false,
+    affiliated_current_period: false,
+    accumulated_points: Math.max(0, Number(user.points) || 0),
+    cart_points: 0,
+    projected_points: Math.max(0, Number(user.points) || 0),
+    required_points: PROMOTION_REQUIRED_POINTS,
+  }
+  try {
+    promotionEligibility = await getPromotionEligibility(
+      user,
+      period,
+      Affiliation
+    )
+  } catch (eligibilityError) {
+    console.error(
+      "[Activation] promotion eligibility failed:",
+      eligibilityError
+    )
+  }
 
   // get plans
   const isSavingsBonusFilter = req.query.type === 'savings_bonus'
