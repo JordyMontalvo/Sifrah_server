@@ -11,6 +11,10 @@ import {
   enrichPromotionForStore,
   validatePromotionOrder,
 } from "../../../lib/promotionStock"
+import {
+  PROMOTION_REQUIRED_POINTS,
+  getPromotionEligibility,
+} from "../../../lib/promotionEligibility"
 import { sortProducts } from "../../../lib/productSort"
 
 const { User, Session, Product, Activation, Affiliation, Office, Transaction } = db
@@ -92,7 +96,6 @@ async function getOrCreateOpenPeriod(Period, now = new Date()) {
   return period;
 }
 
-
 export default async (req, res) => {
   await midd(req, res)
 
@@ -105,6 +108,13 @@ export default async (req, res) => {
   // check verified
   const user = await User.findOne({ id: session.id })
   console.log(user.plan)
+  const { Period } = db
+  const period = await getOrCreateOpenPeriod(Period, new Date())
+  const promotionEligibility = await getPromotionEligibility(
+    user,
+    period,
+    Affiliation
+  )
 
   // get plans
   const isSavingsBonusFilter = req.query.type === 'savings_bonus'
@@ -113,13 +123,11 @@ export default async (req, res) => {
     ? savingsCatalogMongoFilter()
     : mainCatalogMongoFilter()
 
-  const userCanSeePromotions = !!(user.activated || user._activated);
-
   let _products = await Product.find(productFilter);
 
   if (!isSavingsBonusFilter) {
     // Incluir promociones activas en el catálogo para todos (visibles).
-    // La compra solo se permite si el usuario está activo (validado en POST / UI).
+    // La compra se valida por elegibilidad (afiliación del periodo o 160 pts).
     const promoDocs = await Product.find({
       $or: [
         { is_promotion: true },
@@ -225,6 +233,7 @@ export default async (req, res) => {
 
       products: _products,
       points: user.points,
+      promotion_eligibility: promotionEligibility,
       profit,
       offices,
 
@@ -251,16 +260,6 @@ export default async (req, res) => {
         error(
           `El producto "${savingsOnly.name}" solo está disponible en Tienda Bono Ahorro.`
         )
-      );
-    }
-
-    const hasPromotion = products.some((p) => {
-      const db = catalogById.get(String(p.id));
-      return db && isPromotionProduct(db);
-    });
-    if (hasPromotion && !userCanSeePromotions) {
-      return res.json(
-        error("Las promociones solo están disponibles para usuarios activos.")
       );
     }
 
@@ -335,10 +334,31 @@ export default async (req, res) => {
         finalPrice = p.prices[planId];
       }
       const dbProduct = catalogById.get(String(p.id));
-      const promoPoints =
-        dbProduct && isPromotionProduct(dbProduct) ? 0 : p.points || 0;
-      return { ...p, price: finalPrice, points: promoPoints };
+      const productPoints =
+        !dbProduct || isPromotionProduct(dbProduct)
+          ? 0
+          : Number(dbProduct.points) || 0;
+      return { ...p, price: finalPrice, points: productPoints };
     });
+
+    const hasPromotion = products.some((p) => {
+      const db = catalogById.get(String(p.id));
+      return db && isPromotionProduct(db);
+    });
+    const projectedPromotionEligibility = await getPromotionEligibility(
+      user,
+      period,
+      Affiliation,
+      products,
+      catalogById
+    );
+    if (hasPromotion && !projectedPromotionEligibility.eligible) {
+      return res.json(
+        error(
+          `Para adquirir una promoción debes haberte afiliado en el periodo actual o alcanzar ${PROMOTION_REQUIRED_POINTS} puntos entre tu acumulado y esta compra.`
+        )
+      );
+    }
 
     const points = products.reduce((a, b) => a + (b.points || 0) * b.total, 0)
     // const points = products.reduce((a, b) => a + (b.val ? b.val : b.price) * b.total, 0)
@@ -366,9 +386,6 @@ export default async (req, res) => {
 
     let transactions = []
     let amounts
-
-    const { Period } = db
-    const period = await getOrCreateOpenPeriod(Period, new Date())
 
     if (useCheck) {
 
