@@ -83,6 +83,7 @@ export default async (req, res) => {
           savings_category_id: p.savings_category_id || null,
           catalog_type: p.catalog_type || (p.points ? "both" : "savings"),
           is_promotion: !!p.is_promotion,
+          available_quantity: Number(p.available_quantity) || 0,
           points: 0,
         };
 
@@ -192,8 +193,19 @@ export default async (req, res) => {
         }
       }
 
-      const catalog = await Product.find(savingsCatalogMongoFilter())
-      const catalogMap = new Map(catalog.map((p) => [String(p.id), p]))
+      const productIds = products.map((p) => String(p.id))
+      const catalogDocs = await Product.find({ id: { $in: productIds } })
+      const catalogMap = new Map(catalogDocs.map((p) => [String(p.id), p]))
+
+      // Toda la orden debe ser elegible para Bono Ahorro
+      for (const id of productIds) {
+        const dbProduct = catalogMap.get(id)
+        if (!dbProduct || !dbProduct.is_savings_bonus) {
+          return res.json(
+            error("Uno o más productos no están disponibles en Tienda Bono Ahorro.")
+          )
+        }
+      }
 
       const stockError = await validatePromotionOrder(
         products,
@@ -207,10 +219,10 @@ export default async (req, res) => {
 
       products = products.map((item) => {
         const dbProduct = catalogMap.get(String(item.id))
-        if (!dbProduct) {
-          throw new Error(`Producto no válido para Bono Ahorro: ${item.id}`)
-        }
-        const qty = Math.max(1, Number(item.total) || 1)
+        const qty = Math.max(
+          1,
+          Number(item.total != null ? item.total : item.qty) || 1
+        )
         const unitPrice = Number(dbProduct.savings_price ?? dbProduct.price) || 0
         return {
           id: dbProduct.id,
