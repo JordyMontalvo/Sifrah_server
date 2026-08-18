@@ -9,10 +9,11 @@ import {
   enrichPromotionForStore,
   validatePromotionOrder,
 } from "../../../lib/promotionStock";
+import { getPromotionEligibility } from "../../../lib/promotionEligibility";
 import { resolveStoreCategories } from "../../../lib/savingsCategoryDefaults";
 import { sortProducts } from "../../../lib/productSort";
 
-const { User, Session, Product, Activation, Office, Transaction, Period, SavingsCategory } = db
+const { User, Session, Product, Activation, Office, Transaction, Period, SavingsCategory, Affiliation } = db
 const { success, error, midd, rand } = lib
 
 const SAVINGS_ORDER_TYPE = "savings_bonus"
@@ -55,6 +56,23 @@ export default async (req, res) => {
 
   if (req.method === "GET") {
     try {
+      const period = await getOrCreateOpenPeriod();
+      let promotionEligibility = {
+        eligible: false,
+        affiliated_current_period: false,
+        total_blocks: 0,
+        accumulated_points: Math.max(0, Number(user.points) || 0),
+      };
+      try {
+        promotionEligibility = await getPromotionEligibility(
+          user,
+          period,
+          Affiliation
+        );
+      } catch (e) {
+        console.error("[Savings Bonus] promotion eligibility error:", e);
+      }
+
       let products = await Product.find(savingsCatalogMongoFilter())
       products = products.filter((p) => {
         if (!isPromotionProduct(p)) return true
@@ -91,16 +109,14 @@ export default async (req, res) => {
           const purchased = await countPromotionPurchasedByUser(
             p.id,
             user.id,
-            Activation
+            Activation,
+            period && period.key
           );
           base = enrichPromotionForStore(
             { ...base, available_quantity: p.available_quantity },
-            purchased
+            purchased,
+            promotionEligibility.total_blocks
           );
-          const max = Number(p.available_quantity) || 0;
-          if (max > 0 && base.promotion_remaining === 0) {
-            continue;
-          }
         }
 
         formattedProducts.push(base);
@@ -120,6 +136,7 @@ export default async (req, res) => {
           products: formattedProducts,
           savingsBalance,
           categories,
+          promotion_eligibility: promotionEligibility,
         })
       )
     } catch (e) {
@@ -207,11 +224,20 @@ export default async (req, res) => {
         }
       }
 
+      const period = await getOrCreateOpenPeriod();
+      const promotionEligibility = await getPromotionEligibility(
+        user,
+        period,
+        Affiliation
+      );
+
       const stockError = await validatePromotionOrder(
         products,
         catalogMap,
         Activation,
-        user.id
+        user.id,
+        period && period.key,
+        promotionEligibility
       )
       if (stockError) {
         return res.json(error(stockError.error))
@@ -285,7 +311,6 @@ export default async (req, res) => {
         }
       }
 
-      const period = await getOrCreateOpenPeriod(new Date())
       const redemptionId = rand()
       const holdTxIds = []
 

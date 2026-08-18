@@ -169,13 +169,14 @@ export default async (req, res) => {
         const purchased = await countPromotionPurchasedByUser(
           p.id,
           user.id,
-          Activation
+          Activation,
+          period && period.key
         );
-        const enrichedP = enrichPromotionForStore(p, purchased);
-        const max = Number(p.available_quantity) || 0;
-        if (max > 0 && enrichedP.promotion_remaining === 0) {
-          continue;
-        }
+        const enrichedP = enrichPromotionForStore(
+          p,
+          purchased,
+          promotionEligibility.total_blocks
+        );
         enriched.push(enrichedP);
       } else {
         enriched.push(p);
@@ -278,14 +279,48 @@ export default async (req, res) => {
       );
     }
 
-    const stockError = await validatePromotionOrder(
+    // Obtener el plan del usuario
+    const planId = user.plan && user.plan.id ? user.plan.id : user.plan;
+
+    // Recalcular el precio de cada producto según el plan del usuario
+    products = products.map((p) => {
+      let finalPrice = p.price;
+      if (p.prices && planId && p.prices[planId] != null && p.prices[planId] !== "") {
+        finalPrice = p.prices[planId];
+      }
+      const dbProduct = catalogById.get(String(p.id));
+      const productPoints =
+        !dbProduct || isPromotionProduct(dbProduct)
+          ? 0
+          : Number(dbProduct.points) || 0;
+      return { ...p, price: finalPrice, points: productPoints };
+    });
+
+    const hasPromotion = products.some((p) => {
+      const db = catalogById.get(String(p.id));
+      return db && isPromotionProduct(db);
+    });
+
+    const projectedPromotionEligibility = await getPromotionEligibility(
+      user,
+      period,
+      Affiliation,
       products,
-      catalogById,
-      Activation,
-      user.id
+      catalogById
     );
-    if (stockError) {
-      return res.json(error(stockError.error));
+
+    if (hasPromotion) {
+      const stockError = await validatePromotionOrder(
+        products,
+        catalogById,
+        Activation,
+        user.id,
+        period && period.key,
+        projectedPromotionEligibility
+      );
+      if (stockError) {
+        return res.json(error(stockError.error));
+      }
     }
 
     // Cada comprobante debe tener su propio número de operación
@@ -337,42 +372,6 @@ export default async (req, res) => {
       if (selectedAgency) {
         agencyName = selectedAgency.agency_name;
       }
-    }
-
-    // Obtener el plan del usuario
-    const planId = user.plan && user.plan.id ? user.plan.id : user.plan;
-
-    // Recalcular el precio de cada producto según el plan del usuario
-    products = products.map((p) => {
-      let finalPrice = p.price;
-      if (p.prices && planId && p.prices[planId] != null && p.prices[planId] !== "") {
-        finalPrice = p.prices[planId];
-      }
-      const dbProduct = catalogById.get(String(p.id));
-      const productPoints =
-        !dbProduct || isPromotionProduct(dbProduct)
-          ? 0
-          : Number(dbProduct.points) || 0;
-      return { ...p, price: finalPrice, points: productPoints };
-    });
-
-    const hasPromotion = products.some((p) => {
-      const db = catalogById.get(String(p.id));
-      return db && isPromotionProduct(db);
-    });
-    const projectedPromotionEligibility = await getPromotionEligibility(
-      user,
-      period,
-      Affiliation,
-      products,
-      catalogById
-    );
-    if (hasPromotion && !projectedPromotionEligibility.eligible) {
-      return res.json(
-        error(
-          `Para adquirir una promoción debes haberte afiliado en el periodo actual o alcanzar ${PROMOTION_REQUIRED_POINTS} puntos entre tu acumulado y esta compra.`
-        )
-      );
     }
 
     const points = products.reduce((a, b) => a + (b.points || 0) * b.total, 0)
