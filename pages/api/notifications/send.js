@@ -1,4 +1,4 @@
-import { MongoClient } from 'mongodb';
+import { MongoClient, ObjectId } from 'mongodb';
 import admin from 'firebase-admin';
 
 // Inicializar Firebase Admin una sola vez
@@ -49,7 +49,13 @@ export default async function handler(req, res) {
     let tokens = [];
 
     if (userId) {
-      const user = await db.collection('users').findOne({ _id: userId });
+      let queryOr = [{ dni: String(userId).trim() }, { id: String(userId).trim() }];
+      if (String(userId).trim().length === 24) {
+        try {
+          queryOr.push({ _id: ObjectId(String(userId).trim()) });
+        } catch (e) {}
+      }
+      const user = await db.collection('users').findOne({ $or: queryOr });
       if (user && user.fcmToken) {
         tokens.push(user.fcmToken);
       }
