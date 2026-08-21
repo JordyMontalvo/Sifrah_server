@@ -31,12 +31,15 @@ export default async function handler(req, res) {
     if (dni) {
       query = { dni: String(dni) };
     } else {
-      query = { _id: userId };
-      try {
-          if (userId.length === 24) {
-             query = { _id: ObjectId(userId) };
-          }
-      } catch(e) {}
+      if (userId && userId.length === 24) {
+        try {
+           query = { _id: ObjectId(userId) };
+        } catch (e) {
+           query = { dni: String(userId) };
+        }
+      } else {
+        query = { dni: String(userId) };
+      }
     }
 
     const result = await db.collection('users').updateOne(
