@@ -14,10 +14,10 @@ export default async function handler(req, res) {
     return res.status(405).json({ message: 'Method Not Allowed' });
   }
 
-  const { userId, fcmToken } = req.body;
+  const { userId, fcmToken, dni } = req.body;
 
-  if (!userId || !fcmToken) {
-    return res.status(400).json({ message: 'Faltan datos requeridos (userId, fcmToken)' });
+  if ((!userId && !dni) || !fcmToken) {
+    return res.status(400).json({ message: 'Faltan datos requeridos (userId/dni, fcmToken)' });
   }
 
   const URL = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/sifrah";
@@ -27,12 +27,17 @@ export default async function handler(req, res) {
     await client.connect();
     const db = client.db(process.env.DB_NAME || 'sifrah');
     
-    let query = { _id: userId };
-    try {
-        if (userId.length === 24) {
-           query = { _id: ObjectId(userId) };
-        }
-    } catch(e) {}
+    let query = {};
+    if (dni) {
+      query = { dni: String(dni) };
+    } else {
+      query = { _id: userId };
+      try {
+          if (userId.length === 24) {
+             query = { _id: ObjectId(userId) };
+          }
+      } catch(e) {}
+    }
 
     const result = await db.collection('users').updateOne(
       query,
