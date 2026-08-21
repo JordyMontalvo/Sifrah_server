@@ -20,7 +20,7 @@
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
     "express": "^4.21.2",
-    "firebase-admin": "^14.3.0",
+    "firebase-admin": "11.11.1",
     "formidable": "^2.1.5",
     "googleapis": "^140.0.1",
     "imagekit": "^3.0.5",
