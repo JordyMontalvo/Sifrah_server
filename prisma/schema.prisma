@@ -24,6 +24,7 @@ model User {
   photo      String?
   password   String?
   type       String?
+  fcmToken   String? // FCM Token para notificaciones push
 
   planId String?
   plan   Plan?   @relation(fields: [planId], references: [id])
