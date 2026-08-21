@@ -91,6 +91,8 @@ const Login = async (req, res) => {
 
   return res.json(success({
     session,
+    id: user.id,
+    dni: user.dni,
     name: user.name,
     lastName: user.lastName,
     email: user.email,
