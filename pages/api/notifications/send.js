@@ -4,13 +4,13 @@ import admin from 'firebase-admin';
 // Inicializar Firebase Admin una sola vez
 if (!admin.apps.length) {
   try {
-    // Intenta leer el archivo de configuración. Si falla (aún no lo han subido), loguea el error.
     const serviceAccount = require('../../../firebase-adminsdk.json');
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount)
     });
+    console.log('[Firebase] Admin SDK inicializado correctamente');
   } catch (error) {
-    console.error("No se pudo inicializar Firebase Admin. Asegúrate de tener el archivo firebase-adminsdk.json en la carpeta server/");
+    console.error("[Firebase] No se pudo inicializar Firebase Admin:", error.message);
   }
 }
 
@@ -49,8 +49,7 @@ export default async function handler(req, res) {
     let tokens = [];
 
     if (userId) {
-      // Enviar a un usuario específico
-      const user = await db.collection('users').findOne({ _id: userId }); // Puedes ajustar si es ObjectId
+      const user = await db.collection('users').findOne({ _id: userId });
       if (user && user.fcmToken) {
         tokens.push(user.fcmToken);
       }
@@ -58,23 +57,36 @@ export default async function handler(req, res) {
       // Enviar a TODOS los usuarios que tengan fcmToken
       const usersWithTokens = await db.collection('users').find({ fcmToken: { $exists: true, $ne: null } }).toArray();
       tokens = usersWithTokens.map(u => u.fcmToken);
+      console.log('[Notifications/send] Tokens encontrados en BD:', tokens.length);
+      if (tokens.length > 0) {
+        console.log('[Notifications/send] Token muestra:', tokens[0].substring(0, 40) + '...');
+      }
     }
 
     if (tokens.length === 0) {
       return res.status(404).json({ success: false, message: 'No se encontraron tokens para enviar la notificación' });
     }
 
-    // Configurar el mensaje
     const message = {
       notification: {
         title: title,
         body: body
       },
-      tokens: tokens // Multicast message
+      tokens: tokens
     };
 
+    console.log('[Notifications/send] Enviando a', tokens.length, 'dispositivos...');
     const response = await admin.messaging().sendEachForMulticast(message);
-    
+
+    // Log detallado de los resultados
+    response.responses.forEach((r, i) => {
+      if (r.success) {
+        console.log('[Notifications/send] Token', i, 'EXITO - messageId:', r.messageId);
+      } else {
+        console.log('[Notifications/send] Token', i, 'FALLO - code:', r.error.code, '- msg:', r.error.message);
+      }
+    });
+
     res.status(200).json({
       success: true,
       message: 'Notificaciones enviadas',
@@ -83,7 +95,7 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    console.error('Error enviando notificación push:', error);
+    console.error('[Notifications/send] Error general:', error);
     res.status(500).json({ success: false, error: error.message });
   } finally {
     await client.close();
