@@ -72,6 +72,31 @@ export default async function handler(req, res) {
         title: title,
         body: body
       },
+      android: {
+        priority: 'high',
+        notification: {
+          title: title,
+          body: body,
+          channelId: 'sifrah_alerts',
+          priority: 'max',
+          sound: 'default',
+          vibrateTimingsMillis: [0, 500, 200, 500],
+          visibility: 'public',
+          notificationCount: 1
+        }
+      },
+      apns: {
+        payload: {
+          aps: {
+            alert: {
+              title: title,
+              body: body
+            },
+            badge: 1,
+            sound: 'default'
+          }
+        }
+      },
       tokens: tokens
     };
 
