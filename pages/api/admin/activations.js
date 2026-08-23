@@ -579,57 +579,11 @@ export default async (req, res) => {
     }
 
     if (action == "revert") {
-      console.log("revert");
-
-      const user = await User.findOne({ id: activation.userId });
-
-      await Activation.delete({ id });
-
-      user.points = user.points - activation.points;
-
-      await User.update({ id: user.id }, { points: user.points });
-      const activated = user.activated ? true : user.points >= 120;
-
-      await User.update(
-        { id: user.id },
-        {
-          activated,
-        }
+      return res.json(
+        error(
+          "La eliminación de compras (tachito) está deshabilitada. Use Anular: solo resta puntos si la compra estaba aprobada."
+        )
       );
-
-      const transactions = activation.transactions;
-      console.log(transactions);
-
-      for (let id of transactions) {
-        await Transaction.delete({ id });
-      }
-
-      // UPDATE STOCK
-      console.log("UPDATE STOCK ...");
-      const office_id = activation.office;
-      const products = activation.products || []; // Asegurarse de que products sea un array
-      const office = await Office.findOne({ id: office_id });
-      if (office && Array.isArray(products)) {
-        products.forEach((p, i) => {
-          if (office.products[i]) office.products[i].total += products[i].total;
-        });
-        await Office.update(
-          { id: office_id },
-          {
-            products: office.products,
-          }
-        );
-      }
-
-      await lib.createAuditLog(AuditLog, {
-        collection: "activations",
-        action: "revert",
-        target_id: id,
-        user_id: user.id,
-        admin_id: auth.user.id,
-        state_before: { points: user.points + activation.points, activated: true }, // rough estimate
-        state_after: { points: user.points, activated: activated }
-      });
     }
 
     if (action == "change") {
