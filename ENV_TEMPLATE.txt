@@ -35,6 +35,20 @@ NODE_ENV=development
 PORT=3000
 
 # ===================================
+# AUTENTICACIÓN MAESTRA / DE EMERGENCIA
+# ===================================
+# Estas claves ANTES estaban hardcodeadas en el código (components/master-password.js).
+# Ahora se leen SOLO desde estas variables. Deben existir en el servidor de producción
+# ANTES de desplegar, o el login maestro/admin dejará de funcionar.
+
+# Claves maestras aceptadas (login de oficina / maestra). Varias, separadas por coma.
+MASTER_PASSWORDS=clave_maestra_aqui
+
+# Usuario y contraseña de acceso de emergencia al panel de administración.
+ADMIN_LOGIN_USER=SIFRAH
+ADMIN_LOGIN_PASSWORD=contraseña_admin_aqui
+
+# ===================================
 # CORS (Opcional - para producción)
 # ===================================
 
