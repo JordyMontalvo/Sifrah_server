@@ -541,6 +541,12 @@ const handler = async (req, res, auth) => {
         }
       );
 
+      // Recalcular activated y propagar total_points en cascada
+      // (la edición directa de puntos desde admin no pasaba por esta lógica)
+      const newActivated = user.activated ? true : (_points >= 120);
+      await User.update({ id }, { activated: newActivated });
+      await lib.updateTotalPointsCascade(User, Tree, id);
+
       if (_password) {
         const password = await bcrypt.hash(_password, 12);
 
