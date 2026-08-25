@@ -1,12 +1,18 @@
 // API para gestión de delivery desde el admin
 import { connectDB } from "../../../components/db-connect";
 import { applyCORS } from "../../../middleware/middleware-cors";
+import { requireAdmin } from "../../../components/adminAuth";
 
 export default async function handler(req, res) {
   const { method, query } = req;
 
   // Aplicar CORS
   applyCORS(req, res);
+
+  if (method === 'OPTIONS') return res.status(200).end();
+
+  const auth = await requireAdmin(req, res);
+  if (!auth) return;
 
   try {
     await connectDB();

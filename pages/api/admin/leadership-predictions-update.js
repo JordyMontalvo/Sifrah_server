@@ -1,4 +1,5 @@
 import MLMPredictionService from '../../../components/mlm-prediction-service-working';
+import { requireAdmin } from '../../../components/adminAuth';
 const { applyCORS } = require('../../../middleware/middleware-cors');
 
 export default async function handler(req, res) {
@@ -10,6 +11,9 @@ export default async function handler(req, res) {
     res.status(200).end();
     return;
   }
+
+  const auth = await requireAdmin(req, res);
+  if (!auth) return;
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });

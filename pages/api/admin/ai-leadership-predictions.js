@@ -1,6 +1,7 @@
 import MLMAIService from '../../../components/mlm-ai-service';
 import MLMPredictionService from '../../../components/mlm-prediction-service-working';
 const { applyCORS } = require('../../../middleware/middleware-cors');
+import { requireAdmin } from '../../../components/adminAuth';
 
 export default async function handler(req, res) {
   // Aplicar CORS flexible
@@ -11,6 +12,9 @@ export default async function handler(req, res) {
     res.status(200).end();
     return;
   }
+
+  const auth = await requireAdmin(req, res);
+  if (!auth) return;
 
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Método no permitido' });

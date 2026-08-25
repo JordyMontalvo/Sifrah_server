@@ -1,5 +1,6 @@
 import db from "../../../components/db";
 import lib from "../../../components/lib";
+import { requireAdmin } from "../../../components/adminAuth";
 import { MongoClient } from "mongodb";
 
 const URL = process.env.DB_URL;
@@ -47,6 +48,8 @@ async function getLatestOpenPeriod() {
 
 export default async (req, res) => {
   await midd(req, res);
+  const auth = await requireAdmin(req, res);
+  if (!auth) return;
 
   if (req.method === "GET") {
     try {

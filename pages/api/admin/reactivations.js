@@ -1,5 +1,6 @@
 import db from "../../../components/db"
 import lib from "../../../components/lib"
+import { requireAdmin } from "../../../components/adminAuth"
 
 const { ReactivationRequest, User, Tree, AuditLog } = db
 const { error, success, midd } = lib
@@ -84,6 +85,8 @@ const postHandler = async (req, res) => {
 
 export default async (req, res) => {
   await midd(req, res)
+  const auth = await requireAdmin(req, res)
+  if (!auth) return
   if (req.method === 'GET') return getHandler(req, res)
   if (req.method === 'POST') return postHandler(req, res)
   return res.json(error('Method not allowed'))

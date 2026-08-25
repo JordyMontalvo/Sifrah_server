@@ -1,5 +1,6 @@
 import db from "../../../components/db"
 import lib from "../../../components/lib"
+import { requireAdmin } from "../../../components/adminAuth"
 
 const { Tree, User, Closed } = db
 const { success, midd, map, error } = lib
@@ -65,6 +66,8 @@ function found(id, __id) {
 
 export default async (req, res) => {
   await midd(req, res)
+  const auth = await requireAdmin(req, res)
+  if (!auth) return
 
   tree  = await Tree.find({})
 

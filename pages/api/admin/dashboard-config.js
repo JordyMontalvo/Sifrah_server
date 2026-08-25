@@ -1,11 +1,14 @@
 import db from "../../../components/db"
 import lib from "../../../components/lib"
+import { requireAdmin } from "../../../components/adminAuth"
 
 const { DashboardConfig, User } = db
 const { error, success, midd } = lib
 
 export default async (req, res) => {
   await midd(req, res)
+  const auth = await requireAdmin(req, res)
+  if (!auth) return
 
   if(req.method == 'GET') {
     const { userId } = req.query

@@ -1,5 +1,6 @@
 import db  from "../../../components/db"
 import lib from "../../../components/lib"
+import { requireAdmin } from "../../../components/adminAuth"
 
 const { User, OfficeCollect } = db
 const { error, success, midd, ids, map, model } = lib
@@ -81,4 +82,9 @@ const handler = async (req, res) => {
   }
 }
 
-export default async (req, res) => { await midd(req, res); return handler(req, res) }
+export default async (req, res) => {
+  await midd(req, res)
+  const auth = await requireAdmin(req, res)
+  if (!auth) return
+  return handler(req, res)
+}

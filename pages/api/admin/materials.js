@@ -1,5 +1,6 @@
 import db from "../../../components/db"
 import lib from "../../../components/lib"
+import { requireAdmin } from "../../../components/adminAuth"
 
 const { Material } = db
 const { success, midd } = lib
@@ -7,6 +8,8 @@ const { success, midd } = lib
 export default async (req, res) => {
     try {
         await midd(req, res)
+        const auth = await requireAdmin(req, res)
+        if (!auth) return
 
         if (req.method == 'GET') {
             const materials = await Material.find({})

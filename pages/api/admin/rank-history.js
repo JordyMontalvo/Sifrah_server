@@ -1,5 +1,6 @@
 import db from "../../../components/db";
 import lib from "../../../components/lib";
+import { requireAdmin } from "../../../components/adminAuth";
 
 const { User, Transaction } = db;
 const { midd, success, error } = lib;
@@ -16,6 +17,8 @@ function normalizeText(v) {
 
 export default async (req, res) => {
   await midd(req, res);
+  const auth = await requireAdmin(req, res);
+  if (!auth) return;
 
   if (req.method !== "GET") return res.json(error("invalid method"));
 

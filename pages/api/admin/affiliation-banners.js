@@ -1,5 +1,6 @@
 import db from "../../../components/db"
 import lib from "../../../components/lib"
+import { requireAdmin } from "../../../components/adminAuth"
 
 const { Banner } = db
 const { error, success, midd } = lib
@@ -9,6 +10,8 @@ const VALID_POSITIONS = ["hero", "kit"]
 
 export default async (req, res) => {
   await midd(req, res)
+  const auth = await requireAdmin(req, res)
+  if (!auth) return
 
   if (req.method === "GET") {
     let affiliationBanners = await Banner.findOne({ id: AFFILIATION_BANNER_ID })

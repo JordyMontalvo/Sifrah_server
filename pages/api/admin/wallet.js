@@ -1,5 +1,6 @@
 import db from "../../../components/db"
 import lib from "../../../components/lib"
+import { requireAdmin } from "../../../components/adminAuth"
 
 const { Transaction, User } = db
 const { midd, success } = lib
@@ -7,6 +8,8 @@ const { midd, success } = lib
 
 export default async (req, res) => {
   await midd(req, res)
+  const auth = await requireAdmin(req, res)
+  if (!auth) return
 
   const users = await User.find({})
 
