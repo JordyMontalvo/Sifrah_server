@@ -1,4 +1,5 @@
 const Cors = require("cors");
+const crypto = require("crypto");
 
 class Lib {
   constructor() {
@@ -27,7 +28,11 @@ class Lib {
   }
 
   rand() {
-    return Math.random().toString(36).substr(2);
+    // Token/ID aleatorio criptográficamente seguro. Sustituye a Math.random(),
+    // que era predecible y permitía secuestrar sesiones. Las sesiones se
+    // concatenan (rand()+rand()+rand()) y se buscan por coincidencia exacta,
+    // por lo que este cambio no invalida las sesiones existentes.
+    return crypto.randomBytes(16).toString("hex");
   }
   
   // Generate a unique 6-character token (e.g., "A3B5C7")
@@ -35,7 +40,7 @@ class Lib {
     const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let token = '';
     for (let i = 0; i < 6; i++) {
-      token += characters.charAt(Math.floor(Math.random() * characters.length));
+      token += characters.charAt(crypto.randomInt(characters.length));
     }
     return token;
   }
