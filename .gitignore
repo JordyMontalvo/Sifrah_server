@@ -118,6 +118,19 @@ Thumbs.db
 cierre_engine/engine_linux
 cierre_engine/engine.exe
 cierre_engine/engine_mac
+cierre_engine/engine_bin
+
+# Scripts sueltos de diagnostico que se ejecutan directamente en el servidor.
+# Suelen llevar la cadena de conexion de Mongo escrita dentro, asi que no deben
+# llegar nunca al historial de git.
+/check_*.js
+/test_*.js
+/fix_*.js
+/simulate_*.js
+/find_duplicates.js
+/remove_duplicates.js
+/last_errors.txt
+/test.json
 
 /lib/generated/prisma
 firebase-adminsdk.json
