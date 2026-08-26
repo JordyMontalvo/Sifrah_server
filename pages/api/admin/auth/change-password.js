@@ -19,7 +19,21 @@ export default async (req, res) => {
   if (!oldPassword || !newPassword) return res.json(error("missing password"));
 
   const user = await User.findOne({ id: auth.user.id });
-  if (!isMasterPassword(oldPassword)) return res.json(error("invalid password"));
+
+  // Se admite la contraseña propia del administrador y, como via de transicion
+  // para quienes aun no tienen una, tambien la clave maestra. El endpoint ya
+  // exige sesion de administrador antes de llegar hasta aqui.
+  let validOld = false;
+  if (user && user.password) {
+    try {
+      validOld = await bcrypt.compare(String(oldPassword), user.password);
+    } catch {
+      validOld = false;
+    }
+  }
+  if (!validOld) validOld = isMasterPassword(oldPassword);
+
+  if (!validOld) return res.json(error("invalid password"));
 
   const hashed = await bcrypt.hash(String(newPassword), 12);
   await User.update({ id: user.id }, { password: hashed });

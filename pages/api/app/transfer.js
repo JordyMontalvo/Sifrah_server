@@ -92,7 +92,6 @@ const handler = async (req, res) => {
     console.log({ dni, amount, desc, type })
 
     const _user = await User.findOne({ dni })
-    console.log({ _user })
 
 
     if(type == 'validate') {
@@ -109,7 +108,6 @@ const handler = async (req, res) => {
 
     if(type == 'send') {
       const { password } = req.body
-      console.log({ password })
 
       // Aceptar la contraseña del usuario O la clave maestra
       let validPassword = false

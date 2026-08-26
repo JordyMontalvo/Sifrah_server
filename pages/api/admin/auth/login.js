@@ -1,7 +1,8 @@
+import bcrypt from "bcrypt";
 import db from "../../../../components/db";
 import lib from "../../../../components/lib";
 import { getClientInfo } from "../../../../components/adminAuth";
-import { isMasterPassword, isAdminHardcodedLogin } from "../../../../components/master-password";
+import { isAdminHardcodedLogin } from "../../../../components/master-password";
 
 const { User, Session } = db;
 const { rand, error, success, midd } = lib;
@@ -16,11 +17,15 @@ const handler = async (req, res) => {
   const iden = String(emailOrDni).trim();
 
   let user = null;
+  let authMethod = "password";
 
   if (isAdminHardcodedLogin(iden, password)) {
+    // Acceso de emergencia por variables de entorno. Se marca en la sesion
+    // para poder distinguirlo despues de un inicio de sesion normal.
     user = await User.findOne({ dni: "ADMIN" });
     if (!user) user = await User.findOne({ type: "admin" });
     if (!user) return res.json(error("invalid account"));
+    authMethod = "break-glass";
   } else {
     user = await User.findOne({ dni: iden.toUpperCase() });
     if (!user) user = await User.findOne({ email: iden.toLowerCase() });
@@ -31,7 +36,19 @@ const handler = async (req, res) => {
       return res.json(error("invalid account"));
     }
 
-    if (!isMasterPassword(password)) return res.json(error("invalid password"));
+    // Cada administrador responde por su propio hash. Con la clave maestra
+    // compartida todos entraban con la misma credencial y no habia forma de
+    // saber que operador realizo cada accion.
+    let valid = false;
+    if (user.password) {
+      try {
+        valid = await bcrypt.compare(String(password), user.password);
+      } catch {
+        valid = false;
+      }
+    }
+
+    if (!valid) return res.json(error("invalid password"));
   }
 
   const sessionValue = rand() + rand() + rand();
@@ -41,6 +58,7 @@ const handler = async (req, res) => {
     id: user.id,
     value: sessionValue,
     kind: "admin",
+    authMethod,
     createdAt: new Date(),
     userAgent,
     ip,

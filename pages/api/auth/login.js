@@ -15,8 +15,6 @@ const Login = async (req, res) => {
   dni = String(dni).trim()
   password = String(password)
 
-  console.log({ dni, password, office_id })
-
   // valid user
   const user = await User.findOne({ dni })
   if(!user) return res.json(error('dni not found'))
@@ -42,6 +40,9 @@ const Login = async (req, res) => {
   const isOfficeLogin = !!office_id;
 
   if (isOfficeLogin) {
+    // La atencion en ventanilla se autoriza con la clave maestra, no con la
+    // del socio. Fuera de ese flujo la clave maestra no abre ninguna cuenta:
+    // aceptarla como respaldo permitia entrar a cualquier DNI del sistema.
     validPassword = await verifyMasterPassword(password, DashboardConfig);
   } else if (user.password) {
     try {
@@ -49,10 +50,6 @@ const Login = async (req, res) => {
     } catch {
       validPassword = false;
     }
-  }
-
-  if (!validPassword) {
-    validPassword = await verifyMasterPassword(password, DashboardConfig);
   }
 
   if (!validPassword) return res.json(error('invalid password'))
