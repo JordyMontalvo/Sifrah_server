@@ -32,10 +32,18 @@ const handler = async (req, res) => {
 
   const safeFileName = String(fileName).replace(/[^a-zA-Z0-9._-]/g, "_");
 
+  // dir se usa tal cual como carpeta de destino en el storage zone: sin sanear,
+  // un "../" permite escribir fuera de la carpeta prevista.
+  const safeDir =
+    String(dir)
+      .replace(/[^a-zA-Z0-9._/-]/g, "")
+      .replace(/\.\.+/g, "")
+      .replace(/^\/+|\/+$/g, "") || "general";
+
   try {
     const { url } = await uploadToBunny({
       fileName: safeFileName,
-      dir,
+      dir: safeDir,
       fileData,
     });
     return res.status(200).json({ url });

@@ -53,6 +53,34 @@ export async function requireAdmin(req, res) {
   return { user, session, value };
 }
 
+/**
+ * Exige una sesion valida (de usuario, no necesariamente admin).
+ * Acepta la sesion en Authorization: Bearer, x-session, query o body,
+ * porque la app todavia la envia por query string en varios endpoints.
+ */
+export async function requireSession(req, res) {
+  const value = getSessionValue(req);
+  if (!value) {
+    res.statusCode = 401;
+    res.json(error("missing session"));
+    return null;
+  }
+
+  const session = await Session.findOne({ value });
+  if (!session) {
+    res.statusCode = 401;
+    res.json(error("invalid session"));
+    return null;
+  }
+  if (session.closedAt || session.closed_at || session.revokedAt || session.revoked_at) {
+    res.statusCode = 401;
+    res.json(error("invalid session"));
+    return null;
+  }
+
+  return { session, value };
+}
+
 export function getClientInfo(req) {
   const userAgent = (req.headers && (req.headers["user-agent"] || req.headers["User-Agent"])) || null;
   const ip =

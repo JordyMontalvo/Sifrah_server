@@ -1,10 +1,9 @@
 const cors = require('micro-cors')()
 const ImageKit = require("imagekit")
+const { requireSession } = require("../../../components/adminAuth")
 
 const publicKey = process.env.IMAGEKIT_PUBLIC
 const privateKey = process.env.IMAGEKIT_PRIVATE
-
-console.log('imagekit !!! ....................................')
 
 var imagekit = new ImageKit({
   publicKey,
@@ -12,7 +11,14 @@ var imagekit = new ImageKit({
   urlEndpoint: "https://ik.imagekit.io/asu/",
 })
 
-module.exports = cors((req, res) => {
+// Entrega credenciales de subida firmadas: sin sesion cualquiera podia subir
+// archivos a la cuenta de ImageKit.
+module.exports = cors(async (req, res) => {
+  if (req.method === "OPTIONS") return res.status(200).end()
+
+  const auth = await requireSession(req, res)
+  if (!auth) return
+
   return res.json(imagekit.getAuthenticationParameters())
 })
 
