@@ -1,5 +1,6 @@
 import db  from "../../../components/db"
 import lib from "../../../components/lib"
+import { acquireWalletLock, releaseWalletLock } from "../../../components/wallet-lock"
 
 const { User, Session, Transaction, Collect, Period } = db
 const { error, success, midd, rand } = lib
@@ -100,49 +101,58 @@ const handler = async (req, res) => {
     if (!Number.isFinite(withdrawAmount) || withdrawAmount <= 0) {
       return res.json(error("invalid amount"))
     }
-    if (balance <= 0) {
-      return res.json(error("amount exceeds the balance"))
+
+    // Mismo motivo que en las transferencias: el saldo leido al inicio puede
+    // estar obsoleto, y dos retiros simultaneos lo aprobarian por separado.
+    const locked = await acquireWalletLock(user.id)
+    if (!locked) return res.json(error("operation in progress"))
+
+    try {
+      const currentTransactions = await Transaction.find({ user_id: user.id, virtual: { $in: [null, false] } })
+      const currentBalance = lib.calcAvailableBalance(currentTransactions)
+
+      if (currentBalance <= 0 || withdrawAmount > currentBalance) {
+        return res.json(error("amount exceeds the balance"))
+      }
+
+      const id = rand()
+
+      const period = await getOrCreateOpenPeriod(new Date())
+
+      // save new collect
+      await Collect.insert({
+        date: new Date(),
+        id,
+        userId: user.id,
+        cash,
+        bank,
+        account,
+        account_type,
+        amount: withdrawAmount,
+        desc,
+        office,
+        status: 'pending',
+      })
+
+      await Transaction.insert({
+        id:     rand(),
+        date:   new Date(),
+        user_id: user.id,
+        type:  'out',
+        value:  withdrawAmount,
+        name:  'collect',
+        desc,
+        collectId: id,
+        virtual: false,
+        period_key: period.key,
+        period_label: period.label,
+      })
+
+      // response
+      return res.json(success())
+    } finally {
+      await releaseWalletLock(user.id)
     }
-    if (withdrawAmount > balance) {
-      return res.json(error("amount exceeds the balance"))
-    }
-
-
-    const id = rand()
-
-    const period = await getOrCreateOpenPeriod(new Date())
-
-    // save new collect
-    await Collect.insert({
-      date: new Date(),
-      id,
-      userId: user.id,
-      cash,
-      bank,
-      account,
-      account_type,
-      amount: withdrawAmount,
-      desc,
-      office,
-      status: 'pending',
-    })
-
-    await Transaction.insert({
-      id:     rand(),
-      date:   new Date(),
-      user_id: user.id,
-      type:  'out',
-      value:  withdrawAmount,
-      name:  'collect',
-      desc,
-      collectId: id,
-      virtual: false,
-      period_key: period.key,
-      period_label: period.label,
-    })
-
-    // response
-    return res.json(success())
   }
 }
 

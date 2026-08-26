@@ -246,6 +246,15 @@ class MongoWrapper {
   async updateOne(query, values) {
     return this.update(query, values);
   }
+  // Busca y modifica en una sola operacion del servidor. A diferencia de
+  // update(), aqui se pasa el documento de actualizacion completo con sus
+  // operadores. Devuelve el documento previo, o null si el filtro no encontro
+  // nada: eso permite usarlo como comprobacion-y-escritura atomica.
+  async findOneAndUpdate(query, update, options = {}) {
+    const col = await this._getCollection();
+    const res = await col.findOneAndUpdate(query, update, options);
+    return res && res.value ? res.value : null;
+  }
   async updateMany(query, values) {
     const col = await this._getCollection();
     await col.updateMany(query, { $set: values });

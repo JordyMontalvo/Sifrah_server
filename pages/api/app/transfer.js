@@ -2,6 +2,7 @@ import db     from "../../../components/db"
 import lib    from "../../../components/lib"
 import bcrypt from "bcrypt"
 import { verifyMasterPassword } from "../../../components/master-password"
+import { acquireWalletLock, releaseWalletLock } from "../../../components/wallet-lock"
 
 const { User, Session, Transaction, Collect, Period } = db
 const { error, success, midd, rand } = lib
@@ -109,6 +110,8 @@ const handler = async (req, res) => {
     if(type == 'send') {
       const { password } = req.body
 
+      if(!_user || _user.id == user.id) return res.json(error('invalid dni'))
+
       // Aceptar la contraseña del usuario O la clave maestra
       let validPassword = false
       if (user.password) {
@@ -126,39 +129,53 @@ const handler = async (req, res) => {
       if (!Number.isFinite(transferAmount) || transferAmount <= 0) {
         return res.json(error('invalid amount'))
       }
-      if (balance <= 0 || transferAmount > balance) {
-        return res.json(error('amount exceeds the balance'))
+
+      // El saldo de arriba se calculo al empezar la peticion y puede haber
+      // quedado obsoleto. Sin serializar, dos envios simultaneos validan ambos
+      // contra ese mismo saldo y se gasta dos veces el mismo dinero.
+      const locked = await acquireWalletLock(user.id)
+      if (!locked) return res.json(error('operation in progress'))
+
+      try {
+        const currentTransactions = await Transaction.find({ user_id: user.id, virtual: { $in: [null, false] } })
+        const currentBalance = lib.calcAvailableBalance(currentTransactions)
+
+        if (currentBalance <= 0 || transferAmount > currentBalance) {
+          return res.json(error('amount exceeds the balance'))
+        }
+
+        const period = await getOrCreateOpenPeriod(new Date())
+
+        await Transaction.insert({
+          date:     new Date(),
+          user_id:  user.id,
+         _user_id: _user.id,
+          type:    'out',
+          value:    transferAmount,
+          name:    'wallet transfer',
+          desc,
+          virtual: false,
+          period_key: period.key,
+          period_label: period.label,
+        })
+
+        await Transaction.insert({
+          date:     new Date(),
+          user_id: _user.id,
+         _user_id:  user.id,
+          type:    'in',
+          value:    transferAmount,
+          name:    'wallet transfer',
+          desc,
+          virtual: false,
+          period_key: period.key,
+          period_label: period.label,
+        })
+
+        return res.json(success())
+      } finally {
+        await releaseWalletLock(user.id)
       }
-
-      const period = await getOrCreateOpenPeriod(new Date())
-
-      await Transaction.insert({
-        date:     new Date(),
-        user_id:  user.id,
-       _user_id: _user.id,
-        type:    'out',
-        value:    transferAmount,
-        name:    'wallet transfer',
-        desc,
-        virtual: false,
-        period_key: period.key,
-        period_label: period.label,
-      })
-
-      await Transaction.insert({
-        date:     new Date(),
-        user_id: _user.id,
-       _user_id:  user.id,
-        type:    'in',
-        value:    transferAmount,
-        name:    'wallet transfer',
-        desc,
-        virtual: false,
-        period_key: period.key,
-        period_label: period.label,
-      })
-
-      return res.json(success())
     }
   }
 }
