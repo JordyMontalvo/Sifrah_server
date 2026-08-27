@@ -9,7 +9,14 @@ const TOKEN_TTL_MS = 60 * 60 * 1000
 
 const APP_URL = process.env.APP_URL || 'https://sifrah.vercel.app'
 
+import { applyCORS } from "../../../middleware/middleware-cors"
+
 export default async (req, res) => {
+  applyCORS(req, res)
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end()
+  }
+
   await midd(req, res)
 
   if (req.method !== 'POST') return res.status(405).json(error('method not allowed'))

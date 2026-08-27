@@ -5,7 +5,14 @@ import bcrypt from "bcrypt"
 const { User, Token } = db
 const { error, success, midd } = lib
 
+import { applyCORS } from "../../../middleware/middleware-cors"
+
 export default async (req, res) => {
+  applyCORS(req, res)
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end()
+  }
+
   await midd(req, res)
 
   if (req.method !== 'POST') return res.status(405).json(error('method not allowed'))
