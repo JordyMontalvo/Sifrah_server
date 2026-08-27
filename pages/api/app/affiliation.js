@@ -244,9 +244,10 @@ export default async (req, res) => {
     const officeDoc = await Office.findOne({ id: officeId, active: { $ne: false } })
     if (!officeDoc) return res.json(error("La Oficina de Recojo (PDE) seleccionada no es válida."))
 
-    // Buscar el plan seleccionado
-    plan = plans.find((e) => e.id == plan.id);
-    console.log({ plan });
+    // Buscar el plan seleccionado. El importe se toma de aqui, del catalogo de
+    // planes, y no de lo que llegue en la peticion.
+    plan = plan && plan.id ? plans.find((e) => e.id == plan.id) : null;
+    if (!plan) return res.json(error("El plan seleccionado no es válido."));
 
     let transactions = [];
     let amounts;

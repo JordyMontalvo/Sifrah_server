@@ -282,17 +282,42 @@ export default async (req, res) => {
     // Obtener el plan del usuario
     const planId = user.plan && user.plan.id ? user.plan.id : user.plan;
 
-    // Recalcular el precio de cada producto según el plan del usuario
+    // Un producto que no esté en el catálogo no tiene precio de referencia, así
+    // que no hay forma de cobrarlo correctamente.
+    const unknownProduct = products.find((p) => !catalogById.get(String(p.id)));
+    if (unknownProduct) {
+      return res.json(error("Hay un producto no disponible en la orden."));
+    }
+
+    const invalidQuantity = products.find((p) => {
+      const qty = Number(p.total);
+      return !Number.isFinite(qty) || qty <= 0 || Math.floor(qty) !== qty;
+    });
+    if (invalidQuantity) {
+      return res.json(error("La cantidad de un producto no es válida."));
+    }
+
+    // Recalcular el precio de cada producto según el plan del usuario.
+    // El precio sale siempre del catálogo: tomarlo de p.price o de p.prices,
+    // que llegan en la petición, permitía pedir un producto real por céntimos.
     products = products.map((p) => {
-      let finalPrice = p.price;
-      if (p.prices && planId && p.prices[planId] != null && p.prices[planId] !== "") {
-        finalPrice = p.prices[planId];
-      }
       const dbProduct = catalogById.get(String(p.id));
-      const productPoints =
-        !dbProduct || isPromotionProduct(dbProduct)
-          ? 0
-          : Number(dbProduct.points) || 0;
+
+      let finalPrice = Number(dbProduct.price) || 0;
+      const catalogPrices = dbProduct.prices;
+      if (
+        catalogPrices &&
+        planId &&
+        catalogPrices[planId] != null &&
+        catalogPrices[planId] !== ""
+      ) {
+        finalPrice = Number(catalogPrices[planId]) || 0;
+      }
+
+      const productPoints = isPromotionProduct(dbProduct)
+        ? 0
+        : Number(dbProduct.points) || 0;
+
       return { ...p, price: finalPrice, points: productPoints };
     });
 
@@ -385,7 +410,9 @@ export default async (req, res) => {
     // Incluir delivery en el monto a cobrar (debe coincidir con checkout finalTotal)
     let deliveryCharge = 0;
     if (deliveryMethod === "delivery" && deliveryInfo) {
-      deliveryCharge = Number(deliveryInfo.deliveryPrice) || 0;
+      // El importe sigue llegando del cliente, pero acotarlo a un valor no
+      // negativo impide que un envio "negativo" rebaje el total de la compra.
+      deliveryCharge = Math.max(0, Number(deliveryInfo.deliveryPrice) || 0);
     }
     price = price + deliveryCharge;
 
