@@ -28,6 +28,10 @@ const nextConfig = {
             value:
               "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization, sentry-trace, baggage, Range",
           },
+          {
+            key: "Access-Control-Expose-Headers",
+            value: "Accept-Ranges, Content-Range, Content-Length, Content-Type",
+          },
           // Cabeceras de seguridad adicionales
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "X-Frame-Options", value: "DENY" },
