@@ -1,27 +1,70 @@
-const { Resend } = require('resend');
+const https = require('https');
 const { emailConfig, validateConfig } = require('../config/email');
 
 class EmailService {
   constructor() {
-    this.resend = null;
+    this.apiKey = null;
     this.init();
   }
 
   init() {
     try {
-      const apiKey = process.env.RESEND_API_KEY;
-      if (!apiKey) throw new Error('Falta la variable de entorno RESEND_API_KEY');
-      this.resend = new Resend(apiKey);
-      console.log('✅ Resend configurado correctamente');
+      this.apiKey = process.env.RESEND_API_KEY;
+      if (!this.apiKey) throw new Error('Falta la variable de entorno RESEND_API_KEY');
+      console.log('✅ Resend configurado correctamente (API HTTP)');
     } catch (error) {
       console.error('❌ Error configurando Resend:', error);
-      this.resend = null;
+      this.apiKey = null;
     }
   }
+  sendViaResend(mailOptions) {
+    return new Promise((resolve, reject) => {
+      const data = JSON.stringify({
+        from: mailOptions.from,
+        to: mailOptions.to,
+        subject: mailOptions.subject,
+        html: mailOptions.html
+      });
+
+      const options = {
+        hostname: 'api.resend.com',
+        port: 443,
+        path: '/emails',
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(data)
+        }
+      };
+
+      const req = https.request(options, (res) => {
+        let responseBody = '';
+        res.on('data', (chunk) => responseBody += chunk);
+        res.on('end', () => {
+          try {
+            const parsed = JSON.parse(responseBody);
+            if (res.statusCode >= 200 && res.statusCode < 300) {
+              resolve(parsed);
+            } else {
+              reject(new Error(parsed.message || JSON.stringify(parsed)));
+            }
+          } catch(e) {
+            reject(new Error('Invalid response from Resend'));
+          }
+        });
+      });
+
+      req.on('error', (error) => reject(error));
+      req.write(data);
+      req.end();
+    });
+  }
+
 
   // Enviar email de bienvenida de afiliación aprobada (mensaje oficial SIFRAH)
   async sendAffiliationApprovedEmail(userData) {
-    if (!this.resend) {
+    if (!this.apiKey) {
       throw new Error('Resend no configurado');
     }
 
@@ -36,10 +79,9 @@ class EmailService {
 
     try {
       mailOptions.from = process.env.RESEND_FROM || 'onboarding@resend.dev';
-      const result = await this.resend.emails.send(mailOptions);
-      if (result.error) throw new Error(result.error.message);
-      console.log('Email de bienvenida SIFRAH enviado a:', email, '| ID:', result.data.id);
-      return { success: true, messageId: result.data.id };
+      const result = await this.sendViaResend(mailOptions);
+      console.log('Email de bienvenida SIFRAH enviado a:', result.id);
+      return { success: true, messageId: result.id };
     } catch (error) {
       console.error('Error enviando email:', error);
       throw error;
@@ -48,7 +90,7 @@ class EmailService {
 
   // Enviar email de bienvenida
   async sendWelcomeEmail(userData) {
-    if (!this.resend) {
+    if (!this.apiKey) {
       throw new Error('Resend no configurado');
     }
 
@@ -63,10 +105,9 @@ class EmailService {
 
     try {
       mailOptions.from = process.env.RESEND_FROM || 'onboarding@resend.dev';
-      const result = await this.resend.emails.send(mailOptions);
-      if (result.error) throw new Error(result.error.message);
-      console.log('Email de bienvenida enviado:', result.data.id);
-      return { success: true, messageId: result.data.id };
+      const result = await this.sendViaResend(mailOptions);
+      console.log('Email de bienvenida enviado:', result.id);
+      return { success: true, messageId: result.id };
     } catch (error) {
       console.error('Error enviando email:', error);
       throw error;
@@ -75,7 +116,7 @@ class EmailService {
 
   // Enviar email de activación
   async sendActivationEmail(userData) {
-    if (!this.resend) {
+    if (!this.apiKey) {
       throw new Error('Resend no configurado');
     }
 
@@ -90,10 +131,9 @@ class EmailService {
 
     try {
       mailOptions.from = process.env.RESEND_FROM || 'onboarding@resend.dev';
-      const result = await this.resend.emails.send(mailOptions);
-      if (result.error) throw new Error(result.error.message);
-      console.log('Email de activación enviado:', result.data.id);
-      return { success: true, messageId: result.data.id };
+      const result = await this.sendViaResend(mailOptions);
+      console.log('Email de activación enviado:', result.id);
+      return { success: true, messageId: result.id };
     } catch (error) {
       console.error('Error enviando email:', error);
       throw error;
@@ -102,7 +142,7 @@ class EmailService {
 
   // Enviar email de recuperación de contraseña
   async sendPasswordResetEmail(userData) {
-    if (!this.resend) {
+    if (!this.apiKey) {
       throw new Error('Resend no configurado');
     }
 
@@ -117,10 +157,9 @@ class EmailService {
 
     try {
       mailOptions.from = process.env.RESEND_FROM || 'onboarding@resend.dev';
-      const result = await this.resend.emails.send(mailOptions);
-      if (result.error) throw new Error(result.error.message);
-      console.log('Email de recuperación enviado:', result.data.id);
-      return { success: true, messageId: result.data.id };
+      const result = await this.sendViaResend(mailOptions);
+      console.log('Email de recuperación enviado:', result.id);
+      return { success: true, messageId: result.id };
     } catch (error) {
       console.error('Error enviando email:', error);
       throw error;
@@ -129,7 +168,7 @@ class EmailService {
 
   // Enviar email de contacto
   async sendContactEmail(contactData) {
-    if (!this.resend) {
+    if (!this.apiKey) {
       throw new Error('Resend no configurado');
     }
 
@@ -144,10 +183,9 @@ class EmailService {
 
     try {
       mailOptions.from = process.env.RESEND_FROM || 'onboarding@resend.dev';
-      const result = await this.resend.emails.send(mailOptions);
-      if (result.error) throw new Error(result.error.message);
-      console.log('Email de contacto enviado:', result.data.id);
-      return { success: true, messageId: result.data.id };
+      const result = await this.sendViaResend(mailOptions);
+      console.log('Email de contacto enviado:', result.id);
+      return { success: true, messageId: result.id };
     } catch (error) {
       console.error('Error enviando email:', error);
       throw error;
@@ -156,7 +194,7 @@ class EmailService {
 
   // Enviar email de notificación de comisión
   async sendCommissionNotification(userData, commissionData) {
-    if (!this.resend) {
+    if (!this.apiKey) {
       throw new Error('Resend no configurado');
     }
 
@@ -172,10 +210,9 @@ class EmailService {
 
     try {
       mailOptions.from = process.env.RESEND_FROM || 'onboarding@resend.dev';
-      const result = await this.resend.emails.send(mailOptions);
-      if (result.error) throw new Error(result.error.message);
-      console.log('Email de comisión enviado:', result.data.id);
-      return { success: true, messageId: result.data.id };
+      const result = await this.sendViaResend(mailOptions);
+      console.log('Email de comisión enviado:', result.id);
+      return { success: true, messageId: result.id };
     } catch (error) {
       console.error('Error enviando email:', error);
       throw error;
@@ -537,8 +574,7 @@ class EmailService {
 
   // Verificar conexión del servicio
   async verifyConnection() {
-    if (!this.resend) return false;
-    return true; // Resend doesn't need verification like SMTP
+    return !!this.apiKey;
   }
 }
 
