@@ -32,6 +32,10 @@ export default async (req, res) => {
 
                 const { title, author, category, pages, url, pdfUrl, image, description, active, rating } = req.body.data || {};
 
+                // Aseguramos que url y pdfUrl siempre tengan valor si alguno de los dos está presente
+                const resolvedUrl = url || pdfUrl || "";
+                const resolvedPdfUrl = pdfUrl || url || "";
+
                 await Book.update(
                     { id },
                     {
@@ -39,8 +43,8 @@ export default async (req, res) => {
                         author,
                         category,
                         pages,
-                        url,
-                        pdfUrl,
+                        url: resolvedUrl,
+                        pdfUrl: resolvedPdfUrl,
                         image,
                         description,
                         rating: Number(rating) || 5,
@@ -51,8 +55,12 @@ export default async (req, res) => {
             } else if (action == "add") {
                 const { title, author, category, pages, url, pdfUrl, image, description, active, rating } = req.body.data || {};
 
-                if (!title || !url) {
-                    return res.json({ error: true, msg: "Title and URL are required" });
+                // Aceptar pdfUrl como fuente principal del PDF; url es el fallback (o viceversa)
+                const resolvedUrl = url || pdfUrl || "";
+                const resolvedPdfUrl = pdfUrl || url || "";
+
+                if (!title || !resolvedUrl) {
+                    return res.json({ error: true, msg: "El título y al menos una URL del PDF son requeridos" });
                 }
 
                 await Book.insert({
@@ -61,8 +69,8 @@ export default async (req, res) => {
                     author: author || "Equipo SIFRAH",
                     category: category || "General",
                     pages: pages || "100",
-                    url,
-                    pdfUrl: pdfUrl || "",
+                    url: resolvedUrl,
+                    pdfUrl: resolvedPdfUrl,
                     image: image || "",
                     description: description || "",
                     rating: Number(rating) || 5,
@@ -70,6 +78,7 @@ export default async (req, res) => {
                     created_at: new Date(),
                     updated_at: new Date(),
                 });
+
             } else if (action == "delete") {
                 const { id } = req.body;
                 if (!id) return res.json({ error: true, msg: "ID is required" });

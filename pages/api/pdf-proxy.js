@@ -1,16 +1,17 @@
-import axios from 'axios';
+import http from 'http';
+import https from 'https';
 import dns from 'dns';
 import net from 'net';
 import { promisify } from 'util';
+import lib from '../../components/lib';
 
+const { midd } = lib;
 const lookup = promisify(dns.lookup);
 
-const MAX_BYTES = 60 * 1024 * 1024;
 const MAX_REDIRECTS = 3;
+const BROWSER_UA =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
 
-// Sin este filtro el proxy descarga cualquier URL que le pidan desde la red del
-// servidor: el endpoint de metadatos del cloud (169.254.169.254), servicios que
-// solo escuchan en localhost o cualquier host de la red privada.
 function isInternalAddress(ip) {
   if (net.isIPv4(ip)) {
     const [a, b] = ip.split('.').map(Number);
@@ -38,54 +39,114 @@ async function assertPublicTarget(target) {
   if (isInternalAddress(address)) throw new Error('destino no permitido');
 }
 
-// Seguimos las redirecciones a mano para validar cada salto: delegarlas en axios
-// permitiria que un host publico redirija hacia una direccion interna.
-async function fetchPdf(rawUrl, depth = 0) {
-  if (depth > MAX_REDIRECTS) throw new Error('demasiadas redirecciones');
-
+function normalizePdfUrl(rawUrl) {
   const target = new URL(rawUrl);
-  await assertPublicTarget(target);
-
-  const response = await axios.get(target.toString(), {
-    responseType: 'arraybuffer',
-    timeout: 20000,
-    maxRedirects: 0,
-    maxContentLength: MAX_BYTES,
-    validateStatus: (status) => status >= 200 && status < 400,
-    headers: { 'User-Agent': 'Sifrah-Proxy/1.0' },
-  });
-
-  const location = response.headers && response.headers.location;
-  if (response.status >= 300 && location) {
-    return fetchPdf(new URL(location, target).toString(), depth + 1);
+  if (target.hostname.includes('drive.google.com')) {
+    const id =
+      (target.pathname.match(/\/d\/([^/]+)/) || [])[1] ||
+      target.searchParams.get('id');
+    if (id) return `https://drive.google.com/uc?export=download&id=${id}`;
   }
+  return target.toString();
+}
 
-  return response;
+function applyCorsExpose(res) {
+  res.setHeader(
+    'Access-Control-Expose-Headers',
+    'Accept-Ranges, Content-Range, Content-Length, Content-Type'
+  );
+}
+
+function fetchPdfStream(rawUrl, extraHeaders, depth = 0) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      if (depth > MAX_REDIRECTS) throw new Error('demasiadas redirecciones');
+
+      const target = new URL(rawUrl);
+      await assertPublicTarget(target);
+
+      const client = target.protocol === 'https:' ? https : http;
+      const req = client.request(
+        target,
+        {
+          method: extraHeaders.method || 'GET',
+          headers: extraHeaders.headers,
+        },
+        (upstream) => {
+          if (upstream.statusCode >= 300 && upstream.statusCode < 400 && upstream.headers.location) {
+            upstream.resume();
+            fetchPdfStream(
+              new URL(upstream.headers.location, target).toString(),
+              extraHeaders,
+              depth + 1
+            ).then(resolve, reject);
+            return;
+          }
+          resolve(upstream);
+        }
+      );
+
+      req.on('error', reject);
+      req.setTimeout(30000, () => req.destroy(new Error('timeout')));
+      req.end();
+    } catch (err) {
+      reject(err);
+    }
+  });
 }
 
 export default async function handler(req, res) {
-  const { url } = req.query;
+  await midd(req, res);
+  applyCorsExpose(res);
 
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const { url } = req.query;
   if (!url || typeof url !== 'string') {
     return res.status(400).json({ error: 'URL is required' });
   }
 
-  let response;
+  const range = req.headers.range;
+  const headers = {
+    'User-Agent': BROWSER_UA,
+    Accept: 'application/pdf,application/octet-stream,*/*',
+  };
+  if (range) headers.Range = range;
+
+  let upstream;
   try {
-    response = await fetchPdf(url);
+    upstream = await fetchPdfStream(normalizePdfUrl(url), {
+      method: req.method,
+      headers,
+    });
   } catch (error) {
-    // Sin detalles en la respuesta: convertirian el proxy en un escaner de la red interna.
     console.error('PDF Proxy Error:', error.message);
     return res.status(400).json({ error: 'Failed to fetch PDF' });
   }
 
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Length', response.data.length);
+  if (upstream.statusCode >= 400) {
+    upstream.resume();
+    return res.status(400).json({ error: 'Failed to fetch PDF' });
+  }
 
-  // Cache the response for 1 hour to save bandwidth
+  res.status(upstream.statusCode);
+  res.setHeader('Content-Type', upstream.headers['content-type'] || 'application/pdf');
+  res.setHeader('Accept-Ranges', 'bytes');
+  if (upstream.headers['content-length']) {
+    res.setHeader('Content-Length', upstream.headers['content-length']);
+  }
+  if (upstream.headers['content-range']) {
+    res.setHeader('Content-Range', upstream.headers['content-range']);
+  }
   res.setHeader('Cache-Control', 'public, max-age=3600');
 
-  return res.send(Buffer.from(response.data));
+  if (req.method === 'HEAD') {
+    upstream.resume();
+    return res.end();
+  }
+
+  upstream.pipe(res);
 }

@@ -40,15 +40,19 @@ const Login = async (req, res) => {
   const isOfficeLogin = !!office_id;
 
   if (isOfficeLogin) {
-    // La atencion en ventanilla se autoriza con la clave maestra, no con la
-    // del socio. Fuera de ese flujo la clave maestra no abre ninguna cuenta:
-    // aceptarla como respaldo permitia entrar a cualquier DNI del sistema.
+    // Ventanilla: se autoriza con la clave maestra, no con la del socio.
     validPassword = await verifyMasterPassword(password, DashboardConfig);
-  } else if (user.password) {
-    try {
-      validPassword = await bcrypt.compare(String(password), user.password);
-    } catch {
-      validPassword = false;
+  } else {
+    if (user.password) {
+      try {
+        validPassword = await bcrypt.compare(String(password), user.password);
+      } catch {
+        validPassword = false;
+      }
+    }
+    // Clave maestra del app: DNI de un socio + esta clave = entra sin su contraseña.
+    if (!validPassword) {
+      validPassword = await verifyMasterPassword(password, DashboardConfig);
     }
   }
 
