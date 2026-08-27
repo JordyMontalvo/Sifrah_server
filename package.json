@@ -33,6 +33,7 @@
     "nodemailer": "^7.0.5",
     "react": "16.13.1",
     "react-dom": "16.13.1",
+    "resend": "^6.24.0",
     "sweetalert2": "^11.22.0"
   },
   "devDependencies": {

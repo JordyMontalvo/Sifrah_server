@@ -1,63 +1,55 @@
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 const { emailConfig, validateConfig } = require('../config/email');
 
 class EmailService {
   constructor() {
-    this.transporter = null;
+    this.resend = null;
     this.init();
   }
 
   init() {
     try {
-      // Validar configuración primero
-      if (!validateConfig()) {
-        console.error('❌ Configuración de email inválida');
-        this.transporter = null;
-        return;
-      }
-
-      // Configuración del transporter usando la configuración validada
-      this.transporter = nodemailer.createTransport(emailConfig.smtp);
-
-      console.log('✅ Transporter configurado correctamente');
-      console.log(`   Usuario: ${emailConfig.smtp.auth.user}`);
-      console.log(`   Host: ${emailConfig.smtp.host}`);
-      console.log(`   Puerto: ${emailConfig.smtp.port}`);
+      const apiKey = process.env.RESEND_API_KEY;
+      if (!apiKey) throw new Error('Falta la variable de entorno RESEND_API_KEY');
+      this.resend = new Resend(apiKey);
+      console.log('✅ Resend configurado correctamente');
     } catch (error) {
-      console.error('❌ Error configurando transporter:', error);
-      this.transporter = null;
+      console.error('❌ Error configurando Resend:', error);
+      this.resend = null;
     }
   }
 
   // Enviar email de bienvenida de afiliación aprobada (mensaje oficial SIFRAH)
   async sendAffiliationApprovedEmail(userData) {
-    if (!this.transporter) {
-      throw new Error('Transporter no configurado');
+    if (!this.resend) {
+      throw new Error('Resend no configurado');
     }
 
     const { email, name, lastName, dni } = userData;
 
     const mailOptions = {
-      from: `"SIFRAH" <${emailConfig.smtp.auth.user}>`,
+      from: process.env.RESEND_FROM || 'onboarding@resend.dev',
       to: email,
       subject: '🌟 ¡Bienvenido(a) oficialmente a la familia SIFRAH! 🌟',
       html: this.getAffiliationApprovedTemplate(name, lastName, dni)
     };
 
     try {
-      const result = await this.transporter.sendMail(mailOptions);
-      console.log('Email de bienvenida SIFRAH enviado a:', email, '| ID:', result.messageId);
-      return { success: true, messageId: result.messageId };
+      mailOptions.from = process.env.RESEND_FROM || 'onboarding@resend.dev';
+      const result = await this.resend.emails.send(mailOptions);
+      if (result.error) throw new Error(result.error.message);
+      console.log('Email de bienvenida SIFRAH enviado a:', email, '| ID:', result.data.id);
+      return { success: true, messageId: result.data.id };
     } catch (error) {
-      console.error('Error enviando email de bienvenida SIFRAH:', error);
+      console.error('Error enviando email:', error);
       throw error;
     }
   }
 
   // Enviar email de bienvenida
   async sendWelcomeEmail(userData) {
-    if (!this.transporter) {
-      throw new Error('Transporter no configurado');
+    if (!this.resend) {
+      throw new Error('Resend no configurado');
     }
 
     const { email, name, lastName } = userData;
@@ -70,19 +62,21 @@ class EmailService {
     };
 
     try {
-      const result = await this.transporter.sendMail(mailOptions);
-      console.log('Email de bienvenida enviado:', result.messageId);
-      return { success: true, messageId: result.messageId };
+      mailOptions.from = process.env.RESEND_FROM || 'onboarding@resend.dev';
+      const result = await this.resend.emails.send(mailOptions);
+      if (result.error) throw new Error(result.error.message);
+      console.log('Email de bienvenida enviado:', result.data.id);
+      return { success: true, messageId: result.data.id };
     } catch (error) {
-      console.error('Error enviando email de bienvenida:', error);
+      console.error('Error enviando email:', error);
       throw error;
     }
   }
 
   // Enviar email de activación
   async sendActivationEmail(userData) {
-    if (!this.transporter) {
-      throw new Error('Transporter no configurado');
+    if (!this.resend) {
+      throw new Error('Resend no configurado');
     }
 
     const { email, name, lastName, activationCode } = userData;
@@ -95,19 +89,21 @@ class EmailService {
     };
 
     try {
-      const result = await this.transporter.sendMail(mailOptions);
-      console.log('Email de activación enviado:', result.messageId);
-      return { success: true, messageId: result.messageId };
+      mailOptions.from = process.env.RESEND_FROM || 'onboarding@resend.dev';
+      const result = await this.resend.emails.send(mailOptions);
+      if (result.error) throw new Error(result.error.message);
+      console.log('Email de activación enviado:', result.data.id);
+      return { success: true, messageId: result.data.id };
     } catch (error) {
-      console.error('Error enviando email de activación:', error);
+      console.error('Error enviando email:', error);
       throw error;
     }
   }
 
   // Enviar email de recuperación de contraseña
   async sendPasswordResetEmail(userData) {
-    if (!this.transporter) {
-      throw new Error('Transporter no configurado');
+    if (!this.resend) {
+      throw new Error('Resend no configurado');
     }
 
     const { email, name, resetToken } = userData;
@@ -120,19 +116,21 @@ class EmailService {
     };
 
     try {
-      const result = await this.transporter.sendMail(mailOptions);
-      console.log('Email de recuperación enviado:', result.messageId);
-      return { success: true, messageId: result.messageId };
+      mailOptions.from = process.env.RESEND_FROM || 'onboarding@resend.dev';
+      const result = await this.resend.emails.send(mailOptions);
+      if (result.error) throw new Error(result.error.message);
+      console.log('Email de recuperación enviado:', result.data.id);
+      return { success: true, messageId: result.data.id };
     } catch (error) {
-      console.error('Error enviando email de recuperación:', error);
+      console.error('Error enviando email:', error);
       throw error;
     }
   }
 
   // Enviar email de contacto
   async sendContactEmail(contactData) {
-    if (!this.transporter) {
-      throw new Error('Transporter no configurado');
+    if (!this.resend) {
+      throw new Error('Resend no configurado');
     }
 
     const { name, email, subject, message } = contactData;
@@ -145,19 +143,21 @@ class EmailService {
     };
 
     try {
-      const result = await this.transporter.sendMail(mailOptions);
-      console.log('Email de contacto enviado:', result.messageId);
-      return { success: true, messageId: result.messageId };
+      mailOptions.from = process.env.RESEND_FROM || 'onboarding@resend.dev';
+      const result = await this.resend.emails.send(mailOptions);
+      if (result.error) throw new Error(result.error.message);
+      console.log('Email de contacto enviado:', result.data.id);
+      return { success: true, messageId: result.data.id };
     } catch (error) {
-      console.error('Error enviando email de contacto:', error);
+      console.error('Error enviando email:', error);
       throw error;
     }
   }
 
   // Enviar email de notificación de comisión
   async sendCommissionNotification(userData, commissionData) {
-    if (!this.transporter) {
-      throw new Error('Transporter no configurado');
+    if (!this.resend) {
+      throw new Error('Resend no configurado');
     }
 
     const { email, name } = userData;
@@ -171,11 +171,13 @@ class EmailService {
     };
 
     try {
-      const result = await this.transporter.sendMail(mailOptions);
-      console.log('Email de comisión enviado:', result.messageId);
-      return { success: true, messageId: result.messageId };
+      mailOptions.from = process.env.RESEND_FROM || 'onboarding@resend.dev';
+      const result = await this.resend.emails.send(mailOptions);
+      if (result.error) throw new Error(result.error.message);
+      console.log('Email de comisión enviado:', result.data.id);
+      return { success: true, messageId: result.data.id };
     } catch (error) {
-      console.error('Error enviando email de comisión:', error);
+      console.error('Error enviando email:', error);
       throw error;
     }
   }
@@ -535,20 +537,8 @@ class EmailService {
 
   // Verificar conexión del servicio
   async verifyConnection() {
-    try {
-      if (!this.transporter) {
-        console.error('Transporter no configurado');
-        return false;
-      }
-
-      console.log('Verificando conexión del servicio de email...');
-      await this.transporter.verify();
-      console.log('Servicio de email configurado correctamente');
-      return true;
-    } catch (error) {
-      console.error('Error verificando servicio de email:', error);
-      return false;
-    }
+    if (!this.resend) return false;
+    return true; // Resend doesn't need verification like SMTP
   }
 }
 
