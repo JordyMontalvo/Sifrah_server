@@ -6,7 +6,7 @@ const { midd } = lib;
 export const config = {
   api: {
     bodyParser: {
-      sizeLimit: "100mb",
+      sizeLimit: "200mb",
     },
     externalResolver: true,
   },
