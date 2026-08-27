@@ -24,6 +24,9 @@ export default async (req, res) => {
     const account_type = user.account_type ? user.account_type : null
     const account = user.account ? user.account : null
     const ibk = user.ibk ? user.ibk : null
+    const account_holder = user.account_holder || user.titular || null
+    const yape = user.yape ? user.yape : null
+    const plin = user.plin ? user.plin : null
 
     // Si el usuario no tiene token, generar uno automáticamente
     let token = user.token
@@ -72,17 +75,20 @@ export default async (req, res) => {
       account_type,
       account,
       ibk,
+      account_holder,
+      yape,
+      plin,
     }))
   }
 
   if (req.method == 'POST') {
 
-    let { email, phone, age, address, bank, account_type, account, ibk, city, country, birthdate } = req.body
+    let { email, phone, age, address, bank, account_type, account, ibk, account_holder, yape, plin, city, country, birthdate } = req.body
 
     email = email ? email.toLowerCase().replace(/ /g, '') : ''
 
     // update user
-    await User.update({ id: user.id }, { email, phone, age, address, bank, account_type, account, ibk, city, country, birthdate })
+    await User.update({ id: user.id }, { email, phone, age, address, bank, account_type, account, ibk, account_holder, yape, plin, city, country, birthdate })
 
     // response
     return res.json(success())
