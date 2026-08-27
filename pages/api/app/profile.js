@@ -83,12 +83,14 @@ export default async (req, res) => {
 
   if (req.method == 'POST') {
 
-    let { email, phone, age, address, bank, account_type, account, ibk, account_holder, yape, plin, city, country, birthdate } = req.body
+    let { name, lastName, email, phone, age, address, bank, account_type, account, ibk, account_holder, yape, plin, city, country, birthdate } = req.body
 
     email = email ? email.toLowerCase().replace(/ /g, '') : ''
+    name = name ? String(name).trim() : user.name
+    lastName = lastName != null ? String(lastName).trim() : user.lastName
 
-    // update user
-    await User.update({ id: user.id }, { email, phone, age, address, bank, account_type, account, ibk, account_holder, yape, plin, city, country, birthdate })
+    // update user (el DNI no se modifica)
+    await User.update({ id: user.id }, { name, lastName, email, phone, age, address, bank, account_type, account, ibk, account_holder, yape, plin, city, country, birthdate })
 
     // response
     return res.json(success())
