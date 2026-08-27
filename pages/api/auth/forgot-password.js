@@ -65,15 +65,15 @@ export default async (req, res) => {
   // Construir link de restablecimiento
   const resetLink = `${APP_URL}/reset-password?token=${resetToken}`
 
-  // Enviar email via el servicio de email existente
+  // Enviar email via el servicio de email existente SIN esperar (evita timeouts)
   try {
     const emailService = require('../../../components/email-service')
-    await emailService.sendPasswordResetEmail({
+    emailService.sendPasswordResetEmail({
       email: normalizedEmail,
       name: user.name || 'Socio',
       resetToken,
       resetLink,
-    })
+    }).catch(err => console.error('[forgot-password] Error enviando email (async):', err.message))
   } catch (emailErr) {
     console.error('[forgot-password] Error enviando email:', emailErr.message)
     // No revelamos el error al usuario
