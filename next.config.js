@@ -38,7 +38,8 @@ const nextConfig = {
           { key: "X-XSS-Protection", value: "1; mode=block" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains; preload" },
-          { key: "X-Powered-By", value: "Sifrah Engine" } // Ofuscación de stack
+          { key: "X-Powered-By", value: "Sifrah Engine" }, // Ofuscación de stack
+          { key: "Cache-Control", value: "no-store, no-cache, private, must-revalidate" },
         ],
       },
     ];
