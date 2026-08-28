@@ -6,8 +6,56 @@ const { error, success, midd } = lib
 
 export const config = {
   api: {
-    bodyParser: true,
+    bodyParser: false,
   },
+}
+
+function readJsonBody(req) {
+  return new Promise((resolve, reject) => {
+    const parse = (raw) => {
+      if (raw == null) return {}
+      if (Buffer.isBuffer(raw)) {
+        if (!raw.length) return {}
+        return JSON.parse(raw.toString("utf8"))
+      }
+      if (typeof raw === "string") {
+        if (!raw.trim()) return {}
+        return JSON.parse(raw)
+      }
+      if (typeof raw === "object") return raw
+      return {}
+    }
+    try {
+      if (Buffer.isBuffer(req.body) && req.body.length) {
+        return resolve(parse(req.body))
+      }
+      if (req.body && typeof req.body === "object" && !Buffer.isBuffer(req.body) && Object.keys(req.body).length > 0) {
+        return resolve(req.body)
+      }
+      if (typeof req.body === "string" && req.body.trim()) {
+        return resolve(parse(req.body))
+      }
+    } catch (e) {
+      return reject(e)
+    }
+    const chunks = []
+    req.on("data", (chunk) => chunks.push(chunk))
+    req.on("end", () => {
+      try {
+        resolve(parse(Buffer.concat(chunks)))
+      } catch (e) {
+        reject(e)
+      }
+    })
+    req.on("error", reject)
+  })
+}
+
+function updateMatched(result) {
+  if (!result) return 0
+  if (typeof result.matchedCount === "number") return result.matchedCount
+  if (result.result && typeof result.result.n === "number") return result.result.n
+  return 0
 }
 
 function textOrNull(value) {
@@ -97,7 +145,10 @@ export default async (req, res) => {
   if (req.method == 'POST') {
 
     try {
-      const body = req.body && typeof req.body === 'object' ? req.body : {}
+      const body = await readJsonBody(req)
+      if (!body || typeof body !== "object" || !Object.keys(body).length) {
+        return res.json(error("No se recibieron datos"))
+      }
 
       const email = body.email
         ? String(body.email).toLowerCase().replace(/ /g, '')
@@ -130,21 +181,24 @@ export default async (req, res) => {
         birthdate: pickText(body, 'birthdate', user.birthdate),
       }
 
-      // Mongo 3.x no acepta undefined dentro de $set
       Object.keys(payload).forEach((key) => {
         if (payload[key] === undefined) delete payload[key]
       })
 
-      const filter = user._id ? { _id: user._id } : { id: user.id }
-      const updated = await User.findOneAndUpdate(
-        filter,
-        { $set: payload },
-        { returnOriginal: false }
-      )
-      if (!updated) {
-        return res.json(error('No se pudo guardar el perfil'))
+      // Misma escritura que password/foto: updateOne por id del usuario
+      let result = await User.update({ id: user.id }, payload)
+      if (updateMatched(result) === 0 && user._id) {
+        result = await User.update({ _id: user._id }, payload)
       }
-      return res.json(success(serializeProfile(updated)))
+      if (updateMatched(result) === 0) {
+        return res.json(error("No se pudo guardar el perfil"))
+      }
+
+      const updated = user._id
+        ? (await User.findOne({ _id: user._id })) || (await User.findOne({ id: user.id }))
+        : await User.findOne({ id: user.id })
+
+      return res.json(success(serializeProfile(updated || { ...user, ...payload })))
     } catch (e) {
       console.error('profile update error', e)
       return res.json(error('No se pudo guardar el perfil'))

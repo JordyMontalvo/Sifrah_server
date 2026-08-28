@@ -245,7 +245,7 @@ class MongoWrapper {
     Object.keys(values || {}).forEach((key) => {
       if (values[key] !== undefined) cleaned[key] = values[key];
     });
-    await col.updateOne(query, { $set: cleaned });
+    return await col.updateOne(query, { $set: cleaned });
   }
   async updateOne(query, values) {
     return this.update(query, values);
