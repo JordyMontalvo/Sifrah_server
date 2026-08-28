@@ -463,7 +463,7 @@ class EmailService {
   getAffiliationApprovedTemplate(name, lastName, dni) {
     const dashboardUrl = emailConfig.frontendUrl + '/dashboard';
     const tutorialUrl = 'https://www.youtube.com/playlist?list=PLWYJViqkAe6G0cmbXbTXfDORD0DomWWzY';
-    const whatsappUrl = 'https://wa.me/51959141444';
+    const whatsappUrl = 'https://wa.me/51947254429';
     return `
       <!DOCTYPE html>
       <html lang="es">
@@ -557,7 +557,7 @@ class EmailService {
 
               <p class="section-title">💬 ¿Necesitas ayuda?</p>
               <a href="${whatsappUrl}" class="whatsapp-btn">
-                <span>📱</span> WhatsApp de Soporte: +51 959 141 444
+                <span>📱</span> WhatsApp de Soporte: +51 947 254 429
               </a>
             </div>
             <div class="footer">

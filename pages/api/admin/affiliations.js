@@ -20,7 +20,7 @@ async function sendSifrahWelcomeEmail({ email, name, lastName, dni }) {
 
   const dashboardUrl = (process.env.FRONTEND_URL || 'https://sifrah.vercel.app') + '/dashboard';
   const tutorialUrl = 'https://www.youtube.com/playlist?list=PLWYJViqkAe6G0cmbXbTXfDORD0DomWWzY';
-  const whatsappUrl = 'https://wa.me/51959141444';
+  const whatsappUrl = 'https://wa.me/51947254429';
 
   const html = `
     <!DOCTYPE html>
@@ -85,7 +85,7 @@ async function sendSifrahWelcomeEmail({ email, name, lastName, dni }) {
 
             <div class="hr"></div>
             <p class="sec">💬 ¿Necesitas ayuda?</p>
-            <a href="${whatsappUrl}" class="wa">📱 WhatsApp de Soporte: +51 959 141 444</a>
+            <a href="${whatsappUrl}" class="wa">📱 WhatsApp de Soporte: +51 947 254 429</a>
           </div>
           <div class="ftr">
             <p class="brand">SIFRAH</p>
