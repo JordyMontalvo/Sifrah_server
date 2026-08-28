@@ -4,6 +4,12 @@ import lib from "../../../components/lib"
 const { User, Session } = db
 const { error, success, midd } = lib
 
+export const config = {
+  api: {
+    bodyParser: true,
+  },
+}
+
 function textOrNull(value) {
   if (value == null || value === "null" || value === "undefined") return null
   const s = String(value).trim()
@@ -129,10 +135,16 @@ export default async (req, res) => {
         if (payload[key] === undefined) delete payload[key]
       })
 
-      await User.update({ id: user.id }, payload)
-
-      const updated = await User.findOne({ id: user.id })
-      return res.json(success(serializeProfile(updated || { ...user, ...payload })))
+      const filter = user._id ? { _id: user._id } : { id: user.id }
+      const updated = await User.findOneAndUpdate(
+        filter,
+        { $set: payload },
+        { returnOriginal: false }
+      )
+      if (!updated) {
+        return res.json(error('No se pudo guardar el perfil'))
+      }
+      return res.json(success(serializeProfile(updated)))
     } catch (e) {
       console.error('profile update error', e)
       return res.json(error('No se pudo guardar el perfil'))
