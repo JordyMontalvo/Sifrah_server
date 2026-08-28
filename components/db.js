@@ -241,7 +241,11 @@ class MongoWrapper {
   }
   async update(query, values) {
     const col = await this._getCollection();
-    await col.updateOne(query, { $set: values });
+    const cleaned = {};
+    Object.keys(values || {}).forEach((key) => {
+      if (values[key] !== undefined) cleaned[key] = values[key];
+    });
+    await col.updateOne(query, { $set: cleaned });
   }
   async updateOne(query, values) {
     return this.update(query, values);

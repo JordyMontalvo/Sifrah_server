@@ -4,6 +4,47 @@ import lib from "../../../components/lib"
 const { User, Session } = db
 const { error, success, midd } = lib
 
+function textOrNull(value) {
+  if (value == null || value === "null" || value === "undefined") return null
+  const s = String(value).trim()
+  return s ? s : null
+}
+
+function serializeProfile(user, token) {
+  const account_holder = textOrNull(user.account_holder) || textOrNull(user.titular)
+  return {
+    affiliated: user.affiliated,
+    _activated: user._activated,
+    activated: user.activated,
+    plan: user.plan,
+    photo: user.photo,
+    tree: user.tree,
+    country: user.country || null,
+    dni: user.dni,
+    name: user.name,
+    lastName: user.lastName,
+    email: user.email,
+    phone: user.phone,
+    birthdate: user.birthdate,
+    address: user.address,
+    token: token != null ? token : user.token,
+    city: user.city,
+
+    bank: textOrNull(user.bank),
+    account_type: textOrNull(user.account_type),
+    account: textOrNull(user.account),
+    ibk: textOrNull(user.ibk),
+    account_holder,
+    titular: account_holder,
+    yape: textOrNull(user.yape),
+    plin: textOrNull(user.plin),
+  }
+}
+
+function pickText(body, key, fallback) {
+  return Object.prototype.hasOwnProperty.call(body, key) ? textOrNull(body[key]) : fallback
+}
+
 
 export default async (req, res) => {
   await midd(req, res)
@@ -16,17 +57,10 @@ export default async (req, res) => {
 
   // get user
   const user = await User.findOne({ id: session.id })
+  if (!user) return res.json(error('invalid session'))
 
 
   if (req.method == 'GET') {
-
-    const bank = user.bank ? user.bank : null
-    const account_type = user.account_type ? user.account_type : null
-    const account = user.account ? user.account : null
-    const ibk = user.ibk ? user.ibk : null
-    const account_holder = user.account_holder || user.titular || null
-    const yape = user.yape ? user.yape : null
-    const plin = user.plin ? user.plin : null
 
     // Si el usuario no tiene token, generar uno automáticamente
     let token = user.token
@@ -51,48 +85,57 @@ export default async (req, res) => {
     }
 
     // response
-    return res.json(success({
-      affiliated: user.affiliated,
-      _activated: user._activated,
-      activated: user.activated,
-      plan: user.plan,
-      country: user.country,
-      photo: user.photo,
-      tree: user.tree,
-
-      country: user.country,
-      dni: user.dni,
-      name: user.name,
-      lastName: user.lastName,
-      email: user.email,
-      phone: user.phone,
-      birthdate: user.birthdate,
-      address: user.address,
-      token: token,
-      city: user.city,
-
-      bank,
-      account_type,
-      account,
-      ibk,
-      account_holder,
-      yape,
-      plin,
-    }))
+    return res.json(success(serializeProfile(user, token)))
   }
 
   if (req.method == 'POST') {
 
-    let { name, lastName, email, phone, age, address, bank, account_type, account, ibk, account_holder, yape, plin, city, country, birthdate } = req.body
+    try {
+      const body = req.body && typeof req.body === 'object' ? req.body : {}
 
-    email = email ? email.toLowerCase().replace(/ /g, '') : ''
-    name = name ? String(name).trim() : user.name
-    lastName = lastName != null ? String(lastName).trim() : user.lastName
+      const email = body.email
+        ? String(body.email).toLowerCase().replace(/ /g, '')
+        : (user.email || '')
+      const name = textOrNull(body.name) || user.name
+      const lastName = body.lastName != null
+        ? (textOrNull(body.lastName) || '')
+        : user.lastName
 
-    // update user (el DNI no se modifica)
-    await User.update({ id: user.id }, { name, lastName, email, phone, age, address, bank, account_type, account, ibk, account_holder, yape, plin, city, country, birthdate })
+      const account_holder = Object.prototype.hasOwnProperty.call(body, 'account_holder') || Object.prototype.hasOwnProperty.call(body, 'titular')
+        ? (textOrNull(body.account_holder) || textOrNull(body.titular))
+        : (textOrNull(user.account_holder) || textOrNull(user.titular))
 
-    // response
-    return res.json(success())
+      const payload = {
+        name,
+        lastName,
+        email,
+        phone: pickText(body, 'phone', user.phone),
+        address: pickText(body, 'address', user.address),
+        bank: pickText(body, 'bank', user.bank),
+        account_type: pickText(body, 'account_type', user.account_type),
+        account: pickText(body, 'account', user.account),
+        ibk: pickText(body, 'ibk', user.ibk),
+        account_holder,
+        titular: account_holder,
+        yape: pickText(body, 'yape', user.yape),
+        plin: pickText(body, 'plin', user.plin),
+        city: pickText(body, 'city', user.city),
+        country: pickText(body, 'country', user.country),
+        birthdate: pickText(body, 'birthdate', user.birthdate),
+      }
+
+      // Mongo 3.x no acepta undefined dentro de $set
+      Object.keys(payload).forEach((key) => {
+        if (payload[key] === undefined) delete payload[key]
+      })
+
+      await User.update({ id: user.id }, payload)
+
+      const updated = await User.findOne({ id: user.id })
+      return res.json(success(serializeProfile(updated || { ...user, ...payload })))
+    } catch (e) {
+      console.error('profile update error', e)
+      return res.json(error('No se pudo guardar el perfil'))
+    }
   }
 }
