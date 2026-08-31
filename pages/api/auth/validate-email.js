@@ -13,7 +13,16 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const { email } = req.body;
+    let email = req.body && req.body.email;
+    if (!email && typeof req.body === 'string') {
+      const trimmed = req.body.trim();
+      try {
+        const parsed = JSON.parse(trimmed);
+        email = typeof parsed === 'string' ? parsed : parsed && parsed.email;
+      } catch (e) {
+        email = trimmed;
+      }
+    }
 
     if (!email) {
       return res.status(400).json({ error: 'Email es requerido' });

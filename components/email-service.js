@@ -146,13 +146,16 @@ class EmailService {
       throw new Error('Resend no configurado');
     }
 
-    const { email, name, resetToken } = userData;
+    const { email, name, resetToken, resetLink } = userData;
+    const link =
+      resetLink ||
+      `${emailConfig.frontendUrl || 'https://sifrah.vercel.app'}/reset-password?token=${resetToken}`;
     
     const mailOptions = {
       from: emailConfig.from,
       to: email,
       subject: 'Recupera tu contraseña Sifrah 🔑',
-      html: this.getPasswordResetTemplate(name, resetToken)
+      html: this.getPasswordResetTemplate(name, resetToken, link)
     };
 
     try {
@@ -312,7 +315,10 @@ class EmailService {
   }
 
   // Plantilla de recuperación de contraseña
-  getPasswordResetTemplate(name, resetToken) {
+  getPasswordResetTemplate(name, resetToken, resetLink) {
+    const link =
+      resetLink ||
+      `${emailConfig.frontendUrl || 'https://sifrah.vercel.app'}/reset-password?token=${resetToken}`;
     return `
       <!DOCTYPE html>
       <html>
@@ -344,7 +350,7 @@ class EmailService {
               <h2>${resetToken}</h2>
             </div>
             <p>Este token es válido por 1 hora. Si no lo usas en ese tiempo, deberás solicitar uno nuevo.</p>
-            <a href="${emailConfig.frontendUrl}/reset-password?token=${resetToken}" class="button">Restablecer contraseña</a>
+            <a href="${link}" class="button">Restablecer contraseña</a>
           </div>
           <div class="footer">
             <p>© 2024 Sifrah. Todos los derechos reservados.</p>
