@@ -687,6 +687,13 @@ const handler = async (req, res, auth) => {
       });
     }
 
+    if (action === "edit_payment") {
+      const { pay_method, voucher_number, voucher_number2 } = req.body.item;
+      console.log(`Editando pago para afiliación ${id}:`, { pay_method, voucher_number, voucher_number2 });
+      await Affiliation.update({ id }, { pay_method, voucher_number, voucher_number2 });
+      return res.status(200).json({ success: true, message: "Pago actualizado correctamente" });
+    }
+
     if (action == "cancel") {
       // Marcar como anulada. Si estaba aprobada, revertir efectos (usuario/stock/bonos).
       if (affiliation.status == "cancelled") {

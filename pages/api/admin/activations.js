@@ -595,6 +595,13 @@ export default async (req, res) => {
       await Activation.update({ id }, { points });
     }
 
+    if (action === "edit_payment") {
+      const { pay_method, voucher_number, voucher_number2 } = req.body.item;
+      console.log(`Editando pago para activación ${id}:`, { pay_method, voucher_number, voucher_number2 });
+      await Activation.update({ id }, { pay_method, voucher_number, voucher_number2 });
+      return res.status(200).json({ success: true, message: "Pago actualizado correctamente" });
+    }
+
     if (action == "cancel") {
       console.log("Cancelando activación...");
       
