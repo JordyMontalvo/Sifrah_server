@@ -189,6 +189,9 @@ const A = [
   "period_key",    // Periodo al momento de aprobación
   "period_label",  // Label del periodo al momento de aprobación
   "approved_at",   // Fecha y hora exacta de aprobación
+  "voucher_number2",
+  "transaction_id",
+  "authorization_code",
 ];
 const U = ["name", "lastName", "dni", "phone"];
 
