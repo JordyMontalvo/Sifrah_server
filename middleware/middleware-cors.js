@@ -69,5 +69,6 @@ function applyCORS(req, res) {
 
 module.exports = {
   corsMiddleware,
-  applyCORS
+  applyCORS,
+  allowedOrigins
 }; 

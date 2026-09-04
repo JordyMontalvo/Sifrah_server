@@ -1,5 +1,6 @@
 const Cors = require("cors");
 const crypto = require("crypto");
+const { auditOrigin } = require("./cors-audit");
 
 class Lib {
   constructor() {
@@ -53,6 +54,7 @@ class Lib {
   }
 
   midd(req, res) {
+    auditOrigin(req);
     return new Promise((resolve, reject) => {
       this.cors(req, res, (result) => {
         if (result instanceof Error) return reject(result);
