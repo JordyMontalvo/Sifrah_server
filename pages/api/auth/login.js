@@ -2,6 +2,7 @@ import db     from "../../../components/db"
 import lib    from "../../../components/lib"
 import bcrypt from "bcrypt"
 import { verifyMasterPassword } from "../../../components/master-password"
+import { getRetryAfter, registerFailure, clearFailures, throttleMessage } from "../../../components/login-throttle"
 
 const { User, Session, DashboardConfig } = db
 const { rand, error, success, midd } = lib
@@ -15,9 +16,19 @@ const Login = async (req, res) => {
   dni = String(dni).trim()
   password = String(password)
 
+  // Freno de fuerza bruta: se cuentan los fallos por documento de identidad.
+  // Sin esto se pueden probar contraseñas sin límite alguno.
+  const retryAfter = getRetryAfter(dni)
+  if (retryAfter > 0) {
+    return res.json({ error: true, code: 'TOO_MANY_ATTEMPTS', msg: throttleMessage(retryAfter) })
+  }
+
   // valid user
   const user = await User.findOne({ dni })
-  if(!user) return res.json(error('dni not found'))
+  if(!user) {
+    registerFailure(dni)
+    return res.json(error('dni not found'))
+  }
 
   if (user.status === 'eliminated') {
     return res.json({
@@ -56,7 +67,14 @@ const Login = async (req, res) => {
     }
   }
 
-  if (!validPassword) return res.json(error('invalid password'))
+  if (!validPassword) {
+    registerFailure(dni)
+    return res.json(error('invalid password'))
+  }
+
+  // Acierto: se descarta lo acumulado para que los fallos previos no penalicen
+  // a quien simplemente se equivocó al teclear.
+  clearFailures(dni)
 
   // Basic parsing for OS and Browser
   const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim();

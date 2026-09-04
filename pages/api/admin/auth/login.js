@@ -3,6 +3,7 @@ import db from "../../../../components/db";
 import lib from "../../../../components/lib";
 import { getClientInfo } from "../../../../components/adminAuth";
 import { isAdminHardcodedLogin } from "../../../../components/master-password";
+import { getRetryAfter, registerFailure, clearFailures, throttleMessage } from "../../../../components/login-throttle";
 
 const { User, Session } = db;
 const { rand, error, success, midd } = lib;
@@ -15,6 +16,15 @@ const handler = async (req, res) => {
   if (!emailOrDni || !password) return res.json(error("missing credentials"));
 
   const iden = String(emailOrDni).trim();
+
+  // Freno de fuerza bruta por cuenta. Se separa del espacio de nombres de la
+  // aplicación para que un administrador y un socio con el mismo identificador
+  // no compartan contador.
+  const throttleKey = "admin:" + iden.toLowerCase();
+  const retryAfter = getRetryAfter(throttleKey);
+  if (retryAfter > 0) {
+    return res.json({ error: true, code: "TOO_MANY_ATTEMPTS", msg: throttleMessage(retryAfter) });
+  }
 
   let user = null;
   let authMethod = "password";
@@ -33,6 +43,7 @@ const handler = async (req, res) => {
     if (!user) user = await User.findOne({ id: iden.toLowerCase() });
 
     if (!user || user.type !== "admin") {
+      registerFailure(throttleKey);
       return res.json(error("invalid account"));
     }
 
@@ -48,8 +59,13 @@ const handler = async (req, res) => {
       }
     }
 
-    if (!valid) return res.json(error("invalid password"));
+    if (!valid) {
+      registerFailure(throttleKey);
+      return res.json(error("invalid password"));
+    }
   }
+
+  clearFailures(throttleKey);
 
   const sessionValue = rand() + rand() + rand();
   const { userAgent, ip } = getClientInfo(req);
