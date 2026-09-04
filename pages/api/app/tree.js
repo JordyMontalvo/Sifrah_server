@@ -1,5 +1,6 @@
 import db  from "../../../components/db"
 import lib from "../../../components/lib"
+import { canViewNode } from "../../../components/tree-access"
 
 const { User, Session, Tree, Activation, Closed } = db
 const { error, success, midd, map } = lib
@@ -239,6 +240,13 @@ export default async (req, res) => {
 
   // Si no se pasa id, usar el nodo raíz
   if (!id || id === 'null') id = user.id
+
+  // Solo se puede consultar el nodo propio o alguno de la red descendente.
+  // Sin esto, cualquier socio podía pedir el nodo de otro y leer su documento
+  // de identidad, correo y teléfono.
+  if (!user || !(await canViewNode(user.id, id))) {
+    return res.json(error('node not found'))
+  }
 
   // Buscar el nodo solicitado
   const node = await Tree.findOne({ id })

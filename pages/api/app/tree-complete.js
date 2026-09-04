@@ -1,5 +1,6 @@
 import db from "../../../components/db"
 import lib from "../../../components/lib"
+import { isSelfOrDownline } from "../../../components/tree-access"
 
 const { User, Session, Tree, Closed } = db
 const { error, success, midd } = lib
@@ -103,7 +104,14 @@ export default async (req, res) => {
   try {
     // Cargar TODO el árbol de una vez (como en admin)
     tree = await Tree.find({})
-    
+
+    // Este endpoint devuelve la rama entera por debajo del nodo pedido, así que
+    // sin comprobación bastaba con indicar el nodo superior para descargar los
+    // datos personales de toda la red. Se reutiliza el árbol ya cargado.
+    if (!user || !isSelfOrDownline(tree, user.id, id)) {
+      return res.json(error('node not found'))
+    }
+
     // Cargar TODOS los usuarios de una vez
     users = await User.find({ tree: true })
 
