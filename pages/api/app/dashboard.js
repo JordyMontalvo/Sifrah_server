@@ -239,6 +239,7 @@ export default async (req, res) => {
 
   let frontals = await User.find({ id: { $in: childs } })
   frontals = frontals.filter((frontal) => frontal.status !== "eliminated")
+  frontals = frontals.map(f => ({ ...model(f, D) }))
   console.log({ frontals })
 
   // get transactions
