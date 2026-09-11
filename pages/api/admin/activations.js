@@ -243,7 +243,8 @@ export default async (req, res) => {
   }
 
   if (req.method == "POST") {
-    const { action, id } = req.body;
+    const { action } = req.body;
+    const id = req.body.id || (req.body.item && req.body.item.id);
 
     // get activation
     const activation = await Activation.findOne({ id });
@@ -599,7 +600,10 @@ export default async (req, res) => {
     }
 
     if (action === "edit_payment") {
-      const { pay_method, voucher_number, voucher_number2 } = req.body.item;
+      const item = req.body.item || {};
+      const pay_method = item.pay_method != null ? item.pay_method : req.body.pay_method;
+      const voucher_number = item.voucher_number != null ? item.voucher_number : req.body.voucher_number;
+      const voucher_number2 = item.voucher_number2 != null ? item.voucher_number2 : req.body.voucher_number2;
       console.log(`Editando pago para activación ${id}:`, { pay_method, voucher_number, voucher_number2 });
       await Activation.update({ id }, { pay_method, voucher_number, voucher_number2 });
       return res.status(200).json({ success: true, message: "Pago actualizado correctamente" });

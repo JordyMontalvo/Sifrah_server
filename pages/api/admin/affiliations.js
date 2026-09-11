@@ -490,7 +490,8 @@ const handler = async (req, res, auth) => {
   }
 
   if (req.method == "POST") {
-    const { id, action } = req.body;
+    const { action } = req.body;
+    const id = req.body.id || (req.body.item && req.body.item.id);
 
     if (id && ["approve", "reject", "cancel", "revert"].includes(action)) {
       if (processingAffiliations.has(id)) {
@@ -691,7 +692,10 @@ const handler = async (req, res, auth) => {
     }
 
     if (action === "edit_payment") {
-      const { pay_method, voucher_number, voucher_number2 } = req.body.item;
+      const item = req.body.item || {};
+      const pay_method = item.pay_method != null ? item.pay_method : req.body.pay_method;
+      const voucher_number = item.voucher_number != null ? item.voucher_number : req.body.voucher_number;
+      const voucher_number2 = item.voucher_number2 != null ? item.voucher_number2 : req.body.voucher_number2;
       console.log(`Editando pago para afiliación ${id}:`, { pay_method, voucher_number, voucher_number2 });
       await Affiliation.update({ id }, { pay_method, voucher_number, voucher_number2 });
       return res.status(200).json({ success: true, message: "Pago actualizado correctamente" });
