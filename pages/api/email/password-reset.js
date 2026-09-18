@@ -1,5 +1,9 @@
 const emailService = require('../../../components/email-service');
 const { applyCORS } = require('../../../middleware/middleware-cors');
+const { requireAdmin } = require('../../../components/adminAuth');
+const { consume, throttleMessage } = require('../../../components/send-throttle');
+
+const LIMITE = { max: 20, windowMs: 60 * 60 * 1000 };
 
 module.exports = async function handler(req, res) {
   // Aplicar CORS
@@ -14,6 +18,16 @@ module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método no permitido' });
   }
+
+  // El mas delicado de los seis: envia un correo de recuperacion con el token
+  // que le pasen, a la direccion que le pasen. La recuperacion real de los
+  // socios no pasa por aqui, sino por /api/auth/forgot-password, que genera el
+  // token en el servidor. Reservado a administradores.
+  const auth = await requireAdmin(req, res);
+  if (!auth) return;
+
+  const espera = consume(`email:password-reset:${auth.value}`, LIMITE);
+  if (espera) return res.status(429).json({ error: throttleMessage(espera) });
 
   try {
     const { email, name, resetToken } = req.body;

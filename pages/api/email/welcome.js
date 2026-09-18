@@ -1,5 +1,9 @@
 const emailService = require('../../../components/email-service');
 const { applyCORS } = require('../../../middleware/middleware-cors');
+const { requireAdmin } = require('../../../components/adminAuth');
+const { consume, throttleMessage } = require('../../../components/send-throttle');
+
+const LIMITE = { max: 20, windowMs: 60 * 60 * 1000 };
 
 module.exports = async function handler(req, res) {
   // Aplicar CORS
@@ -14,6 +18,15 @@ module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método no permitido' });
   }
+
+  // Este endpoint envia correos a la direccion que le indiquen. Ningun flujo
+  // de la aplicacion lo usa: los correos de bienvenida reales salen del
+  // servicio de correo directamente. Queda reservado a administradores.
+  const auth = await requireAdmin(req, res);
+  if (!auth) return;
+
+  const espera = consume(`email:welcome:${auth.value}`, LIMITE);
+  if (espera) return res.status(429).json({ error: throttleMessage(espera) });
 
   try {
     const { email, name, lastName } = req.body;

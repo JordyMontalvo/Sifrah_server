@@ -1,5 +1,11 @@
 const emailService = require('../../../components/email-service');
 const { applyCORS } = require('../../../middleware/middleware-cors');
+const { requireSession } = require('../../../components/adminAuth');
+const { consume, throttleMessage } = require('../../../components/send-throttle');
+
+// Mas estricto que el resto: es el unico que un socio podria disparar y no
+// hay motivo para escribir a soporte cinco veces en una hora.
+const LIMITE = { max: 5, windowMs: 60 * 60 * 1000 };
 
 module.exports = async function handler(req, res) {
   // Aplicar CORS
@@ -14,6 +20,16 @@ module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método no permitido' });
   }
+
+  // A diferencia de los otros cinco, este si tiene un uso previsto por parte
+  // de un socio (el formulario de soporte), asi que basta con sesion de
+  // usuario. Sin ella cualquiera podia enviar correos desde el dominio de
+  // Sifrah a la direccion y con el contenido que quisiera.
+  const auth = await requireSession(req, res);
+  if (!auth) return;
+
+  const espera = consume(`email:contact:${auth.value}`, LIMITE);
+  if (espera) return res.status(429).json({ error: throttleMessage(espera) });
 
   try {
     const { name, email, subject, message } = req.body;
