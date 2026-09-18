@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"time"
 
@@ -16,6 +17,22 @@ import (
 	"github.com/joho/godotenv"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
+
+// redactURI oculta las credenciales de una cadena de conexión para poder
+// registrarla sin exponerlas. Hasta ahora el arranque escribía la cadena
+// completa, con el usuario y la contraseña de administrador de la base de
+// datos, en los registros del gestor de procesos.
+func redactURI(uri string) string {
+	parsed, err := url.Parse(uri)
+	if err != nil || parsed.Host == "" {
+		// Si no se puede interpretar, no se arriesga nada: no se muestra.
+		return "(oculto)"
+	}
+	if parsed.User != nil {
+		parsed.User = url.User("***")
+	}
+	return parsed.Redacted()
+}
 
 // VirtualBalanceResetPreview — saldo virtual (no disponible) que se quita con transacción "closed reset".
 type VirtualBalanceResetPreview struct {
@@ -162,7 +179,7 @@ func main() {
 	defer cancel()
 
 	if !*jsonOutput {
-		log.Printf("Connecting to MongoDB at %s (DB: %s)...", uri, dbName)
+		log.Printf("Connecting to MongoDB at %s (DB: %s)...", redactURI(uri), dbName)
 	}
 	m, err := db.Connect(ctx, uri, dbName)
 	if err != nil {
