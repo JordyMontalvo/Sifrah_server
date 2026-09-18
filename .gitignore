@@ -116,6 +116,7 @@ Thumbs.db
 
 # Go Engine Binaries
 cierre_engine/engine_linux
+cierre_engine/engine_linux.respaldo-*
 cierre_engine/engine.exe
 cierre_engine/engine_mac
 cierre_engine/engine_bin
