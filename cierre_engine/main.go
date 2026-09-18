@@ -29,7 +29,7 @@ func redactURI(uri string) string {
 		return "(oculto)"
 	}
 	if parsed.User != nil {
-		parsed.User = url.User("***")
+		parsed.User = url.User("oculto")
 	}
 	return parsed.Redacted()
 }
