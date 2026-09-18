@@ -3,7 +3,12 @@ import lib from "../../../components/lib"
 import { requireAdmin } from "../../../components/adminAuth"
 
 const { DashboardConfig, User } = db
-const { error, success, midd } = lib
+const { error, success, midd, model } = lib
+
+// La pantalla solo muestra el nombre, el identificador y el correo. Devolver el
+// documento entero exponia tambien el hash de la contrasena y el resto de datos
+// personales del socio.
+const CONFIG_USER_FIELDS = ['id', 'name', 'lastName', 'email']
 
 export default async (req, res) => {
   await midd(req, res)
@@ -37,7 +42,7 @@ export default async (req, res) => {
       // Obtener información del usuario
       const user = await User.findOne({ id: userId })
       
-      return res.json(success({ config, user }))
+      return res.json(success({ config, user: user ? model(user, CONFIG_USER_FIELDS) : null }))
     } else {
       // Obtener configuración global del dashboard
       let config = await DashboardConfig.findOne({ 
