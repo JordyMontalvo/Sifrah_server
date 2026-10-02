@@ -26,7 +26,9 @@ export default async function handler(req, res) {
 
   const folderMapping = {
     'perfil': 'perfiles', 'photos': 'perfiles', 'audios': 'audios',
-    'product': 'productos', 'banner': 'banners', 'flyer': 'flyers'
+    'product': 'productos', 'banner': 'banners', 'flyer': 'flyers',
+    'university_videos': 'university_videos', 'university_thumbs': 'university_thumbs',
+    'university_materials': 'university_materials'
   };
   const targetFolder = folderMapping[dir] || dir;
 
