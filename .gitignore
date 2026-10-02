@@ -114,6 +114,11 @@ Thumbs.db
 *.bak
 *.backup
 
+# Salidas de ejecucion con datos reales de socios (nombres, DNI, saldos).
+# Son artefactos regenerables: no deben versionarse.
+db/*_logs_*.txt
+cierre_engine/*.json
+
 # Go Engine Binaries
 cierre_engine/engine_linux
 cierre_engine/engine_linux.respaldo-*

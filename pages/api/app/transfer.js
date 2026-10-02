@@ -90,16 +90,16 @@ const handler = async (req, res) => {
   if(req.method == 'POST') {
 
     const { dni, amount, desc, type } = req.body
-    console.log({ dni, amount, desc, type })
+    console.log({ amount, desc, type })
 
-    const _user = await User.findOne({ dni })
+    // Sin convertir a texto, un objeto como {"$ne": null} convierte la
+    // busqueda en un comodin y el destinatario lo acaba eligiendo la base.
+    const _user = await User.findOne({ dni: String(dni ?? '').trim() })
 
 
     if(type == 'validate') {
 
       if(!_user || _user.id == user.id) return res.json(error('invalid dni'))
-
-      console.log(user.name)
 
       return res.json(success({
         _name: _user.name + ' ' + _user.lastName,

@@ -1,6 +1,12 @@
 const https = require('https');
 const { emailConfig, validateConfig } = require('../config/email');
 
+const {
+  escapeHtml: esc,
+  escapeSubject: escSubject,
+  escapeUrl: escUrl,
+} = require('./html-escape');
+
 class EmailService {
   constructor() {
     this.apiKey = null;
@@ -180,7 +186,7 @@ class EmailService {
     const mailOptions = {
       from: emailConfig.from,
       to: emailConfig.adminEmail,
-      subject: `Nuevo mensaje de contacto: ${subject}`,
+      subject: `Nuevo mensaje de contacto: ${escSubject(subject)}`,
       html: this.getContactTemplate(name, email, subject, message)
     };
 
@@ -247,7 +253,7 @@ class EmailService {
             <h1>🎉 ¡Bienvenido a Sifrah!</h1>
           </div>
           <div class="content">
-            <h2>Hola ${name} ${lastName},</h2>
+            <h2>Hola ${esc(name)} ${esc(lastName)},</h2>
             <p>¡Nos complace darte la bienvenida a la familia Sifrah!</p>
             <p>Tu cuenta ha sido creada exitosamente y estás listo para comenzar tu viaje hacia el éxito financiero.</p>
             <p>Con Sifrah podrás:</p>
@@ -296,10 +302,10 @@ class EmailService {
             <h1>🔐 Activa tu cuenta</h1>
           </div>
           <div class="content">
-            <h2>Hola ${name} ${lastName},</h2>
+            <h2>Hola ${esc(name)} ${esc(lastName)},</h2>
             <p>Para completar tu registro en Sifrah, necesitas activar tu cuenta usando el siguiente código:</p>
             <div class="code">
-              <h2>${activationCode}</h2>
+              <h2>${esc(activationCode)}</h2>
             </div>
             <p>Este código es válido por 24 horas. Si no lo usas en ese tiempo, deberás solicitar uno nuevo.</p>
             <a href="${emailConfig.frontendUrl}/activate" class="button">Activar cuenta</a>
@@ -344,13 +350,13 @@ class EmailService {
             <h1>🔑 Recupera tu contraseña</h1>
           </div>
           <div class="content">
-            <h2>Hola ${name},</h2>
+            <h2>Hola ${esc(name)},</h2>
             <p>Has solicitado restablecer tu contraseña en Sifrah. Usa el siguiente token para crear una nueva contraseña:</p>
             <div class="token">
-              <h2>${resetToken}</h2>
+              <h2>${esc(resetToken)}</h2>
             </div>
             <p>Este token es válido por 1 hora. Si no lo usas en ese tiempo, deberás solicitar uno nuevo.</p>
-            <a href="${link}" class="button">Restablecer contraseña</a>
+            <a href="${escUrl(link)}" class="button">Restablecer contraseña</a>
           </div>
           <div class="footer">
             <p>© 2024 Sifrah. Todos los derechos reservados.</p>
@@ -391,19 +397,19 @@ class EmailService {
           <div class="content">
             <h2>Has recibido un nuevo mensaje de contacto</h2>
             <div class="field">
-              <strong>Nombre:</strong> ${name}
+              <strong>Nombre:</strong> ${esc(name)}
             </div>
             <div class="field">
-              <strong>Email:</strong> ${email}
+              <strong>Email:</strong> ${esc(email)}
             </div>
             <div class="field">
-              <strong>Asunto:</strong> ${subject}
+              <strong>Asunto:</strong> ${esc(subject)}
             </div>
             <div class="field">
               <strong>Mensaje:</strong>
             </div>
             <div class="message-box">
-              ${message.replace(/\n/g, '<br>')}
+              ${esc(message).replace(/\n/g, '<br>')}
             </div>
           </div>
           <div class="footer">
@@ -445,11 +451,11 @@ class EmailService {
             <h1>💰 ¡Nueva comisión generada!</h1>
           </div>
           <div class="content">
-            <h2>¡Felicitaciones ${name}!</h2>
+            <h2>¡Felicitaciones ${esc(name)}!</h2>
             <p>Has generado una nueva comisión en tu cuenta Sifrah.</p>
             <div class="commission-box">
-              <div class="commission-amount">$${amount}</div>
-              <div class="commission-type">${type}</div>
+              <div class="commission-amount">$${esc(amount)}</div>
+              <div class="commission-type">${esc(type)}</div>
               <div class="commission-date">${new Date(date).toLocaleDateString('es-ES')}</div>
             </div>
             <p>¡Sigue así! Tu esfuerzo está dando frutos.</p>
@@ -516,7 +522,7 @@ class EmailService {
             <div class="header">
               <span class="star">🌟</span>
               <h1>¡Bienvenido(a) oficialmente a la familia SIFRAH!</h1>
-              <p>Hola <strong>${name} ${lastName}</strong>, ¡ya eres parte del sistema! 💜</p>
+              <p>Hola <strong>${esc(name)} ${esc(lastName)}</strong>, ¡ya eres parte del sistema! 💜</p>
             </div>
             <div class="content">
               <p class="intro">
@@ -532,7 +538,7 @@ class EmailService {
                 </div>
                 <div class="access-row" style="margin-top:12px;">
                   <span class="access-label">👤 Usuario:</span>
-                  <span class="access-value">${dni || 'Tu DNI'}</span>
+                  <span class="access-value">${esc(dni) || 'Tu DNI'}</span>
                 </div>
                 <div class="access-row" style="margin-top:8px;">
                   <span class="access-label">🔒 Contraseña:</span>

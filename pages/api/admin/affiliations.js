@@ -3,6 +3,7 @@ import lib from "../../../components/lib";
 const nodemailer = require('nodemailer');
 require('dotenv').config();
 import { requireAdmin } from "../../../components/adminAuth";
+const { escapeHtml: esc } = require("../../../components/html-escape");
 
 // Función inline para enviar el email de bienvenida SIFRAH
 async function sendSifrahWelcomeEmail({ email, name, lastName, dni }) {
@@ -61,7 +62,7 @@ async function sendSifrahWelcomeEmail({ email, name, lastName, dni }) {
           <div class="hdr">
             <div style="font-size:36px">🌟</div>
             <h1>¡Bienvenido(a) oficialmente a la familia SIFRAH!</h1>
-            <p>Hola <strong>${name} ${lastName}</strong> — ¡ya eres parte del sistema! 💜</p>
+            <p>Hola <strong>${esc(name)} ${esc(lastName)}</strong> — ¡ya eres parte del sistema! 💜</p>
           </div>
           <div class="body">
             <p class="intro">Nos alegra que hayas tomado la decisión de construir tu libertad y formar parte de una comunidad que transforma vidas desde la <strong style="color:#c084fc">salud</strong>, la <strong style="color:#c084fc">educación</strong> y las <strong style="color:#c084fc">finanzas</strong>. 💜</p>
@@ -70,7 +71,7 @@ async function sendSifrahWelcomeEmail({ email, name, lastName, dni }) {
             <div class="creds">
               <h3>📌 Credenciales de acceso</h3>
               <div class="row"><span class="lbl">🔗 Plataforma:</span> <span class="val">${dashboardUrl}</span></div>
-              <div class="row" style="margin-top:8px"><span class="lbl">👤 Usuario:</span> <span class="val">${dni || 'Tu DNI'}</span></div>
+              <div class="row" style="margin-top:8px"><span class="lbl">👤 Usuario:</span> <span class="val">${esc(dni) || 'Tu DNI'}</span></div>
               <div class="row" style="margin-top:6px"><span class="lbl">🔒 Contraseña:</span> <span class="val">123456</span></div>
             </div>
 
@@ -105,7 +106,9 @@ async function sendSifrahWelcomeEmail({ email, name, lastName, dni }) {
     html
   });
 
-  console.log('[SIFRAH Email] Enviado a:', email, '| messageId:', info.messageId);
+  // El messageId basta para seguir el envio en el panel de Resend; la direccion
+  // del socio no tiene por que quedar escrita en los registros del servidor.
+  console.log('[SIFRAH Email] Bienvenida enviada | messageId:', info.messageId);
   return info;
 }
 
@@ -648,7 +651,7 @@ const handler = async (req, res, auth) => {
 
       // Enviar email de bienvenida de forma asíncrona (fire and forget)
       // para evitar que el request se quede colgado si el servidor bloquea el puerto SMTP (ej. DigitalOcean)
-      console.log('[Affiliations] Usuario email para notificacion:', user.email);
+      console.log('[Affiliations] Notificacion de bienvenida para usuario:', user.id, user.email ? '(con correo)' : '(sin correo)');
       if (user.email) {
         sendSifrahWelcomeEmail({
           email: user.email,

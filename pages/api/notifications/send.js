@@ -64,9 +64,6 @@ export default async function handler(req, res) {
       const usersWithTokens = await db.collection('users').find({ fcmToken: { $exists: true, $ne: null } }).toArray();
       tokens = usersWithTokens.map(u => u.fcmToken);
       console.log('[Notifications/send] Tokens encontrados en BD:', tokens.length);
-      if (tokens.length > 0) {
-        console.log('[Notifications/send] Token muestra:', tokens[0].substring(0, 40) + '...');
-      }
     }
 
     if (tokens.length === 0) {

@@ -54,7 +54,9 @@ export default async (req, res) => {
   // Invalidar el token usado
   await Token.update({ id: tokenDoc.id }, { used: true, used_at: new Date() })
 
-  console.log(`[reset-password] Contraseña actualizada para usuario ${user.id} (DNI: ${user.dni})`)
+  // El identificador interno basta para rastrear la operación; el documento de
+  // identidad no tiene por qué quedar escrito en los registros del servidor.
+  console.log(`[reset-password] Contraseña actualizada para usuario ${user.id}`)
 
   return res.json(success({ msg: 'Contraseña actualizada correctamente. Ya puedes iniciar sesión.' }))
 }
