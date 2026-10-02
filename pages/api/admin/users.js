@@ -233,7 +233,9 @@ const handler = async (req, res, auth) => {
         const hasVirtualBalance = virtualBalance > 0;
         
         if (hasVirtualBalance) {
-          console.log(`✅ Usuario ${user.name} ${user.lastName} (ID: ${user.id}) tiene saldo no disponible: ${virtualBalance.toFixed(2)}`);
+          // El identificador interno basta para rastrearlo; el nombre completo
+          // no tiene por que quedar escrito en los registros del servidor.
+          console.log(`✅ Usuario ${user.id} tiene saldo no disponible: ${virtualBalance.toFixed(2)}`);
           filteredUsers.push(`${user.name} ${user.lastName} (${virtualBalance.toFixed(2)})`);
         }
         

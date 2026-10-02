@@ -3,6 +3,7 @@ import lib    from "../../../components/lib"
 import bcrypt from "bcrypt"
 import { verifyMasterPassword } from "../../../components/master-password"
 import { getRetryAfter, registerFailure, clearFailures, throttleMessage } from "../../../components/login-throttle"
+const { getClientIp } = require("../../../components/client-ip")
 
 const { User, Session, DashboardConfig } = db
 const { rand, error, success, midd } = lib
@@ -77,7 +78,7 @@ const Login = async (req, res) => {
   clearFailures(dni)
 
   // Basic parsing for OS and Browser
-  const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim();
+  const ip = getClientIp(req) || '';
   const user_agent = req.headers['user-agent'] || '';
   
   let os = 'Desconocido';

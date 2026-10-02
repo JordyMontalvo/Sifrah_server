@@ -16,7 +16,9 @@ async function sendSifrahWelcomeEmail({ email, name, lastName, dni }) {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS
     },
-    tls: { rejectUnauthorized: false }
+    // Antes se desactivaba la comprobacion del certificado, lo que permitiria
+    // a alguien situado en medio leer el trafico con el servidor de correo.
+    tls: { rejectUnauthorized: true, minVersion: 'TLSv1.2' }
   });
 
   const dashboardUrl = (process.env.FRONTEND_URL || 'https://sifrah.vercel.app') + '/dashboard';

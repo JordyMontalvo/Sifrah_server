@@ -16,19 +16,18 @@ const transactions = async (req, res) => {
   let { session } = req.query
 
   // valid session
-  session = await Session.findOne({ value: session })
+  session = await Session.findOne({ value: String(session ?? '') })
   if(!session) return res.json(error('invalid session'))
 
   // get USER
   const user = await User.findOne({ id: session.id })
-  console.log({ user })
+  if(!user) return res.json(error('invalid session'))
 
   const users = await User.find({})
 
   // get TRANSACTIONS
   // let transactions = await Transaction.find({ userId: user.id, virtual: {$in: [null, false]} })
   let transactions = await Transaction.find({ user_id: user.id })
-  console.log({ transactions })
 
   // Filtrar transacciones "closed reset" y las compensadas
   // IMPORTANTE: Las transacciones que fueron compensadas por "closed reset" NO deben aparecer en los movimientos
