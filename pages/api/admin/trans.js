@@ -68,7 +68,7 @@ export default async (req, res) => {
       const userIds = [
         ...new Set(
           transactions
-            .flatMap((t) => [t.user_id, t._user_id])
+            .flatMap((t) => [t.user_id, t._user_id, t.from_user_id])
             .filter((id) => id != null && id !== "")
         ),
       ];
@@ -82,11 +82,26 @@ export default async (req, res) => {
       const userMap = new Map(users.map((u) => [u.id, u]));
 
       // Enriquecer transacciones con información de usuarios
-      transactions = transactions.map((t) => ({
-        ...t,
-        user_info: userMap.get(t.user_id) || {},
-        _user_info: userMap.get(t._user_id) || {},
-      }));
+      transactions = transactions.map((t) => {
+        const originId = t._user_id || t.from_user_id;
+        const originUser = originId ? (userMap.get(originId) || {}) : {};
+        const originName =
+          t.affiliate_name ||
+          `${originUser.name || ""} ${originUser.lastName || ""}`.trim() ||
+          originUser.name ||
+          "";
+        const originDni = t.affiliate_dni || originUser.dni || null;
+
+        return {
+          ...t,
+          user_info: userMap.get(t.user_id) || {},
+          _user_info: {
+            ...originUser,
+            name: originName,
+            dni: originDni,
+          },
+        };
+      });
 
       // Aplicar búsqueda si existe
       if (search) {

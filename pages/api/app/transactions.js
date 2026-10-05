@@ -119,18 +119,32 @@ const transactions = async (req, res) => {
   console.log(`📊 Total transacciones después de filtrar: ${transactions.length}`);
   console.log(`📊 Transacciones ocultadas: ${totalBeforeFilter - transactions.length}`);
 
+  const userMap = new Map();
+  for (const u of users) {
+    if (u && u.id != null) {
+      userMap.set(String(u.id), u);
+    }
+  }
+
   transactions = transactions.map(a => {
-
-    if(a._user_id) {
-
-      const u = users.find(e => e.id == a._user_id)
-
-      return { ...a, user_name: u.name + ' ' + u.lastName }
-
+    let userName = a.affiliate_name || null;
+    const originId = a._user_id || a.from_user_id;
+    if (!userName && originId) {
+      const u = userMap.get(String(originId));
+      if (u) {
+        userName = `${u.name || ''} ${u.lastName || ''}`.trim();
+      }
+    }
+    if (!userName && a.user_name) {
+      userName = a.user_name;
     }
 
-    return { ...a }
-  })
+    return {
+      ...a,
+      user_name: userName || null,
+      affiliate_name: a.affiliate_name || userName || null,
+    };
+  });
 
   // response
   return res.json(success({
