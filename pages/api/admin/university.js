@@ -2,9 +2,14 @@ import db from "../../../components/db";
 import lib from "../../../components/lib";
 import { requireAdmin } from "../../../components/adminAuth";
 import { DEFAULT_UNIVERSITY_MODULES } from "../../../lib/defaultUniversityModules";
+import {
+  DEFAULT_UNIVERSITY_BANNERS,
+  normalizeUniversityBanners,
+} from "../../../lib/defaultUniversityBanners";
 import { ObjectId } from "mongodb";
 
-const { UniversityModule } = db;
+const { UniversityModule, UniversityHero } = db;
+const HERO_DOC_ID = "main";
 const { success, error, midd } = lib;
 
 function toObjectId(id) {
@@ -13,6 +18,14 @@ function toObjectId(id) {
     return new ObjectId(id);
   }
   return id;
+}
+
+async function loadHeroBanners() {
+  const doc = await UniversityHero.findOne({ id: HERO_DOC_ID });
+  if (!doc || !Array.isArray(doc.banners)) {
+    return DEFAULT_UNIVERSITY_BANNERS.map((slide) => ({ ...slide }));
+  }
+  return normalizeUniversityBanners(doc.banners);
 }
 
 export default async (req, res) => {
@@ -36,11 +49,31 @@ export default async (req, res) => {
         modules = await UniversityModule.find({}, { sort: { order: 1 } });
       }
 
-      return res.json(success({ modules }));
+      const banners = await loadHeroBanners();
+      return res.json(success({ modules, banners }));
     }
 
     if (req.method === "POST") {
       const { action, id, moduleId, data } = req.body;
+
+      if (action === "save-banners") {
+        const banners = normalizeUniversityBanners(data && data.banners);
+        const existing = await UniversityHero.findOne({ id: HERO_DOC_ID });
+        if (existing) {
+          await UniversityHero.update(
+            { id: HERO_DOC_ID },
+            { banners, updatedAt: new Date() }
+          );
+        } else {
+          await UniversityHero.insert({
+            id: HERO_DOC_ID,
+            banners,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          });
+        }
+        return res.json(success({ banners, message: "Banners actualizados" }));
+      }
 
       if (action === "seed-defaults") {
         const count = await UniversityModule.count({});

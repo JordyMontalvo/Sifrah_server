@@ -332,6 +332,7 @@ module.exports = new DB({
   Banner: new MongoWrapper('banner'),
   Material: new MongoWrapper('materials'),
   UniversityModule: new MongoWrapper('university_modules'),
+  UniversityHero: new MongoWrapper('university_hero'),
   Office: new MongoWrapper('offices'),
   DeliveryDistrict: new MongoWrapper('delivery_districts'),
   DashboardConfig: new MongoWrapper('dashboard_config'),
