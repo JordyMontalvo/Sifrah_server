@@ -595,6 +595,8 @@ const handler = async (req, res, auth) => {
           plan: affiliation.plan.id,
           n: affiliation.plan.n,
           affiliation_points,
+          welcomePopupPending: true,
+          welcomePopupSeen: false,
         }
       );
 
