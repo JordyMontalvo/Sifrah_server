@@ -4,7 +4,7 @@ import { mainCatalogMongoFilter } from "../../../../lib/productCatalog";
 import { sortProducts } from "../../../../lib/productSort";
 const { applyCORS } = require("../../../../middleware/middleware-cors");
 
-const { User, Product, Session, Banner } = db;
+const { User, Product, Banner } = db;
 const { error, success, midd } = lib;
 
 /**
@@ -12,7 +12,7 @@ const { error, success, midd } = lib;
  * Reutiliza la misma lógica que /api/app/activation
  * 
  * GET /api/public/shared-store/[userId]
- * - userId: session ID del usuario dueño de la tienda
+ * - userId: identificador publico del socio dueño de la tienda
  * - No requiere autenticación
  * - Retorna: productos, banners, nombre del dueño
  */
@@ -34,15 +34,11 @@ export default async (req, res) => {
   }
 
   try {
-    // Buscar el usuario por su session ID
-    const session = await Session.findOne({ value: userId });
-    
-    if (!session) {
-      return res.json(error("Usuario no encontrado"));
-    }
+    // Se busca por el identificador publico del socio. Antes se buscaba por el
+    // token de sesion, de modo que el enlace que el socio publicaba en redes
+    // sociales entregaba su sesion a cualquiera que lo viera.
+    const user = await User.findOne({ id: String(userId) });
 
-    const user = await User.findOne({ id: session.id });
-    
     if (!user) {
       return res.json(error("Usuario no encontrado"));
     }

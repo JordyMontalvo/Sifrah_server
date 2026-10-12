@@ -22,6 +22,10 @@ export default async (req, res) => {
 
     // response
     return res.json(success({
+      // Identificador publico del socio. La vista de tienda compartida lo usa
+      // para construir el enlace; sin este campo caia en usar el token de
+      // sesion, que acababa publicado en redes sociales.
+      userId:     user.id,
       name:       user.name,
       lastName: user.lastName,
       affiliated: user.affiliated,
