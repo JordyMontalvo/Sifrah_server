@@ -1,11 +1,21 @@
 const Cors = require("cors");
 const crypto = require("crypto");
 const { auditOrigin } = require("./cors-audit");
+const { allowedOrigins } = require("../middleware/middleware-cors");
 
 class Lib {
   constructor() {
     this.cors = Cors({
-      origin: true, // Allow all origins
+      // Antes se aceptaba cualquier origen con credenciales, de modo que una web
+      // cualquiera podia llamar a la API en nombre del socio que la visitara.
+      // La lista sale de medir 38 dias de trafico real: solo los dos dominios
+      // propios y el contenedor de la aplicacion movil.
+      origin(origin, callback) {
+        // Sin cabecera de origen no hay navegador de por medio (aplicaciones
+        // nativas, servidor a servidor, curl). No se bloquea.
+        if (!origin) return callback(null, true);
+        return callback(null, allowedOrigins.includes(origin));
+      },
       credentials: true,
       methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
       allowedHeaders: [

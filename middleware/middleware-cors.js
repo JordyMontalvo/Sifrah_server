@@ -11,6 +11,12 @@ const allowedOrigins = [
   'http://localhost:8082',
   'http://localhost:8080',
   'http://localhost:3000',
+
+  // Aplicacion movil. Capacitor no envia el dominio del sitio, sino el del
+  // contenedor: https://localhost en Android y capacitor://localhost en iOS.
+  // Sin estos dos, cerrar CORS deja sin servicio a todos los socios.
+  'https://localhost',
+  'capacitor://localhost',
   
   // Producción - Desde variables de entorno
   ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),

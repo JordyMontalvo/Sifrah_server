@@ -6,17 +6,19 @@ import { requireAdmin } from "../../../components/adminAuth"
 const { DashboardConfig } = db
 const { error, success, midd } = lib
 
-import { getOfficeLoginPassword } from "../../../components/master-password"
-
 const GeneralPassword = async (req, res) => {
   if (req.method === 'GET') {
+    // Antes se devolvia aqui la clave de oficina en texto legible, de modo que
+    // cualquiera que abriera el panel se llevaba la clave que entra en todas
+    // las cuentas. Ahora solo se dice si esta configurada: la ventanilla abre
+    // la cuenta del socio por el puente de suplantacion, que deja constancia
+    // de que administrador lo hizo, y no necesita conocer la clave.
     let config = await DashboardConfig.findOne({ key: 'master_password' })
     return res.json(success({ 
       data: {
         configured: !!config,
         updated_at: config ? config.updated_at : null 
       },
-      office_password: getOfficeLoginPassword(),
     }))
   }
 
