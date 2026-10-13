@@ -1,6 +1,6 @@
 import db from "../../../../components/db";
 import lib from "../../../../components/lib";
-import { mainCatalogMongoFilter } from "../../../../lib/productCatalog";
+import { mainCatalogMongoFilter, filterSifrahCatalogProducts } from "../../../../lib/productCatalog";
 import { sortProducts } from "../../../../lib/productSort";
 const { applyCORS } = require("../../../../middleware/middleware-cors");
 
@@ -43,14 +43,11 @@ export default async (req, res) => {
       return res.json(error("Usuario no encontrado"));
     }
 
-    // ⭐ REUTILIZAR LA MISMA LÓGICA DE /api/app/activation
-    // Obtener productos - MISMA CONSULTA que activation
-    let _products = await Product.find(mainCatalogMongoFilter());
-
-    // Aplicar el mismo filtro que en activation
-    if (!user.activated) {
-      _products = _products.filter((p) => p.type != "Promoción");
-    }
+    // La tienda del socio muestra la línea SIFRAH. Las promociones no entran,
+    // aunque el socio esté activado.
+    let _products = filterSifrahCatalogProducts(
+      await Product.find(mainCatalogMongoFilter())
+    );
 
     _products = sortProducts(_products);
 
