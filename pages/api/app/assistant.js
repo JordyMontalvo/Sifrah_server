@@ -54,51 +54,89 @@ export default async function handler(req, res) {
 
     if (geminiApiKey) {
       try {
-        const systemPrompt = buildSystemPrompt(cleanQuery, relevantProducts, distributorCode);
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${geminiApiKey}`;
+        const { history } = req.body || {};
+        const modelsToTry = [
+          'gemini-3.5-flash-lite',
+          'gemini-3.8-flash',
+          'gemini-flash-latest'
+        ];
 
-        const geminiRes = await _fetch(geminiUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [
-              {
-                role: 'user',
-                parts: [{ text: systemPrompt }]
-              }
-            ],
-            generationConfig: {
-              temperature: 0.4,
-              maxOutputTokens: 800
+        let generatedText = null;
+
+        for (const modelName of modelsToTry) {
+          try {
+            const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${geminiApiKey}`;
+
+            // Construir payload con historial si está disponible
+            const contents = [];
+            if (Array.isArray(history) && history.length > 0) {
+              history.forEach(h => {
+                if (h.text) {
+                  contents.push({
+                    role: h.role === 'model' ? 'model' : 'user',
+                    parts: [{ text: h.text }]
+                  });
+                }
+              });
             }
-          })
-        });
 
-        if (geminiRes.ok) {
-          const geminiData = await geminiRes.json();
-          const generatedText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-          if (generatedText) {
-            const refParam = distributorCode ? `?ref=${encodeURIComponent(distributorCode)}` : '';
-            return res.status(200).json({
-              status: true,
-              data: {
-                reply: generatedText,
-                recommendedProducts: relevantProducts.map(p => ({
-                  name: p.names[0],
-                  category: p.category,
-                  price: p.price,
-                  points: p.points,
-                  buyUrl: `/app/checkout${refParam}`,
-                  usage: p.usage,
-                  mainBenefit: p.benefits[0]
-                }))
-              }
+            // Inyectar el turno actual enriquecido con RAG
+            contents.push({
+              role: 'user',
+              parts: [{ text: buildSystemPrompt(cleanQuery, relevantProducts, distributorCode) }]
             });
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+            const geminiRes = await _fetch(geminiUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              signal: controller.signal,
+              body: JSON.stringify({
+                contents,
+                generationConfig: {
+                  temperature: 0.4,
+                  maxOutputTokens: 800
+                }
+              })
+            });
+
+            clearTimeout(timeoutId);
+
+            if (geminiRes.ok) {
+              const geminiData = await geminiRes.json();
+              generatedText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
+              if (generatedText) break; // Éxito con este modelo
+            } else {
+              const errTxt = await geminiRes.text();
+              console.warn(`[Assistant] ${modelName} devolvió status ${geminiRes.status}:`, errTxt.slice(0, 100));
+            }
+          } catch (modelErr) {
+            console.warn(`[Assistant] Error con ${modelName}:`, modelErr.message);
           }
         }
+
+        if (generatedText) {
+          const refParam = distributorCode ? `?ref=${encodeURIComponent(distributorCode)}` : '';
+          return res.status(200).json({
+            status: true,
+            data: {
+              reply: generatedText,
+              recommendedProducts: relevantProducts.map(p => ({
+                name: p.names[0],
+                category: p.category,
+                price: p.price,
+                points: p.points,
+                buyUrl: `/app/checkout${refParam}`,
+                usage: p.usage,
+                mainBenefit: p.benefits[0]
+              }))
+            }
+          });
+        }
       } catch (geminiError) {
-        console.warn('[Assistant] Fallo llamada a Gemini API, usando fallback:', geminiError.message);
+        console.warn('[Assistant] Fallo general en llamadas a Gemini, usando fallback:', geminiError.message);
       }
     }
 
