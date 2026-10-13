@@ -3,7 +3,25 @@ import lib from "../../../components/lib";
 import { requireAdmin } from "../../../components/adminAuth";
 
 const { Transaction, User, Period } = db;
-const { midd, success, rand } = lib;
+const { midd, success, error, rand } = lib;
+
+// Un identificador tiene que llegar como texto. Si se admitiera un objeto, se
+// podria enviar un operador de consulta en su lugar y el filtro encajaria con
+// un movimiento cualquiera en vez de con el elegido.
+function exigirIdentificador(valor) {
+  if (typeof valor !== "string") return null;
+  const limpio = valor.trim();
+  return limpio || null;
+}
+
+// El importe tiene que ser un numero de verdad. Si entra un texto o un objeto,
+// las sumas de saldo lo tratan como cero y la cuenta del socio se descuadra
+// sin que salte ningun aviso.
+function validarImporte(valor) {
+  const numero = typeof valor === "string" ? Number(valor.trim()) : valor;
+  if (typeof numero !== "number" || !Number.isFinite(numero)) return null;
+  return numero;
+}
 
 const MONTHS_ES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -184,31 +202,38 @@ export default async (req, res) => {
     const { action } = req.body;
 
     if (action == "edit") {
-      const { id } = req.body;
-      const {
-        _user_id,
-        _type,
-        _value,
-        _name,
-        _affiliation_id,
-        _virtual,
-        _status,
-      } = req.body.data;
+      const id = exigirIdentificador(req.body.id);
+      if (!id) return res.json(error("id invalido"));
+      // Un campo ausente o vacio significa 'no lo cambies', como antes. Solo se
+      // comprueba lo que de verdad viene con un valor.
+      const datos = req.body.data || {};
+      const _type = datos._type == null ? undefined : datos._type;
+      const _value = datos._value == null ? undefined : datos._value;
+      const _name = datos._name == null ? undefined : datos._name;
 
-      // Crear objeto de actualización solo con los campos que se envían
+      // El formulario del panel solo deja cambiar el tipo, el importe y el
+      // concepto. Antes se aceptaban ademas el socio dueno del movimiento, su
+      // estado y la afiliacion ligada, campos que ninguna pantalla envia: con
+      // ellos se podia reasignar un apunte de dinero a otra cuenta.
       const updateData = {};
-      if (_user_id !== undefined) updateData.user_id = _user_id;
-      if (_type !== undefined) updateData.type = _type;
-      if (_value !== undefined) updateData.value = _value;
-      if (_name !== undefined) updateData.name = _name;
-      if (_affiliation_id !== undefined)
-        updateData.affiliation_id = _affiliation_id;
-      if (_virtual !== undefined) updateData.virtual = _virtual;
-      if (_status !== undefined) updateData.status = _status;
 
-      // LOGS DE DEPURACIÓN
-      console.log("EDIT REQUEST:", { id, data: req.body.data });
-      console.log("UPDATE DATA:", updateData);
+      if (_type !== undefined) {
+        if (_type !== "in" && _type !== "out")
+          return res.json(error("tipo invalido"));
+        updateData.type = _type;
+      }
+
+      if (_value !== undefined) {
+        const importe = validarImporte(_value);
+        if (importe === null) return res.json(error("importe invalido"));
+        updateData.value = importe;
+      }
+
+      if (_name !== undefined) {
+        if (typeof _name !== "string" || !_name.trim())
+          return res.json(error("concepto invalido"));
+        updateData.name = _name.trim();
+      }
 
       // Actualizar solo si hay campos para actualizar
       if (Object.keys(updateData).length > 0) {
@@ -218,19 +243,28 @@ export default async (req, res) => {
 
     if (action == "add") {
       const { user_id, type, value, name, affiliation_id, virtual, status } =
-        req.body.data;
+        req.body.data || {};
+
+      const destinatario = exigirIdentificador(user_id);
+      if (!destinatario) return res.json(error("socio invalido"));
+      if (type !== "in" && type !== "out")
+        return res.json(error("tipo invalido"));
+      const importe = validarImporte(value);
+      if (importe === null) return res.json(error("importe invalido"));
+      if (typeof name !== "string" || !name.trim())
+        return res.json(error("concepto invalido"));
 
       const period = await getOrCreateOpenPeriod(new Date());
 
       await Transaction.insert({
         id: rand(),
         date: new Date(),
-        user_id,
+        user_id: destinatario,
         type,
-        value,
-        name,
-        affiliation_id,
-        virtual,
+        value: importe,
+        name: name.trim(),
+        affiliation_id: exigirIdentificador(affiliation_id) || null,
+        virtual: !!virtual,
         status,
         period_key: period.key,
         period_label: period.label,
@@ -238,7 +272,8 @@ export default async (req, res) => {
     }
 
     if (action == "delete") {
-      const { id } = req.body;
+      const id = exigirIdentificador(req.body.id);
+      if (!id) return res.json(error("id invalido"));
       await Transaction.delete({ id });
     }
 

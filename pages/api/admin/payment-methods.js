@@ -69,7 +69,9 @@ export default async (req, res) => {
   if (req.method == 'PUT') {
     const { id, paymentMethod } = req.body
 
-    if (!id) {
+    // Se exige texto. Enviando un operador de consulta en lugar del
+    // identificador, el filtro encajaria con una cuenta cualquiera.
+    if (!id || typeof id !== 'string') {
       return res.status(400).json({ error: true, message: 'ID del método de pago requerido' })
     }
 
@@ -107,11 +109,20 @@ export default async (req, res) => {
         })
       }
 
-      // Excluir campos que no deben ser actualizados (_id, id)
-      const { _id, id: paymentMethodId, ...paymentMethodData } = paymentMethod
-
+      // Se escriben solo los campos del formulario, los mismos que se aceptan al
+      // crear la cuenta mas arriba. Antes se volcaba el objeto recibido entero,
+      // asi que cualquier clave añadida a la peticion acababa guardada en el
+      // registro de la cuenta donde los socios ingresan su dinero.
       const updatedPaymentMethod = {
-        ...paymentMethodData,
+        cuenta: paymentMethod.cuenta,
+        titular: paymentMethod.titular,
+        banco: paymentMethod.banco,
+        tipo: paymentMethod.tipo,
+        cci: paymentMethod.cci || "",
+        active:
+          paymentMethod.active !== undefined
+            ? paymentMethod.active
+            : existingMethod.active,
         updatedAt: new Date()
       }
 
@@ -127,7 +138,9 @@ export default async (req, res) => {
   if (req.method == 'PATCH') {
     const { id, action } = req.body
 
-    if (!id) {
+    // Se exige texto. Enviando un operador de consulta en lugar del
+    // identificador, el filtro encajaria con una cuenta cualquiera.
+    if (!id || typeof id !== 'string') {
       return res.status(400).json({ error: true, message: 'ID del método de pago requerido' })
     }
 
@@ -171,7 +184,9 @@ export default async (req, res) => {
   if (req.method == 'DELETE') {
     const { id } = req.body
 
-    if (!id) {
+    // Se exige texto. Enviando un operador de consulta en lugar del
+    // identificador, el filtro encajaria con una cuenta cualquiera.
+    if (!id || typeof id !== 'string') {
       return res.status(400).json({ error: true, message: 'ID del método de pago requerido' })
     }
 

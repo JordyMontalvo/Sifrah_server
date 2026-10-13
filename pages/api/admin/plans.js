@@ -75,18 +75,27 @@ export default async (req, res) => {
     // response
     return res.json(success({}));
   }
-  if (req.method == "PUT") {
-    let plan = await Plan.update(req.body);
+  // El panel no usa estas dos vias (solo GET y POST), pero quedan publicadas.
+  // Antes recibian el cuerpo entero como filtro de la consulta, de modo que con
+  // un operador en lugar de un identificador se alcanzaba un plan cualquiera.
+  // Ahora exigen el identificador concreto, como el resto del fichero.
+  const cuerpo = req.body || {};
+  const identificadorPlan =
+    typeof cuerpo.id === "string" && cuerpo.id.trim() ? cuerpo.id.trim() : null;
 
-    // response
+  if (req.method == "PUT") {
+    // Esta via nunca llego a modificar nada: se llamaba a Plan.update sin los
+    // valores a escribir. Se deja sin efecto a proposito, para alterar un plan
+    // esta la accion 'edit' del POST, que si acota los campos que acepta.
     return res.json(
       success({
-        plan,
+        plan: null,
       })
     );
   }
   if (req.method == "DELETE") {
-    let plan = await Plan.delete(req.body);
+    if (!identificadorPlan) return res.json(success({ plan: null }));
+    let plan = await Plan.delete({ id: identificadorPlan });
 
     // response
     return res.json(

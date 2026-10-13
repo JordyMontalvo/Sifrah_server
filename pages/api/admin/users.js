@@ -498,18 +498,24 @@ const handler = async (req, res, auth) => {
         plan,
         affiliation_points,
       } = req.body.data;
-      console.log({
-        _name,
-        _lastName,
-        _dni,
-        _password,
-        _parent_dni,
-        _points,
-        _rank,
-        city,
-        plan,
-        affiliation_points,
-      });
+
+      // Aqui se escribia en el registro del servidor todo lo que llega del
+      // formulario, incluida la contraseña nueva en texto legible. Quien tenga
+      // acceso al registro leia la clave de cualquier socio a quien un
+      // administrador se la hubiera cambiado.
+
+      // Los puntos entran en la cascada que recalcula la red y deciden si el
+      // socio queda activado. Si llegan como texto, la suma de aguas abajo da
+      // 'NaN' y el calculo de toda la rama queda roto.
+      if (_points !== undefined && !Number.isFinite(Number(_points))) {
+        return res.json(error("invalid points"));
+      }
+      if (
+        affiliation_points !== undefined &&
+        !Number.isFinite(Number(affiliation_points))
+      ) {
+        return res.json(error("invalid affiliation points"));
+      }
 
       const user = await User.findOne({ id });
 
@@ -526,11 +532,14 @@ const handler = async (req, res, auth) => {
           name: _name,
           lastName: _lastName,
           dni: _dni,
-          points: _points,
+          points: _points === undefined ? undefined : Number(_points),
           rank: _rank,
           city,
           plan,
-          affiliation_points,
+          affiliation_points:
+            affiliation_points === undefined
+              ? undefined
+              : Number(affiliation_points),
         }
       );
 
