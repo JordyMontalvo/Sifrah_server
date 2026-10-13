@@ -7,7 +7,17 @@ import {
 } from '../../../components/rag-assistant-service.js';
 import { connectDB } from '../../../components/db-connect.js';
 
+import { applyCORS } from '../../../middleware/middleware-cors';
+import { consumir } from '../../../components/rate-limit';
+const { getClientIp } = require('../../../components/client-ip');
+
 const _fetch = typeof fetch === 'function' ? fetch : require('node-fetch');
+
+// Cada consulta que llega aqui acaba en una llamada de pago a Gemini. Sin freno,
+// una sola persona puede dejarla corriendo y la factura la paga la empresa.
+// El limite es holgado para no estorbar a una conversacion normal.
+const MAX_CONSULTAS = 60;
+const VENTANA_MS = 10 * 60 * 1000;
 
 /**
  * Guarda de forma asíncrona (sin bloquear al usuario) el registro de la conversación en MongoDB
@@ -33,14 +43,10 @@ async function logConversation({ query, distributorCode, reply, recommendedProdu
 }
 
 export default async function handler(req, res) {
-  // Configuración CORS
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
-  );
+  // Se usa la lista de origenes del proyecto. Antes se respondia con un comodin,
+  // que permite llamar a este endpoint desde cualquier web y deja sin efecto, solo
+  // aqui, el cierre de origenes que se aplico al resto de la API.
+  applyCORS(req, res);
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -48,6 +54,15 @@ export default async function handler(req, res) {
 
   if (req.method !== 'POST') {
     return res.status(405).json({ status: false, message: 'Método no permitido. Use POST.' });
+  }
+
+  const esperar = consumir(getClientIp(req), { maximo: MAX_CONSULTAS, ventanaMs: VENTANA_MS });
+  if (esperar > 0) {
+    res.setHeader('Retry-After', String(esperar));
+    return res.status(429).json({
+      status: false,
+      message: 'Has hecho demasiadas consultas seguidas. Espera un momento y vuelve a intentarlo.'
+    });
   }
 
   try {
@@ -228,10 +243,11 @@ export default async function handler(req, res) {
 
   } catch (error) {
     console.error('[Assistant API Error]:', error);
+    // El detalle del fallo queda en el registro del servidor, no se devuelve al
+    // cliente: suele describir la estructura interna y orienta a quien sondea.
     return res.status(500).json({
       status: false,
-      message: 'Ocurrió un error al procesar la consulta con el asistente.',
-      error: error.message
+      message: 'Ocurrió un error al procesar la consulta con el asistente.'
     });
   }
 }
