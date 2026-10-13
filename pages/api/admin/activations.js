@@ -173,8 +173,11 @@ export default async (req, res) => {
       const db = client.db(name);
 
       // --- NUEVO FILTRO COMBINADO ---
-      // Construir el filtro base (estado); excluir canjes Bono Ahorro (tienen sección propia)
-      let baseFilter = { order_type: { $ne: "savings_bonus" } };
+      // Construir el filtro base (estado); excluir canjes Bono Ahorro y compras de la tienda del socio (tienen sección propia)
+      let baseFilter = {
+        order_type: { $ne: "savings_bonus" },
+        channel: { $ne: "shared_store" },
+      };
       if (filter && filter !== "all") {
         baseFilter.status = filter;
       }
