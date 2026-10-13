@@ -3,9 +3,10 @@
  * Cumple con .agents/rules/common/coding-style.md (inmutabilidad, modularidad, funciones cortas)
  */
 
-import catalogData from './ai-catalog.js';
+import catalogData, { COMBOS as importedCombos } from './ai-catalog.js';
 
 const catalog = catalogData.default || catalogData;
+const COMBOS = importedCombos || catalogData.COMBOS || [];
 
 // 1. Guardrails de seguridad médica (Triage Clínico de Emergencia)
 const EMERGENCY_KEYWORDS = [
@@ -116,13 +117,38 @@ function retrieveRelevantProducts(query, topK = 3) {
 }
 
 /**
- * Construye el prompt de contexto para el LLM incorporando las fichas RAG
+ * Detecta si los productos relevantes aplican a un Combo de Sinergia
+ * @param {object[]} relevantProducts 
+ * @returns {object|null}
+ */
+function findApplicableCombo(relevantProducts) {
+  if (!relevantProducts || relevantProducts.length === 0) return null;
+  if (!COMBOS || COMBOS.length === 0) return null;
+
+  const relevantSkus = relevantProducts.map(p => p.sku);
+
+  // Buscar un combo donde el producto principal coincida con el primer recomendado
+  const primarySku = relevantSkus[0];
+  const foundCombo = COMBOS.find(c => c.primarySku === primarySku);
+  if (!foundCombo) return null;
+
+  // Encontrar el producto acompañante en el catálogo
+  const companionProduct = catalog.find(p => p.sku === foundCombo.companionSku);
+  return {
+    ...foundCombo,
+    companionProduct
+  };
+}
+
+/**
+ * Construye el prompt de contexto para el LLM incorporando las fichas RAG y Combos
  * @param {string} userQuery
  * @param {object[]} relevantProducts
  * @param {string} distributorCode
+ * @param {object|null} applicableCombo
  * @returns {string} Prompt estructurado
  */
-function buildSystemPrompt(userQuery, relevantProducts, distributorCode = '') {
+function buildSystemPrompt(userQuery, relevantProducts, distributorCode = '', applicableCombo = null) {
   const productsContext = relevantProducts.map(p => `
 PRODUCTO: ${p.names.join(' / ')}
 Categoría: ${p.category} | Precio: S/ ${p.price} | Puntos MLM: ${p.points} pts
@@ -133,6 +159,11 @@ Modo de uso recomendado: ${p.usage}
 Precauciones / Contraindicaciones: ${p.contraindications.join('; ')}
 `).join('\n---\n');
 
+  let comboContext = '';
+  if (applicableCombo) {
+    comboContext = `\nCOMBO RECOMENDADO DE SINERGIA:\n- Nombre: ${applicableCombo.name}\n- Justificación: ${applicableCombo.description}\n- Valor: ${applicableCombo.discountHint}\n(Menciona este combo como la mejor opción de tratamiento integral si el usuario busca resultados más completos).\n`;
+  }
+
   return `Eres el Asistente Virtual de Bienestar de Sifrah, una empresa de suplementos y nutrición de venta directa / multinivel.
 Tu misión es orientar con empatía a clientes y distribuidores que consultan por dolencias cotidianas, recomendando los productos Sifrah adecuados según la información técnica provista.
 
@@ -142,14 +173,15 @@ DIRECTIVAS CRÍTICAS:
 3. LIMITACIÓN: Basa tus recomendaciones ÚNICAMENTE en los productos provistos en el CONTEXTO. Si no hay productos afines para lo que pide, indícalo amablemente.
 4. ESTRUCTURA DE RESPUESTA:
    - Empatía y comprensión del malestar.
-   - Recomendación clara del producto (o combo de 2 productos) con su beneficio puntual y modo de toma.
+   - Recomendación clara del producto principal con su beneficio puntual y modo de toma.
+   - Si hay un COMBO DE SINERGIA disponible, sugiérelo amablemente como la alternativa más potente y completa.
    - Mención de ingredientes activos y precauciones si aplican.
    - Hábitos complementarios sugeridos (agua, sueño, alimentación).
    - Descargo de responsabilidad final breve (los suplementos no curan ni reemplazan consejo médico).
 
 CONTEXTO DE PRODUCTOS DISPONIBLES:
 ${productsContext || 'No se encontraron productos coincidentes en el catálogo.'}
-
+${comboContext}
 CÓDIGO DE DISTRIBUIDOR DEL USUARIO: ${distributorCode || 'DIRECTO'}
 
 CONSULTA DEL USUARIO:
@@ -211,6 +243,7 @@ function generateFallbackResponse(userQuery, relevantProducts, distributorCode =
 export {
   evaluateMedicalGuardrails,
   retrieveRelevantProducts,
+  findApplicableCombo,
   buildSystemPrompt,
   generateFallbackResponse
 };
@@ -219,6 +252,7 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     evaluateMedicalGuardrails,
     retrieveRelevantProducts,
+    findApplicableCombo,
     buildSystemPrompt,
     generateFallbackResponse
   };

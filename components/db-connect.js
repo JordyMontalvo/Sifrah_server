@@ -1,4 +1,5 @@
-import { MongoClient } from 'mongodb';
+import mongodbPkg from 'mongodb';
+const { MongoClient } = mongodbPkg;
 
 // Configuración de la base de datos
 const DB_URL = process.env.DB_URL || process.env.MONGODB_URI || 'mongodb://localhost:27017';

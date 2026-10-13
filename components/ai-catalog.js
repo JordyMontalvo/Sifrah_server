@@ -329,7 +329,54 @@ const catalog = [
   }
 ];
 
+const COMBOS = [
+  {
+    id: "COMBO_ARTICULAR_PRO",
+    name: "Combo Articular & Regenerativo (Rejuvenece + Detox)",
+    primarySku: "REJUVENECE",
+    companionSku: "DETOX",
+    description: "La sinergia ideal: Detox desinflama el tracto digestivo y depura toxinas para que el Colágeno Hidrolizado de Rejuvenece se absorba al 100% en las articulaciones.",
+    discountHint: "S/ 170 total • 80 Pts de volumen"
+  },
+  {
+    id: "COMBO_DIGESTIVO_TOTAL",
+    name: "Combo Digestivo Total (Regenera T + Detox)",
+    primarySku: "REGENERA_T",
+    companionSku: "DETOX",
+    description: "Regenera T cicatriza y protege las paredes del estómago contra el ardor y acidez, mientras Detox limpia el colon y combate el estreñimiento.",
+    discountHint: "S/ 175 total • 80 Pts de volumen"
+  },
+  {
+    id: "COMBO_ENERGIA_INMUNE",
+    name: "Combo Rendimiento & Defensas (Impulze + Vitalpro)",
+    primarySku: "IMPULZE",
+    companionSku: "VITALPRO",
+    description: "Impulze entrega vitalidad y claridad mental inmediata con Maca y Guaraná, y Vitalpro refuerza tus defensas con Calostro y Vitamina D3.",
+    discountHint: "S/ 160 total • 70 Pts de volumen"
+  },
+  {
+    id: "COMBO_CONTROL_PESO",
+    name: "Combo Silueta & Quema Grasa (Esbelta + Detox)",
+    primarySku: "ESBELTA",
+    companionSku: "DETOX",
+    description: "Esbelta acelera el metabolismo y la quema de calorías con Té Matcha y L-Carnitina, mientras Detox drena líquidos retenidos e hinchazón.",
+    discountHint: "S/ 175 total • 80 Pts de volumen"
+  },
+  {
+    id: "COMBO_CAPILAR_COMPLETO",
+    name: "Combo Anticaída Integral (Línea Capilar + Rejuvenece)",
+    primarySku: "LINEA_CAPILAR",
+    companionSku: "REJUVENECE",
+    description: "Tratamiento dual: El champú y loción estimulan el folículo desde el exterior, mientras el Colágeno y Biotina de Rejuvenece nutren la raíz desde el interior.",
+    discountHint: "S/ 140 total • 55 Pts de volumen"
+  }
+];
+
+export { catalog, COMBOS };
 export default catalog;
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = catalog;
+  module.exports.catalog = catalog;
+  module.exports.COMBOS = COMBOS;
 }
