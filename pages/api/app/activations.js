@@ -70,9 +70,6 @@ export default async (req, res) => {
 
   // obtener catálogo de productos con subdescription
   const products = await Product.find({})
-  console.log("[API App Activations] Productos obtenidos:", products.map(p => ({ id: p.id, name: p.name, subdescription: p.subdescription })));
-  console.log("[API App Activations] Estructura completa del primer producto:", products.length > 0 ? products[0] : "No hay productos");
-  console.log("[API App Activations] Campos disponibles en productos:", products.length > 0 ? Object.keys(products[0]) : "No hay productos");
 
   if(req.method == 'GET') {
 

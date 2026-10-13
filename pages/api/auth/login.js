@@ -8,6 +8,11 @@ const { getClientIp } = require("../../../components/client-ip")
 const { User, Session, DashboardConfig } = db
 const { rand, error, success, midd } = lib
 
+// No corresponde a ninguna contrasena de nadie: se genera al azar cada vez que
+// arranca el servidor y solo sirve para gastar el mismo tiempo que gastaria
+// comprobar la clave de un socio que si existe.
+const HASH_DE_DESCARTE = bcrypt.hashSync(rand() + rand(), 12)
+
 const Login = async (req, res) => {
 
   let { dni, password, office_id } = req.body
@@ -28,7 +33,18 @@ const Login = async (req, res) => {
   const user = await User.findOne({ dni })
   if(!user) {
     registerFailure(dni)
-    return res.json(error('dni not found'))
+    // Antes se respondia 'dni not found', de modo que cualquiera podia averiguar
+    // si un documento pertenece a un socio sin acertar ninguna contrasena. Se
+    // responde lo mismo que ante una contrasena equivocada. La aplicacion ya
+    // traduce ese mensaje, asi que el socio sigue leyendo "Contrasena
+    // incorrecta" y no hace falta tocar el frontal.
+    //
+    // La comparacion contra un hash de descarte iguala tambien el tiempo de
+    // respuesta: sin ella, el documento inexistente contesta al instante y el
+    // existente tarda lo que tarda comprobar la clave, y esa diferencia delata
+    // lo mismo que delataba el mensaje.
+    await bcrypt.compare(String(password), HASH_DE_DESCARTE).catch(() => false)
+    return res.json(error('invalid password'))
   }
 
   if (user.status === 'eliminated') {

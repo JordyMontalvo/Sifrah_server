@@ -107,7 +107,6 @@ export default async (req, res) => {
 
   // check verified
   const user = await User.findOne({ id: session.id })
-  console.log(user.plan)
   const { Period } = db
   const period = await getOrCreateOpenPeriod(Period, new Date())
   let promotionEligibility = {

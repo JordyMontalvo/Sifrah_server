@@ -5,10 +5,14 @@ const { User, ReactivationRequest } = db
 const { error, success, midd } = lib
 
 const ReactivateRequest = async (req, res) => {
-  const { dni, reason, sponsor_code } = req.body
+  let { dni, reason, sponsor_code } = req.body
 
   if (!dni) return res.json(error('DNI es requerido'))
-  if (!reason || reason.trim() === '') return res.json(error('Debes proporcionar un motivo'))
+  if (!reason || typeof reason !== 'string' || reason.trim() === '') return res.json(error('Debes proporcionar un motivo'))
+
+  // Se fuerza texto: este endpoint no exige sesion, y con un operador de
+  // consulta en lugar del documento se encajaria con un socio cualquiera.
+  dni = String(dni).trim()
 
   // Verificar que el usuario exista y esté bloqueado
   const user = await User.findOne({ dni })

@@ -43,7 +43,6 @@ const Invoice = async (req, res) => {
 
         product.name  = p.name
         product.price = p.price
-        console.log(product.name)
       })
     })
 

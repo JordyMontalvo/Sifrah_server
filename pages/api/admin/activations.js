@@ -325,9 +325,6 @@ export default async (req, res) => {
       const wasActivatedBefore = user.activated;
       
       const activated = user.activated ? true : points_total >= 120;
-      console.log({ activated });
-      console.log('Usuario estaba activado antes:', wasActivatedBefore);
-      console.log('Usuario está activado ahora:', activated);
 
       await User.update(
         { id: user.id },

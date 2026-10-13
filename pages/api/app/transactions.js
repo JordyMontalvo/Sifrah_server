@@ -103,13 +103,11 @@ const transactions = async (req, res) => {
   transactions = transactions.filter(transaction => {
     // Excluir transacciones "closed reset"
     if (transaction.name === "closed reset") {
-      console.log(`🚫 Excluyendo "closed reset": ${transaction.id}`);
       return false;
     }
     
     // Excluir transacciones que fueron compensadas por "closed reset"
     if (compensatedTransactionIds.has(transaction.id)) {
-      console.log(`🚫 Excluyendo transacción compensada: ${transaction.id} - ${transaction.name} - ${transaction.value}`);
       return false;
     }
     

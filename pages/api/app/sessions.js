@@ -6,8 +6,14 @@ const { Session } = db
 const { error, success, midd } = lib
 
 const SessionsHandler = async (req, res) => {
+  // Se exige texto. Si se admitiera un objeto, enviando un operador de consulta
+  // en lugar del token se encajaria con una sesion cualquiera, y desde ahi se
+  // listan y se cierran las sesiones de un socio ajeno sin haber entrado.
   let currentSessionValue = req.headers.authorization || req.body.session || req.query.session;
-  if (!currentSessionValue) return res.json(error('invalid session'))
+  if (typeof currentSessionValue !== 'string' || !currentSessionValue.trim()) {
+    return res.json(error('invalid session'))
+  }
+  currentSessionValue = currentSessionValue.trim()
 
   const sessionObj = await Session.findOne({ value: currentSessionValue })
   if(!sessionObj) return res.json(error('invalid session'))

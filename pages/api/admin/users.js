@@ -138,9 +138,6 @@ const handler = async (req, res, auth) => {
 
     // Filtrar usuarios con saldo no disponible
     if (showVirtualBalance === "true" || showVirtualBalance === true) {
-      console.log(`🔍 Filtrando usuarios con saldo no disponible...`);
-      console.log(`📊 Total usuarios antes del filtro: ${allUsers.length}`);
-      console.log(`📊 Total transacciones virtuales: ${virtualTransactions.length}`);
       
       // Obtener todas las transacciones "closed reset" agrupadas por usuario
       const closedResetTransactionsByUser = {};
@@ -180,7 +177,10 @@ const handler = async (req, res, auth) => {
         allVirtualTransactionsByUser[userId].sort((a, b) => new Date(a.date) - new Date(b.date));
       }
       
-      const filteredUsers = [];
+      // Solo se lleva la cuenta. Antes se guardaba aqui el nombre y apellido de
+      // cada socio junto a su saldo, y esa lista acababa escrita en el registro
+      // del servidor cada vez que un administrador abria el filtro.
+      let conSaldoNoDisponible = 0;
       const beforeFilterCount = allUsers.length;
       
       allUsers = allUsers.filter((user) => {
@@ -233,22 +233,13 @@ const handler = async (req, res, auth) => {
         const hasVirtualBalance = virtualBalance > 0;
         
         if (hasVirtualBalance) {
-          // El identificador interno basta para rastrearlo; el nombre completo
-          // no tiene por que quedar escrito en los registros del servidor.
-          console.log(`✅ Usuario ${user.id} tiene saldo no disponible: ${virtualBalance.toFixed(2)}`);
-          filteredUsers.push(`${user.name} ${user.lastName} (${virtualBalance.toFixed(2)})`);
+          conSaldoNoDisponible++;
         }
         
         return hasVirtualBalance; // Solo usuarios con saldo no disponible
       });
       
-      console.log(`📊 Total usuarios después del filtro: ${allUsers.length} (de ${beforeFilterCount})`);
-      console.log(`📋 Usuarios con saldo no disponible encontrados: ${filteredUsers.length}`);
-      if (filteredUsers.length > 0) {
-        console.log(`📋 Lista: ${filteredUsers.slice(0, 10).join(', ')}${filteredUsers.length > 10 ? '...' : ''}`);
-      } else {
-        console.log(`⚠️ No se encontraron usuarios con saldo no disponible`);
-      }
+      console.log(`[users] filtro de saldo no disponible: ${conSaldoNoDisponible} de ${beforeFilterCount}`);
     }
 
     // Apply search if search parameter exists

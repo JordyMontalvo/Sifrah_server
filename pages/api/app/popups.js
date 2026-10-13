@@ -31,8 +31,12 @@ export default async (req, res) => {
   try {
     await midd(req, res);
 
+    // Se exige texto: un objeto con un operador de consulta encajaria con una
+    // sesion cualquiera y daria paso sin haber iniciado sesion.
     const sessionValue = (req.query && req.query.session) || (req.body && req.body.session);
-    if (!sessionValue) return res.json(error("invalid session"));
+    if (typeof sessionValue !== "string" || !sessionValue.trim()) {
+      return res.json(error("invalid session"));
+    }
 
     const session = await Session.findOne({ value: sessionValue });
     if (!session) return res.json(error("invalid session"));

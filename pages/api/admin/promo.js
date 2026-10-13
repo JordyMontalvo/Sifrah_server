@@ -15,9 +15,6 @@ export default async (req, res) => {
 
     const { action, data, type } = req.body
 
-    const body = req.body
-    console.log({ body })
-
     // console.log({ action, img, active })
 
 

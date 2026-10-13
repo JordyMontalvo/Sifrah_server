@@ -17,6 +17,11 @@ const Register = async (req, res) => {
 
   code = code.trim().toUpperCase()
 
+  // Se fuerza texto antes de consultar: un objeto con un operador encajaria con
+  // cualquier socio y haria creer que el documento o el correo ya estan en uso.
+  dni = String(dni == null ? '' : dni).trim()
+  if (email != null) email = String(email).trim()
+
   const existingUser = await User.findOne({ dni })
 
   // Si el DNI ya existe y el usuario NO está eliminado → bloquear

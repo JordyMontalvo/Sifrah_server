@@ -72,8 +72,6 @@ export default async (req, res) => {
             .filter((id) => id != null && id !== "")
         ),
       ];
-      console.log("Unique user IDs:", userIds.length);
-
       const users =
         userIds.length > 0
           ? await User.find({ id: { $in: userIds } })

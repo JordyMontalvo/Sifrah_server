@@ -39,8 +39,6 @@ export default async (req, res) => {
       return office
     })
 
-    console.log("🔍 [DEBUG] Oficinas para usuarios (checkout):", offices.map(o => ({ id: o.id, name: o.name, active: o.active })));
-
     return res.json(success({ offices }))
   }
 
