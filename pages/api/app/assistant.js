@@ -1,18 +1,9 @@
-/**
- * API Route: /api/app/assistant
- * Endpoint para el Asistente de Bienestar Sifrah con RAG, Guardrails Clínicos y Afiliados MLM
- */
-
-import path from 'path';
-import { createRequire } from 'module';
-
-const require = createRequire(import.meta.url);
-const {
+import {
   evaluateMedicalGuardrails,
   retrieveRelevantProducts,
   buildSystemPrompt,
   generateFallbackResponse
-} = require(path.join(process.cwd(), 'components/rag-assistant-service.js'));
+} from '../../../components/rag-assistant-service';
 
 const _fetch = typeof fetch === 'function' ? fetch : require('node-fetch');
 

@@ -4,7 +4,7 @@
  * Una vez se tengan las fichas oficiales, se actualizan aquí o en la base de datos.
  */
 
-module.exports = [
+const catalog = [
   {
     sku: "REJUVENECE",
     names: ["REJUVENECE-POTE", "REJUVENECE-SACHET"],
@@ -328,3 +328,8 @@ module.exports = [
     contraindications: ["Uso tópico. En caso de irritación descontinuar. Usar protector solar."]
   }
 ];
+
+export default catalog;
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = catalog;
+}

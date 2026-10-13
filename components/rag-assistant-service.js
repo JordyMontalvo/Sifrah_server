@@ -3,7 +3,9 @@
  * Cumple con .agents/rules/common/coding-style.md (inmutabilidad, modularidad, funciones cortas)
  */
 
-const catalog = require('./ai-catalog');
+import catalogData from './ai-catalog';
+
+const catalog = catalogData.default || catalogData;
 
 // 1. Guardrails de seguridad médica (Triage Clínico de Emergencia)
 const EMERGENCY_KEYWORDS = [
@@ -206,9 +208,18 @@ function generateFallbackResponse(userQuery, relevantProducts, distributorCode =
   };
 }
 
-module.exports = {
+export {
   evaluateMedicalGuardrails,
   retrieveRelevantProducts,
   buildSystemPrompt,
   generateFallbackResponse
 };
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    evaluateMedicalGuardrails,
+    retrieveRelevantProducts,
+    buildSystemPrompt,
+    generateFallbackResponse
+  };
+}
