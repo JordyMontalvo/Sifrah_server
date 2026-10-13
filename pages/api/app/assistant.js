@@ -3,7 +3,7 @@ import {
   retrieveRelevantProducts,
   buildSystemPrompt,
   generateFallbackResponse
-} from '../../../components/rag-assistant-service';
+} from '../../../components/rag-assistant-service.js';
 
 const _fetch = typeof fetch === 'function' ? fetch : require('node-fetch');
 
@@ -55,7 +55,7 @@ export default async function handler(req, res) {
     if (geminiApiKey) {
       try {
         const systemPrompt = buildSystemPrompt(cleanQuery, relevantProducts, distributorCode);
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`;
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${geminiApiKey}`;
 
         const geminiRes = await _fetch(geminiUrl, {
           method: 'POST',

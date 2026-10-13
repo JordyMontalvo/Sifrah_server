@@ -3,7 +3,7 @@
  * Cumple con .agents/rules/common/coding-style.md (inmutabilidad, modularidad, funciones cortas)
  */
 
-import catalogData from './ai-catalog';
+import catalogData from './ai-catalog.js';
 
 const catalog = catalogData.default || catalogData;
 
