@@ -200,6 +200,18 @@ const A = [
 ];
 const U = ["name", "lastName", "dni", "phone"];
 
+function expandIdsForIn(ids) {
+  const out = new Set();
+  for (const id of ids) {
+    if (id == null || id === "") continue;
+    out.add(id);
+    const n = Number(id);
+    if (!Number.isNaN(n)) out.add(n);
+    out.add(String(id));
+  }
+  return [...out];
+}
+
 let users = null;
 let tree = null;
 
@@ -301,7 +313,7 @@ const handler = async (req, res, auth) => {
     // get AFFILIATIONS
     let qq = { ...q[filter] };
 
-    if (account != "admin") qq.office = account;
+    if (account && account != "admin") qq.office = account;
     try {
       const skip = (pageNum - 1) * limitNum;
       let finalQuery = { ...qq };
@@ -320,13 +332,13 @@ const handler = async (req, res, auth) => {
           ],
         }, { projection: { id: 1 } });
 
-        const matchingUserIds = matchingUsers.map((u) => String(u.id));
+        const matchingUserIds = matchingUsers.map((u) => u.id);
 
         // Sin coincidencias → respuesta vacía directa (evita query inútil)
         if (matchingUserIds.length === 0) {
           return res.json(success({ affiliations: [], total: 0, totalPages: 0, currentPage: pageNum }));
         }
-        finalQuery.userId = { $in: matchingUserIds };
+        finalQuery.userId = { $in: expandIdsForIn(matchingUserIds) };
       }
 
       // ── Paginación y conteo 100% en MongoDB ─────────────────────────────────
@@ -338,12 +350,19 @@ const handler = async (req, res, auth) => {
       // ── Usuarios de la página + sus patrocinadores ───────────────────────────
       // Solo se cargan los usuarios de la página actual, no toda la colección.
       const pageUserIds = affiliations.map((a) => a.userId).filter((id) => id != null);
-      let users = pageUserIds.length > 0 ? await User.find({ id: { $in: pageUserIds } }) : [];
-      users = map(users);
+      const expandedPageUserIds = expandIdsForIn(pageUserIds);
+      const pageUsersList = expandedPageUserIds.length > 0 ? await User.find({ id: { $in: expandedPageUserIds } }) : [];
+      const usersMap = new Map();
+      for (const u of pageUsersList) {
+        if (u && u.id != null) {
+          usersMap.set(u.id, u);
+          usersMap.set(String(u.id), u);
+        }
+      }
 
       const parentIdList = [
         ...new Set(
-          [...users.values()]
+          [...usersMap.values()]
             .map((u) => u.parentId)
             .filter((id) => id != null && id !== "")
         ),
@@ -351,24 +370,34 @@ const handler = async (req, res, auth) => {
 
       let parentsMap = new Map();
       if (parentIdList.length) {
-        const parents = await User.find({ id: { $in: parentIdList } });
-        parentsMap = map(parents);
+        const expandedParentIds = expandIdsForIn(parentIdList);
+        const parents = await User.find({ id: { $in: expandedParentIds } });
+        for (const p of parents) {
+          if (p && p.id != null) {
+            parentsMap.set(p.id, p);
+            parentsMap.set(String(p.id), p);
+          }
+        }
       }
 
       // Sponsors no afiliados: ¿tienen solicitud pendiente?
       const unaffiliatedParentIds = parentIdList.filter((id) => {
-        const p = parentsMap.get(id);
+        const p = parentsMap.get(id) || parentsMap.get(String(id));
         return p && !p.affiliated;
       });
 
       const pendingSponsorIds = new Set();
       if (unaffiliatedParentIds.length) {
+        const expandedUnaffiliated = expandIdsForIn(unaffiliatedParentIds);
         const pendingRows = await Affiliation.find({
-          userId: { $in: unaffiliatedParentIds },
+          userId: { $in: expandedUnaffiliated },
           status: "pending",
         });
         for (const row of pendingRows || []) {
-          if (row && row.userId != null) pendingSponsorIds.add(row.userId);
+          if (row && row.userId != null) {
+            pendingSponsorIds.add(row.userId);
+            pendingSponsorIds.add(String(row.userId));
+          }
         }
       }
 
@@ -376,7 +405,7 @@ const handler = async (req, res, auth) => {
         if (!affUser || affUser.parentId == null || affUser.parentId === "") {
           return null;
         }
-        const parent = parentsMap.get(affUser.parentId);
+        const parent = parentsMap.get(affUser.parentId) || parentsMap.get(String(affUser.parentId));
         if (!parent) {
           return {
             id: affUser.parentId,
@@ -392,7 +421,7 @@ const handler = async (req, res, auth) => {
         if (parent.affiliated === true) {
           status = "affiliated";
           statusLabel = "Patrocinador afiliado";
-        } else if (pendingSponsorIds.has(parent.id)) {
+        } else if (pendingSponsorIds.has(parent.id) || pendingSponsorIds.has(String(parent.id))) {
           status = "pending";
           statusLabel = "Patrocinador con solicitud pendiente de aprobación";
         } else {
@@ -410,8 +439,8 @@ const handler = async (req, res, auth) => {
       };
 
       // enrich affiliations
-      affiliations = affiliations.map((raw) => {
-        const affUser = users.get(raw.userId);
+      const enrichedAffiliations = affiliations.map((raw) => {
+        const affUser = usersMap.get(raw.userId) || usersMap.get(String(raw.userId));
         let a = model(raw, A);
         let u = model(affUser, U);
         // amounts: [paid_virtual, paid_balance, due_or_external]
@@ -473,7 +502,7 @@ const handler = async (req, res, auth) => {
       // Devolver los resultados con información de paginación
       return res.json(
         success({
-          affiliations,
+          affiliations: enrichedAffiliations,
           total: totalAffiliations,
           totalPages: Math.ceil(totalAffiliations / limitNum),
           currentPage: pageNum,
