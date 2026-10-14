@@ -37,6 +37,13 @@ export default async function handler(req, res) {
         .map((product) => `${product.total} ${product.name || "Producto"}`)
         .join(", ") || "-";
 
+    const points =
+      Number(order.points) ||
+      products.reduce(
+        (sum, p) => sum + (Number(p.points) || 0) * (Number(p.total) || 1),
+        0
+      );
+
     return {
       id: order.id,
       date: order.date,
@@ -52,6 +59,7 @@ export default async function handler(req, res) {
         id: order.userId || "",
       },
       products: productText,
+      points,
       amount: Number(order.price) || 0,
       status: order.status || "pending",
       pay_method: order.pay_method || "",
@@ -71,6 +79,9 @@ export default async function handler(req, res) {
     amount: rows
       .filter((row) => row.status !== "rejected" && row.status !== "cancelled")
       .reduce((sum, row) => sum + row.amount, 0),
+    points: rows
+      .filter((row) => row.status !== "rejected" && row.status !== "cancelled")
+      .reduce((sum, row) => sum + (row.points || 0), 0),
   };
 
   return res.json(success({ orders: rows, summary }));

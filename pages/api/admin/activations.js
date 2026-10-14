@@ -317,11 +317,14 @@ export default async (req, res) => {
 
       // update USER
       const user = await User.findOne({ id: activation.userId });
+      if (!user) {
+        return res.json(error("Usuario de la activación no encontrado."));
+      }
 
       // const points_total  = user.points.total  + activation.points
       // const points_period = user.points.period + activation.points
 
-      const points_total = user.points + activation.points;
+      const points_total = (Number(user.points) || 0) + (Number(activation.points) || 0);
       console.log({ points_total });
 
       // Verificar si el usuario estaba activado ANTES de esta aprobación
@@ -452,22 +455,21 @@ export default async (req, res) => {
       const office_id = activation.office;
       const products = activation.products || []; // Asegurarse de que products sea un array
 
-      // console.log({ office_id, products })
+      if (office_id) {
+        const office = await Office.findOne({ id: office_id });
+        if (office && office.products && Array.isArray(office.products)) {
+          products.forEach((p, i) => {
+            if (office.products[i]) office.products[i].total -= products[i].total;
+          });
 
-      const office = await Office.findOne({ id: office_id });
-
-      // console.log(office)
-
-      products.forEach((p, i) => {
-        if (office.products[i]) office.products[i].total -= products[i].total;
-      });
-
-      await Office.update(
-        { id: office_id },
-        {
-          products: office.products,
+          await Office.update(
+            { id: office_id },
+            {
+              products: office.products,
+            }
+          );
         }
-      );
+      }
 
       // console.log(office)
 
@@ -517,7 +519,7 @@ export default async (req, res) => {
             type: "in",
             value: amount,
             name: "activation bonnus promo",
-            activation_id: activation.d,
+            activation_id: activation.id,
             virtual,
             _user_id: user.id,
             period_key: approvedPeriodKey,
@@ -541,7 +543,7 @@ export default async (req, res) => {
         target_id: id,
         user_id: user.id,
         admin_id: auth.user.id,
-        state_before: { points: wasActivatedBefore ? user.points : user.points - activation.points, activated: wasActivatedBefore },
+        state_before: { points: wasActivatedBefore ? user.points : (Number(user.points) || 0) - (Number(activation.points) || 0), activated: wasActivatedBefore },
         state_after: { points: points_total, activated: activated }
       });
 
@@ -618,24 +620,27 @@ export default async (req, res) => {
       // Si la activación fue aprobada, revertir los puntos del usuario
       if (activation.status === "approved") {
         const user = await User.findOne({ id: activation.userId });
-        
-        // Restar los puntos de la activación
-        const new_points = user.points - activation.points;
-        console.log(`Revirtiendo puntos: ${user.points} - ${activation.points} = ${new_points}`);
-        
-        // Recalcular estados de activación
-        const activated = user.activated ? (new_points >= 120) : false;
-        
-        await User.update(
-          { id: user.id },
-          {
-            points: new_points,
-            activated,
-          }
-        );
-        
-        // Actualizar total_points en cascada
-        await lib.updateTotalPointsCascade(User, Tree, user.id);
+        if (user) {
+          // Restar los puntos de la activación
+          const currentPts = Number(user.points) || 0;
+          const actPts = Number(activation.points) || 0;
+          const new_points = Math.max(0, currentPts - actPts);
+          console.log(`Revirtiendo puntos: ${currentPts} - ${actPts} = ${new_points}`);
+          
+          // Recalcular estados de activación
+          const activated = user.activated ? (new_points >= 120) : false;
+          
+          await User.update(
+            { id: user.id },
+            {
+              points: new_points,
+              activated,
+            }
+          );
+          
+          // Actualizar total_points en cascada
+          await lib.updateTotalPointsCascade(User, Tree, user.id);
+        }
       }
       
       // Eliminar las transacciones asociadas (ya que fueron revertidas)
@@ -647,20 +652,22 @@ export default async (req, res) => {
       
       // Actualizar stock (devolver productos al inventario)
       const office_id = activation.office;
-      const products = activation.products || [];
-      const office = await Office.findOne({ id: office_id });
-      if (office && Array.isArray(products)) {
-        products.forEach((p, i) => {
-          if (office.products[i]) {
-            office.products[i].total += products[i].total;
-          }
-        });
-        await Office.update(
-          { id: office_id },
-          {
-            products: office.products,
-          }
-        );
+      if (office_id) {
+        const products = activation.products || [];
+        const office = await Office.findOne({ id: office_id });
+        if (office && Array.isArray(products) && Array.isArray(office.products)) {
+          products.forEach((p, i) => {
+            if (office.products[i]) {
+              office.products[i].total += products[i].total;
+            }
+          });
+          await Office.update(
+            { id: office_id },
+            {
+              products: office.products,
+            }
+          );
+        }
       }
       
       await lib.createAuditLog(AuditLog, {
