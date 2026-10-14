@@ -297,6 +297,7 @@ export default async (req, res) => {
       if (resolvedCatalogType) updatePayload.catalog_type = resolvedCatalogType;
 
       await Product.update({ id }, updatePayload);
+      return res.json(success({ product: updatePayload }));
     }
 
     if (action == "add") {
