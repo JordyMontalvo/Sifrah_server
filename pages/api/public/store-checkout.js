@@ -142,8 +142,14 @@ export default async (req, res) => {
     if (!dbProduct || isPromotionProduct(dbProduct) || isSavingsOnlyProduct(dbProduct)) {
       return res.json(error("Hay un producto que no está disponible en esta tienda."));
     }
+    const publicPrice = Number(dbProduct.public_price);
     const socio = Number(dbProduct.price_socio);
-    const unit = socio > 0 ? socio : Number(dbProduct.price) || 0;
+    const unit =
+      publicPrice > 0
+        ? publicPrice
+        : socio > 0
+        ? socio
+        : Number(dbProduct.price) || 0;
     if (unit <= 0) return res.json(error("Hay un producto sin precio."));
     products.push({
       id: dbProduct.id,

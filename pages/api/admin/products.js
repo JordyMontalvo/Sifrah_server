@@ -216,6 +216,8 @@ export default async (req, res) => {
         available_quantity = 0,
         catalog_type = "",
         savings_category_id = null,
+        public_price = 0,
+        _public_price = undefined,
       } = req.body.data;
 
       const found = await Product.find({ id });
@@ -277,6 +279,10 @@ export default async (req, res) => {
         savings_description,
         savings_img,
         savings_category_id: categoryFields.savings_category_id,
+        public_price:
+          _public_price !== undefined
+            ? Number(_public_price) || 0
+            : Number(public_price) || 0,
       };
 
       mergedProduct.catalog_type = resolvedCatalogType || mergedProduct.catalog_type;
@@ -315,6 +321,7 @@ export default async (req, res) => {
         available_quantity = 0,
         catalog_type = "",
         savings_category_id = null,
+        public_price = 0,
       } = req.body.data;
 
       const allPlans = await Plan.find({});
@@ -369,6 +376,7 @@ export default async (req, res) => {
         promotion_active: promotion_active !== false,
         available_quantity: Number(available_quantity) || 0,
         savings_category_id: categoryFields.savings_category_id,
+        public_price: Number(public_price) || 0,
         sort_order: await getNextProductSortOrder(Product),
       };
 
@@ -388,6 +396,18 @@ export default async (req, res) => {
       }
 
       await Product.insert(insertPayload);
+    }
+
+    if (action == "update_public_price") {
+      const { id, public_price } = req.body;
+      const found = await Product.find({ id });
+      const product = found && found[0];
+      if (!product) {
+        return res.status(404).json({ error: "Producto no encontrado" });
+      }
+      const val = Math.max(0, Number(public_price) || 0);
+      await Product.update({ id }, { public_price: val });
+      return res.json(success({ public_price: val }));
     }
 
     if (action == "toggle_promotion_active") {
