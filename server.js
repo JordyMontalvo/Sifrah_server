@@ -17,16 +17,21 @@ app.prepare().then(() => {
     try {
       // Parsear la URL
       const parsedUrl = parse(req.url, true);
-      
+
+      // Request ID correlacionado (desde Nginx o fallback crypto)
+      const requestId = req.headers['x-request-id'] || require('crypto').randomBytes(8).toString('hex');
+      req.id = requestId;
+      res.setHeader('X-Request-ID', requestId);
+
       // Log de la solicitud
       if (config.enableLogs) {
-        console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+        console.log(`[req:${requestId}] ${new Date().toISOString()} - ${req.method} ${req.url}`);
       }
-      
+
       // Manejar la solicitud
       await handle(req, res, parsedUrl);
     } catch (err) {
-      console.error('Error occurred handling', req.url, err);
+      console.error(`[req:${req.id || 'unknown'}] Error occurred handling`, req.url, err);
       res.statusCode = 500;
       res.end('internal server error');
     }

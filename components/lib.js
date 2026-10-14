@@ -32,7 +32,10 @@ class Lib {
         // Sentry browser SDK (tracing): sin esto el preflight falla en local/prod
         "sentry-trace",
         "baggage",
+        // Request correlation
+        "X-Request-ID",
       ],
+      exposedHeaders: ["X-Request-ID"],
     });
 
     this.midd = this.midd.bind(this);
