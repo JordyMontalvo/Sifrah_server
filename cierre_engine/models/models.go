@@ -22,6 +22,7 @@ type User struct {
 	Email             string    `bson:"email" json:"email"`
 	Phone             string    `bson:"phone" json:"phone"`
 	Status            string    `bson:"status" json:"status"`
+	UserType          string    `bson:"type" json:"type"`
 	StatusReason      string    `bson:"statusReason" json:"statusReason"`
 	NInactives        int       `bson:"n_inactives" json:"n_inactives"`
 	Points            float64   `bson:"points" json:"points"`

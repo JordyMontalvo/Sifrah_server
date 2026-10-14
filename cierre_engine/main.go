@@ -383,7 +383,10 @@ func main() {
 		user.LastSavingsBonus      = savTotal
 
 		// Elimination logic
-		if user.Status != "eliminated" {
+		// Los usuarios de tipo "admin" quedan excluidos del proceso de eliminación
+		// automática para evitar que el panel de administración quede bloqueado.
+		isAdminUser := user.UserType == "admin" || user.ID == "admin"
+		if user.Status != "eliminated" && !isAdminUser {
 			if !user.Affiliated {
 				user.Status = "eliminated"
 				user.StatusReason = "Cierre automático: Usuario no afiliado"
