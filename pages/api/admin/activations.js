@@ -1,10 +1,6 @@
 import db from "../../../components/db";
 import lib from "../../../components/lib";
-import { MongoClient } from "mongodb";
 import { requireAdmin } from "../../../components/adminAuth";
-
-const URL = process.env.DB_URL; // Asegúrate de que esta variable esté definida correctamente
-const name = process.env.DB_NAME;
 
 const { Activation, Affiliation, User, Tree, Token, Office, Transaction, Closed, Period, AuditLog } = db;
 const { error, success, midd, ids, map, model, rand } = lib;
@@ -102,7 +98,6 @@ export default async (req, res) => {
 
   if (req.method === "GET") {
     const { filter, page = 1, limit = 20, search, timeRange } = req.query;
-    console.log("Received request with page:", page, "and limit:", limit);
     const q = { all: {}, pending: { status: "pending" } };
     const pageNum = parseInt(page, 10);
     const limitNum = parseInt(limit, 10);
@@ -129,98 +124,53 @@ export default async (req, res) => {
     }
 
     const skip = (pageNum - 1) * limitNum;
-    console.log(
-      "Calculated skip:",
-      skip,
-      "using pageNum:",
-      pageNum,
-      "and limitNum:",
-      limitNum
-    );
-
     let dateFilter = {};
 
     if (timeRange) {
       const now = new Date();
       switch (timeRange) {
         case "week":
-          dateFilter = {
-            date: {
-              $gte: new Date(now.setDate(now.getDate() - 7)),
-            },
-          };
+          dateFilter = { date: { $gte: new Date(now.setDate(now.getDate() - 7)) } };
           break;
         case "month":
-          dateFilter = {
-            date: {
-              $gte: new Date(now.setMonth(now.getMonth() - 1)),
-            },
-          };
+          dateFilter = { date: { $gte: new Date(now.setMonth(now.getMonth() - 1)) } };
           break;
         case "year":
-          dateFilter = {
-            date: {
-              $gte: new Date(now.setFullYear(now.getFullYear() - 1)),
-            },
-          };
+          dateFilter = { date: { $gte: new Date(now.setFullYear(now.getFullYear() - 1)) } };
           break;
       }
     }
 
     try {
-      const client = new MongoClient(URL);
-      await client.connect();
-      const db = client.db(name);
+      // ── Reutilizar el pool de conexiones del MongoWrapper singleton ──────────
+      // Activation._getCollection() usa el FakeClient / globalDb ya conectado,
+      // evitando abrir un nuevo MongoClient por cada request HTTP.
+      const col = await Activation._getCollection();
 
-      // --- NUEVO FILTRO COMBINADO ---
-      // Construir el filtro base (estado); excluir canjes Bono Ahorro y compras de la tienda del socio (tienen sección propia)
+      // ── Filtro base ──────────────────────────────────────────────────────────
+      // Excluir canjes Bono Ahorro y compras de la tienda del socio (sección propia)
       let baseFilter = {
         order_type: { $ne: "savings_bonus" },
         channel: { $ne: "shared_store" },
       };
-      if (filter && filter !== "all") {
-        baseFilter.status = filter;
-      }
-      // Agregar filtro de fecha si aplica
-      if (Object.keys(dateFilter).length > 0) {
-        baseFilter = { ...baseFilter, ...dateFilter };
-      }
-      // Si hay búsqueda, busca los usuarios y filtra por userId
+      if (filter && filter !== "all") baseFilter.status = filter;
+      if (Object.keys(dateFilter).length > 0) baseFilter = { ...baseFilter, ...dateFilter };
+
+      // ── Búsqueda por usuario (si aplica) ────────────────────────────────────
       if (search) {
-        const users = await db
-          .collection("users")
-          .find(userSearchQuery)
-          .toArray();
-        const userIds = users.map((user) => String(user.id));
-        console.log("Filtrando activaciones por userIds:", userIds);
-        if (userIds.length > 0) {
-          baseFilter.userId = { $in: userIds };
-        } else {
-          // Si no hay usuarios que coincidan, no devolver nada
-          baseFilter.userId = "__NO_MATCH__";
-        }
+        const usersCol = await User._getCollection();
+        const matchingUsers = await usersCol.find(userSearchQuery, { projection: { id: 1 } }).toArray();
+        const userIds = matchingUsers.map((u) => String(u.id));
+        baseFilter.userId = userIds.length > 0 ? { $in: userIds } : "__NO_MATCH__";
       }
-      // --- FIN NUEVO FILTRO ---
 
-      // Filtrar activaciones según el filtro combinado
-      const activationsCursor = db
-        .collection("activations")
-        .find(baseFilter)
-        .sort({ date: -1 })
-        .skip(skip)
-        .limit(limitNum);
+      // ── Query + Count en paralelo ────────────────────────────────────────────
+      const [activations, totalActivations] = await Promise.all([
+        col.find(baseFilter).sort({ date: -1 }).skip(skip).limit(limitNum).toArray(),
+        col.countDocuments(baseFilter),
+      ]);
 
-      const activations = await activationsCursor.toArray();
-
-      const totalActivations = await db
-        .collection("activations")
-        .countDocuments(baseFilter); // Contar documentos que coinciden
-
-      console.log("Type of page:", typeof page, "Value:", page);
-      console.log("Type of limit:", typeof limit, "Value:", limit);
-      client.close();
-
-      // Obtener usuarios relacionados con las activaciones
+      // ── Enriquecer con datos de usuario ──────────────────────────────────────
       let relatedUsers = await User.find({ id: { $in: lib.ids(activations) } });
       relatedUsers = lib.map(relatedUsers);
 
@@ -239,9 +189,9 @@ export default async (req, res) => {
           currentPage: pageNum,
         })
       );
-    } catch (error) {
-      console.error("Database connection error:", error);
-      return res.status(500).json(lib.error("Database connection error"));
+    } catch (err) {
+      console.error("[activations] Error en GET:", err);
+      return res.status(500).json(lib.error("Error al obtener activaciones"));
     }
   }
 

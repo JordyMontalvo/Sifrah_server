@@ -84,21 +84,7 @@ function matchesRankHistoryEntry(entry, { rank, date, period }) {
 
 const handler = async (req, res, auth) => {
   if (req.method == "GET") {
-    console.log("GET ...");
-
     const { filter, page = 1, limit = 20, search, showAvailable, showVirtualBalance } = req.query;
-    console.log(
-      "Received request with page:",
-      page,
-      "and limit:",
-      limit,
-      "search:",
-      search,
-      "showAvailable:",
-      showAvailable,
-      "showVirtualBalance:",
-      showVirtualBalance
-    );
 
     const pageNum = parseInt(page, 10);
     const limitNum = parseInt(limit, 10);
@@ -114,145 +100,118 @@ const handler = async (req, res, auth) => {
     // validate filter
     if (!(filter in q)) return res.json(error("invalid filter"));
 
-    // get users
-    let allUsers = await User.find(q[filter]);
-
-    const transaction = await Transaction.find({
-      virtual: { $in: [null, false] },
-    }); // Asegúrate de que esta línea esté antes de usar 'transactions'
-
-    const virtualTransactions = await Transaction.find({ virtual: true });
-
-    // Filtrar usuarios con saldo disponible
-    if (showAvailable === "true") {
-      allUsers = allUsers.filter((user) => {
-        const ins = transaction
-          .filter((i) => i.user_id == user.id && i.type == "in" && i.wallet_tipo !== "BONO_AHORRO")
-          .reduce((a, b) => a + parseFloat(b.value), 0);
-        const outs = transaction
-          .filter((i) => i.user_id == user.id && i.type == "out" && i.wallet_tipo !== "BONO_AHORRO")
-          .reduce((a, b) => a + parseFloat(b.value), 0);
-        return ins - outs > 0; // Solo usuarios con saldo disponible
-      });
-    }
-
-    // Filtrar usuarios con saldo no disponible
-    if (showVirtualBalance === "true" || showVirtualBalance === true) {
-      
-      // Obtener todas las transacciones "closed reset" agrupadas por usuario
-      const closedResetTransactionsByUser = {};
-      const allClosedResetTransactions = await Transaction.find({
-        name: "closed reset",
-        virtual: true
-      });
-      
-      for (const resetTransaction of allClosedResetTransactions) {
-        if (!closedResetTransactionsByUser[resetTransaction.user_id]) {
-          closedResetTransactionsByUser[resetTransaction.user_id] = [];
-        }
-        closedResetTransactionsByUser[resetTransaction.user_id].push(resetTransaction);
-      }
-      
-      // Ordenar los "closed reset" por fecha para cada usuario
-      for (const userId in closedResetTransactionsByUser) {
-        closedResetTransactionsByUser[userId].sort((a, b) => new Date(a.date) - new Date(b.date));
-      }
-      
-      // Obtener todas las transacciones virtuales (excepto "closed reset") agrupadas por usuario
-      const allVirtualTransactionsByUser = {};
-      const allVirtualTransactionsExceptReset = await Transaction.find({
-        virtual: true,
-        name: { $ne: "closed reset" }
-      });
-      
-      for (const transaction of allVirtualTransactionsExceptReset) {
-        if (!allVirtualTransactionsByUser[transaction.user_id]) {
-          allVirtualTransactionsByUser[transaction.user_id] = [];
-        }
-        allVirtualTransactionsByUser[transaction.user_id].push(transaction);
-      }
-      
-      // Ordenar las transacciones virtuales por fecha para cada usuario
-      for (const userId in allVirtualTransactionsByUser) {
-        allVirtualTransactionsByUser[userId].sort((a, b) => new Date(a.date) - new Date(b.date));
-      }
-      
-      // Solo se lleva la cuenta. Antes se guardaba aqui el nombre y apellido de
-      // cada socio junto a su saldo, y esa lista acababa escrita en el registro
-      // del servidor cada vez que un administrador abria el filtro.
-      let conSaldoNoDisponible = 0;
-      const beforeFilterCount = allUsers.length;
-      
-      allUsers = allUsers.filter((user) => {
-        // Obtener transacciones "closed reset" del usuario
-        const userClosedResets = closedResetTransactionsByUser[user.id] || [];
-        
-        // Obtener transacciones virtuales del usuario (excepto "closed reset")
-        const userVirtualTransactions = allVirtualTransactionsByUser[user.id] || [];
-        
-        // Identificar qué transacciones fueron compensadas por cada "closed reset"
-        const compensatedTransactionIds = new Set();
-        
-        for (const resetTransaction of userClosedResets) {
-          const transactionsAvailableForReset = userVirtualTransactions.filter(t => {
-            const transactionDate = new Date(t.date);
-            const resetDate = new Date(resetTransaction.date);
-            return transactionDate <= resetDate && !compensatedTransactionIds.has(t.id);
-          });
-          
-          let remainingToCompensate = Math.abs(resetTransaction.value);
-          
-          for (const transaction of transactionsAvailableForReset) {
-            if (remainingToCompensate <= 0) break;
-            
-            if (transaction.type === 'in') {
-              if (transaction.value <= remainingToCompensate) {
-                compensatedTransactionIds.add(transaction.id);
-                remainingToCompensate -= transaction.value;
-              } else {
-                compensatedTransactionIds.add(transaction.id);
-                remainingToCompensate = 0;
-                break;
-              }
-            }
-          }
-        }
-        
-        // Calcular saldo virtual excluyendo transacciones compensadas
-        const validVirtualTransactions = userVirtualTransactions.filter(t => 
-          !compensatedTransactionIds.has(t.id)
-        );
-        
-        const virtualIns = validVirtualTransactions
-          .filter((i) => i.type === "in")
-          .reduce((a, b) => a + parseFloat(b.value || 0), 0);
-        const virtualOuts = validVirtualTransactions
-          .filter((i) => i.type === "out")
-          .reduce((a, b) => a + parseFloat(b.value || 0), 0);
-        const virtualBalance = virtualIns - virtualOuts;
-        const hasVirtualBalance = virtualBalance > 0;
-        
-        if (hasVirtualBalance) {
-          conSaldoNoDisponible++;
-        }
-        
-        return hasVirtualBalance; // Solo usuarios con saldo no disponible
-      });
-      
-      console.log(`[users] filtro de saldo no disponible: ${conSaldoNoDisponible} de ${beforeFilterCount}`);
-    }
-
-    // Apply search if search parameter exists
+    // ── Helper: normalizar texto para búsqueda ───────────────────────────────
     const normalize = (str) =>
-      (str || "")
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "");
-
+      (str || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     const searchNormalized = normalize(search);
 
-    allUsers = allUsers.filter((user) => {
-      return (
+    // ═══════════════════════════════════════════════════════════════════════════
+    // CASO RÁPIDO: sin filtros de saldo
+    // La mayoría de requests (lista general, filtros por rol) caen aquí.
+    // Ordenar, paginar y contar 100% en MongoDB.
+    // ═══════════════════════════════════════════════════════════════════════════
+    if (showAvailable !== "true" && showVirtualBalance !== "true") {
+      // Construir query de búsqueda en DB si viene `search`
+      let searchQuery = {};
+      if (search && search.trim()) {
+        const regex = { $regex: search.trim(), $options: "i" };
+        searchQuery = {
+          $or: [
+            { name: regex }, { lastName: regex }, { dni: regex },
+            { country: regex }, { phone: regex }, { city: regex },
+          ],
+        };
+      }
+      const finalQuery = { ...q[filter], ...searchQuery };
+      const skip = (pageNum - 1) * limitNum;
+
+      // Query + count en paralelo
+      const [allUsersPage, totalUsers] = await Promise.all([
+        User.find(finalQuery, { sort: { date: -1 }, skip, limit: limitNum }),
+        User.count(finalQuery),
+      ]);
+
+      // Saldos: aggregation en MongoDB solo para los IDs de la página
+      const pageIds = allUsersPage.map((u) => String(u.id));
+      const [balanceAgg, virtualAgg] = await Promise.all([
+        Transaction._getCollection().then((col) =>
+          col.aggregate([
+            { $match: { user_id: { $in: pageIds }, virtual: { $in: [null, false] } } },
+            {
+              $group: {
+                _id: "$user_id",
+                ins: { $sum: { $cond: [{ $and: [{ $eq: ["$type", "in"] }, { $ne: ["$wallet_tipo", "BONO_AHORRO"] }] }, { $toDouble: "$value" }, 0] } },
+                outs: { $sum: { $cond: [{ $and: [{ $eq: ["$type", "out"] }, { $ne: ["$wallet_tipo", "BONO_AHORRO"] }] }, { $toDouble: "$value" }, 0] } },
+                sifIns: { $sum: { $cond: [{ $and: [{ $eq: ["$type", "in"] }, { $eq: ["$wallet_tipo", "BONO_AHORRO"] }] }, { $toDouble: "$value" }, 0] } },
+                sifOuts: { $sum: { $cond: [{ $and: [{ $eq: ["$type", "out"] }, { $eq: ["$wallet_tipo", "BONO_AHORRO"] }] }, { $toDouble: "$value" }, 0] } },
+              },
+            },
+          ]).toArray()
+        ),
+        Transaction._getCollection().then((col) =>
+          col.aggregate([
+            { $match: { user_id: { $in: pageIds }, virtual: true } },
+            {
+              $group: {
+                _id: "$user_id",
+                vIns: { $sum: { $cond: [{ $eq: ["$type", "in"] }, { $toDouble: "$value" }, 0] } },
+                vOuts: { $sum: { $cond: [{ $eq: ["$type", "out"] }, { $toDouble: "$value" }, 0] } },
+              },
+            },
+          ]).toArray()
+        ),
+      ]);
+
+      const balMap = new Map(balanceAgg.map((r) => [r._id, r]));
+      const virMap = new Map(virtualAgg.map((r) => [r._id, r]));
+
+      // Resolución de patrocinadores (igual que antes, solo sobre la página)
+      const rawParentIds = allUsersPage
+        .filter((u) => u.parentId != null && u.parentId !== "")
+        .map((u) => u.parentId);
+      const parentIds = expandIdsForIn([...new Set(rawParentIds)]);
+      const parents = parentIds.length > 0 ? await User.find({ id: { $in: parentIds } }) : [];
+
+      let users = allUsersPage.map((user) => {
+        const b = balMap.get(String(user.id)) || {};
+        const vb = virMap.get(String(user.id)) || {};
+        user.balance = (b.ins || 0) - (b.outs || 0);
+        user.sifrahbalance = (b.sifIns || 0) - (b.sifOuts || 0);
+        user.virtualbalance = (vb.vIns || 0) - (vb.vOuts || 0);
+        if (user.parentId) {
+          const p = parents.find((el) => el.id == user.parentId);
+          if (p) user.parent = p;
+        }
+        const u = model(user, U);
+        u.virtualbalance = Number(user.virtualbalance ?? 0);
+        u.sifrahbalance = Number(user.sifrahbalance ?? 0);
+        if (user.parent) u.parent = model(user.parent, PARENT_PUBLIC);
+        return { ...u };
+      });
+
+      // totalBalance / totalVirtualBalance: suma de la página
+      const totalBalance = [...balMap.values()].reduce((s, r) => s + (r.ins || 0) - (r.outs || 0), 0);
+      const totalVirtualBalance = [...virMap.values()].reduce((s, r) => s + (r.vIns || 0) - (r.vOuts || 0), 0);
+
+      return res.json(success({
+        users,
+        total: totalUsers,
+        totalPages: Math.ceil(totalUsers / limitNum),
+        currentPage: pageNum,
+        totalBalance,
+        totalVirtualBalance,
+      }));
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // CASO CON FILTRO DE SALDO (showAvailable / showVirtualBalance)
+    // Requiere evaluar balance de todos los usuarios antes de paginar.
+    // ═══════════════════════════════════════════════════════════════════════════
+    let allUsers = await User.find(q[filter]);
+
+    // Búsqueda textual en JS (sobre el set ya reducido por q[filter])
+    if (search && search.trim()) {
+      allUsers = allUsers.filter((user) =>
         normalize(user.name).includes(searchNormalized) ||
         normalize(user.lastName).includes(searchNormalized) ||
         normalize(user.dni).includes(searchNormalized) ||
@@ -260,111 +219,199 @@ const handler = async (req, res, auth) => {
         normalize(user.phone).includes(searchNormalized) ||
         normalize(user.city).includes(searchNormalized)
       );
-    });
-    console.log({ allUsers });
+    }
 
-    // Ordenar usuarios por fecha (más reciente primero)
+    const allUserIds = allUsers.map((u) => String(u.id));
+
+    // ── Filtro showAvailable: usar $group pipeline para pre-calcular en DB ────
+    if (showAvailable === "true") {
+      const col = await Transaction._getCollection();
+      const agg = await col.aggregate([
+        {
+          $match: {
+            user_id: { $in: allUserIds },
+            virtual: { $in: [null, false] },
+            wallet_tipo: { $ne: "BONO_AHORRO" },
+          },
+        },
+        {
+          $group: {
+            _id: "$user_id",
+            ins: { $sum: { $cond: [{ $eq: ["$type", "in"] }, { $toDouble: "$value" }, 0] } },
+            outs: { $sum: { $cond: [{ $eq: ["$type", "out"] }, { $toDouble: "$value" }, 0] } },
+          },
+        },
+        { $match: { $expr: { $gt: [{ $subtract: ["$ins", "$outs"] }, 0] } } },
+      ]).toArray();
+      const eligibleIds = new Set(agg.map((r) => r._id));
+      allUsers = allUsers.filter((u) => eligibleIds.has(String(u.id)));
+    }
+
+    // ── Filtro showVirtualBalance: lógica de compensación "closed reset" ──────
+    // Mantiene exactamente la misma lógica de negocio que antes.
+    // Mejora: los queries de Transaction se filtran por user_id para no cargar
+    // toda la colección de transacciones en memoria.
+    if (showVirtualBalance === "true" || showVirtualBalance === true) {
+      const [allClosedResetTransactions, allVirtualTransactionsExceptReset] = await Promise.all([
+        Transaction.find({ name: "closed reset", virtual: true, user_id: { $in: allUserIds } }),
+        Transaction.find({ virtual: true, name: { $ne: "closed reset" }, user_id: { $in: allUserIds } }),
+      ]);
+
+      const closedResetByUser = {};
+      for (const t of allClosedResetTransactions) {
+        if (!closedResetByUser[t.user_id]) closedResetByUser[t.user_id] = [];
+        closedResetByUser[t.user_id].push(t);
+      }
+      for (const uid in closedResetByUser) {
+        closedResetByUser[uid].sort((a, b) => new Date(a.date) - new Date(b.date));
+      }
+
+      const virtualByUser = {};
+      for (const t of allVirtualTransactionsExceptReset) {
+        if (!virtualByUser[t.user_id]) virtualByUser[t.user_id] = [];
+        virtualByUser[t.user_id].push(t);
+      }
+      for (const uid in virtualByUser) {
+        virtualByUser[uid].sort((a, b) => new Date(a.date) - new Date(b.date));
+      }
+
+      let conSaldoNoDisponible = 0;
+      const beforeFilterCount = allUsers.length;
+
+      allUsers = allUsers.filter((user) => {
+        const userClosedResets = closedResetByUser[user.id] || [];
+        const userVirtualTransactions = virtualByUser[user.id] || [];
+        const compensatedTransactionIds = new Set();
+
+        for (const resetTransaction of userClosedResets) {
+          const transactionsAvailableForReset = userVirtualTransactions.filter((t) => {
+            const transactionDate = new Date(t.date);
+            const resetDate = new Date(resetTransaction.date);
+            return transactionDate <= resetDate && !compensatedTransactionIds.has(t.id);
+          });
+
+          let remainingToCompensate = Math.abs(resetTransaction.value);
+          for (const transaction of transactionsAvailableForReset) {
+            if (remainingToCompensate <= 0) break;
+            if (transaction.type === "in") {
+              compensatedTransactionIds.add(transaction.id);
+              remainingToCompensate = Math.max(0, remainingToCompensate - transaction.value);
+            }
+          }
+        }
+
+        const validVirtualTransactions = userVirtualTransactions.filter(
+          (t) => !compensatedTransactionIds.has(t.id)
+        );
+        const virtualIns = validVirtualTransactions
+          .filter((i) => i.type === "in")
+          .reduce((a, b) => a + parseFloat(b.value || 0), 0);
+        const virtualOuts = validVirtualTransactions
+          .filter((i) => i.type === "out")
+          .reduce((a, b) => a + parseFloat(b.value || 0), 0);
+        const hasVirtualBalance = virtualIns - virtualOuts > 0;
+
+        if (hasVirtualBalance) conSaldoNoDisponible++;
+        return hasVirtualBalance;
+      });
+
+      console.log(`[users] filtro saldo no disponible: ${conSaldoNoDisponible} de ${beforeFilterCount}`);
+    }
+
+    // Ordenar y paginar en JS (necesario cuando el set fue filtrado por saldo)
     allUsers.sort((a, b) => new Date(b.date) - new Date(a.date));
-
     const totalUsers = allUsers.length;
-
-    // Aplicar paginación
     const skip = (pageNum - 1) * limitNum;
     let users = allUsers.slice(skip, skip + limitNum);
 
-    // Obtener los padres antes de usarlos
+    // Resolución de patrocinadores (solo sobre la página)
     const rawParentIds = users
       .filter((i) => i.parentId != null && i.parentId !== "")
       .map((i) => i.parentId);
     const parentIds = expandIdsForIn([...new Set(rawParentIds)]);
-    const parents =
-      parentIds.length > 0
-        ? await User.find({ id: { $in: parentIds } })
-        : [];
+    const parents = parentIds.length > 0 ? await User.find({ id: { $in: parentIds } }) : [];
 
-    // Asegúrate de que los padres se obtengan antes de usarlos
     users = users.map((user) => {
       if (user.parentId) {
         const i = parents.findIndex((el) => el.id == user.parentId);
-        if (i !== -1) {
-          user.parent = parents[i]; // Asigna el objeto padre al usuario
-        }
+        if (i !== -1) user.parent = parents[i];
       }
-      return user; // Asegúrate de devolver el usuario modificado
+      return user;
     });
 
-    const transactions = await Transaction.find({
-      virtual: { $in: [null, false] },
-    });
-    console.log("transactions ...");
+    // Calcular saldos para la página usando aggregation (solo IDs de la página)
+    const pageIds = users.map((u) => String(u.id));
+    const [balanceAgg, virtualAgg] = await Promise.all([
+      Transaction._getCollection().then((col) =>
+        col.aggregate([
+          { $match: { user_id: { $in: pageIds }, virtual: { $in: [null, false] } } },
+          {
+            $group: {
+              _id: "$user_id",
+              ins: { $sum: { $cond: [{ $and: [{ $eq: ["$type", "in"] }, { $ne: ["$wallet_tipo", "BONO_AHORRO"] }] }, { $toDouble: "$value" }, 0] } },
+              outs: { $sum: { $cond: [{ $and: [{ $eq: ["$type", "out"] }, { $ne: ["$wallet_tipo", "BONO_AHORRO"] }] }, { $toDouble: "$value" }, 0] } },
+              sifIns: { $sum: { $cond: [{ $and: [{ $eq: ["$type", "in"] }, { $eq: ["$wallet_tipo", "BONO_AHORRO"] }] }, { $toDouble: "$value" }, 0] } },
+              sifOuts: { $sum: { $cond: [{ $and: [{ $eq: ["$type", "out"] }, { $eq: ["$wallet_tipo", "BONO_AHORRO"] }] }, { $toDouble: "$value" }, 0] } },
+            },
+          },
+        ]).toArray()
+      ),
+      Transaction._getCollection().then((col) =>
+        col.aggregate([
+          { $match: { user_id: { $in: pageIds }, virtual: true } },
+          {
+            $group: {
+              _id: "$user_id",
+              vIns: { $sum: { $cond: [{ $eq: ["$type", "in"] }, { $toDouble: "$value" }, 0] } },
+              vOuts: { $sum: { $cond: [{ $eq: ["$type", "out"] }, { $toDouble: "$value" }, 0] } },
+            },
+          },
+        ]).toArray()
+      ),
+    ]);
 
-    // parse user
-    const totalBalance = allUsers.reduce((total, user) => {
-      const ins = transactions
-        .filter((i) => i.user_id == user.id && i.type == "in" && i.wallet_tipo !== "BONO_AHORRO")
-        .reduce((a, b) => a + parseFloat(b.value), 0);
-      const outs = transactions
-        .filter((i) => i.user_id == user.id && i.type == "out" && i.wallet_tipo !== "BONO_AHORRO")
-        .reduce((a, b) => a + parseFloat(b.value), 0);
-      return total + (ins - outs); // Sumar el saldo de cada usuario
-    }, 0);
+    const balMap = new Map(balanceAgg.map((r) => [r._id, r]));
+    const virMap = new Map(virtualAgg.map((r) => [r._id, r]));
 
-    // Calcular el saldo no disponible
-    const totalVirtualBalance = allUsers.reduce((total, user) => {
-      const virtualIns = virtualTransactions
-        .filter((i) => i.user_id == user.id && i.type == "in")
-        .reduce((a, b) => a + parseFloat(b.value), 0);
-      const virtualOuts = virtualTransactions
-        .filter((i) => i.user_id == user.id && i.type == "out")
-        .reduce((a, b) => a + parseFloat(b.value), 0);
-      return total + (virtualIns - virtualOuts); // Sumar el saldo virtual de cada usuario
-    }, 0);
+    // Totales globales de todos los usuarios filtrados (suma del set completo)
+    const allPageAllIds = allUsers.map((u) => String(u.id));
+    const [totalBalAgg, totalVirAgg] = await Promise.all([
+      Transaction._getCollection().then((col) =>
+        col.aggregate([
+          { $match: { user_id: { $in: allPageAllIds }, virtual: { $in: [null, false] }, wallet_tipo: { $ne: "BONO_AHORRO" } } },
+          { $group: { _id: null, total: { $sum: { $cond: [{ $eq: ["$type", "in"] }, { $toDouble: "$value" }, { $multiply: [{ $toDouble: "$value" }, -1] }] } } } },
+        ]).toArray()
+      ),
+      Transaction._getCollection().then((col) =>
+        col.aggregate([
+          { $match: { user_id: { $in: allPageAllIds }, virtual: true } },
+          { $group: { _id: null, total: { $sum: { $cond: [{ $eq: ["$type", "in"] }, { $toDouble: "$value" }, { $multiply: [{ $toDouble: "$value" }, -1] }] } } } },
+        ]).toArray()
+      ),
+    ]);
 
-    // Calcular el saldo para los usuarios que se están enviando
+    const totalBalance = totalBalAgg[0]?.total ?? 0;
+    const totalVirtualBalance = totalVirAgg[0]?.total ?? 0;
+
+    // Aplicar saldos individuales a usuarios de la página
     users = users.map((user) => {
-      const ins = transactions
-        .filter((i) => i.user_id == user.id && i.type == "in" && i.wallet_tipo !== "BONO_AHORRO")
-        .reduce((a, b) => a + parseFloat(b.value), 0);
-      const outs = transactions
-        .filter((i) => i.user_id == user.id && i.type == "out" && i.wallet_tipo !== "BONO_AHORRO")
-        .reduce((a, b) => a + parseFloat(b.value), 0);
-      user.balance = ins - outs;
-
-      const sifrahIns = transactions
-        .filter((i) => i.user_id == user.id && i.type == "in" && i.wallet_tipo === "BONO_AHORRO")
-        .reduce((a, b) => a + parseFloat(b.value), 0);
-      const sifrahOuts = transactions
-        .filter((i) => i.user_id == user.id && i.type == "out" && i.wallet_tipo === "BONO_AHORRO")
-        .reduce((a, b) => a + parseFloat(b.value), 0);
-      user.sifrahbalance = sifrahIns - sifrahOuts;
-
-      const virtualIns = virtualTransactions
-        .filter((i) => i.user_id == user.id && i.type == "in")
-        .reduce((a, b) => a + parseFloat(b.value), 0);
-      const virtualOuts = virtualTransactions
-        .filter((i) => i.user_id == user.id && i.type == "out")
-        .reduce((a, b) => a + parseFloat(b.value), 0);
-      user.virtualbalance = virtualIns - virtualOuts;
-
-      return user; // Asegúrate de devolver el usuario modificado
+      const b = balMap.get(String(user.id)) || {};
+      const vb = virMap.get(String(user.id)) || {};
+      user.balance = (b.ins || 0) - (b.outs || 0);
+      user.sifrahbalance = (b.sifIns || 0) - (b.sifOuts || 0);
+      user.virtualbalance = (vb.vIns || 0) - (vb.vOuts || 0);
+      return user;
     });
-    // console.log({ users })
 
-    // parse user
+    // Serializar al modelo público
     users = users.map((user) => {
       const u = model(user, U);
-      // Asegurar que virtualbalance y sifrahbalance siempre sean un número
       u.virtualbalance = user.virtualbalance != null ? Number(user.virtualbalance) : 0;
       u.sifrahbalance = user.sifrahbalance != null ? Number(user.sifrahbalance) : 0;
-      // `parent` no está en U; sin esto la API nunca envía patrocinador al admin.
       if (user.parent) u.parent = model(user.parent, PARENT_PUBLIC);
       return { ...u };
     });
-    // Cambia esto para obtener todos los usuarios
 
-    // Calcular el saldo total de todos los usuarios
-
-    // response con información de paginación
     return res.json(
       success({
         users,

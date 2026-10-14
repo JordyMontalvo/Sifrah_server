@@ -283,14 +283,6 @@ const handler = async (req, res, auth) => {
   if (req.method == "GET") {
     // Obtener parámetros de paginación
     const { filter, page = 1, limit = 20, search } = req.query;
-    console.log(
-      "Received request with page:",
-      page,
-      "and limit:",
-      limit,
-      "search:",
-      search
-    );
 
     // Convertir a números
     const pageNum = parseInt(page, 10);
@@ -307,47 +299,46 @@ const handler = async (req, res, auth) => {
     const { account } = req.query;
 
     // get AFFILIATIONS
-    let qq = q[filter];
+    let qq = { ...q[filter] };
 
     if (account != "admin") qq.office = account;
     try {
-      // Primero obtener todas las afiliaciones que coinciden con el filtro
-      let allAffiliations = await Affiliation.find(qq);
+      const skip = (pageNum - 1) * limitNum;
+      let finalQuery = { ...qq };
 
-      // get USERS for affiliations
-      users = await User.find({});
-      users = map(users);
-
-      // Apply search if search parameter exists
+      // ── Si hay búsqueda, buscar los userId que coinciden en DB ───────────────
+      // Evita cargar User.find({}) completo: solo busca los IDs que coinciden.
       if (search) {
         const searchLower = search.toLowerCase();
-        allAffiliations = allAffiliations.filter((aff) => {
-          const user = users.get(aff.userId);
-          return (
-            user &&
-            (user.name?.toLowerCase().includes(searchLower) ||
-              user.lastName?.toLowerCase().includes(searchLower) ||
-              user.dni?.toLowerCase().includes(searchLower) ||
-              user.phone?.toLowerCase().includes(searchLower))
-          );
-        });
+        const regex = { $regex: searchLower, $options: "i" };
+        const matchingUsers = await User.find({
+          $or: [
+            { name: regex },
+            { lastName: regex },
+            { dni: regex },
+            { phone: regex },
+          ],
+        }, { projection: { id: 1 } });
+
+        const matchingUserIds = matchingUsers.map((u) => String(u.id));
+
+        // Sin coincidencias → respuesta vacía directa (evita query inútil)
+        if (matchingUserIds.length === 0) {
+          return res.json(success({ affiliations: [], total: 0, totalPages: 0, currentPage: pageNum }));
+        }
+        finalQuery.userId = { $in: matchingUserIds };
       }
 
-      // Ordenar manualmente por fecha (del más reciente al más antiguo)
-      allAffiliations.sort((a, b) => new Date(b.date) - new Date(a.date));
+      // ── Paginación y conteo 100% en MongoDB ─────────────────────────────────
+      const [affiliations, totalAffiliations] = await Promise.all([
+        Affiliation.find(finalQuery, { sort: { date: -1 }, skip, limit: limitNum }),
+        Affiliation.count(finalQuery),
+      ]);
 
-      // Obtener el total antes de paginar
-      const totalAffiliations = allAffiliations.length;
-
-      // Aplicar paginación manualmente
-      let affiliations = allAffiliations.slice(
-        (pageNum - 1) * limitNum,
-        pageNum * limitNum
-      );
-
-      // Obtener usuarios de la página + sus patrocinadores
+      // ── Usuarios de la página + sus patrocinadores ───────────────────────────
+      // Solo se cargan los usuarios de la página actual, no toda la colección.
       const pageUserIds = affiliations.map((a) => a.userId).filter((id) => id != null);
-      users = await User.find({ id: { $in: pageUserIds } });
+      let users = pageUserIds.length > 0 ? await User.find({ id: { $in: pageUserIds } }) : [];
       users = map(users);
 
       const parentIdList = [
