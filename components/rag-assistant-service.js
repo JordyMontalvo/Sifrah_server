@@ -148,7 +148,7 @@ function findApplicableCombo(relevantProducts) {
  * @param {object|null} applicableCombo
  * @returns {string} Prompt estructurado
  */
-function buildSystemPrompt(userQuery, relevantProducts, distributorCode = '', applicableCombo = null) {
+function buildSystemPrompt(userQuery, relevantProducts, distributorCode = '', applicableCombo = null, userName = '') {
   const productsContext = relevantProducts.map(p => `
 PRODUCTO: ${p.names.join(' / ')}
 Categoría: ${p.category} | Precio: S/ ${p.price} | Puntos MLM: ${p.points} pts
@@ -178,11 +178,13 @@ DIRECTIVAS CRÍTICAS:
    - Mención de ingredientes activos y precauciones si aplican.
    - Hábitos complementarios sugeridos (agua, sueño, alimentación).
    - Descargo de responsabilidad final breve (los suplementos no curan ni reemplazan consejo médico).
+5. PERSONALIZACIÓN DEL USUARIO: ${userName ? `El primer nombre de pila del usuario activo es "${userName}". Dirígete obligatoriamente a él por su nombre en tu saludo ("Hola, ${userName}..."). Bajo ninguna circunstancia uses otro nombre ni nombres ficticios o de socios anteriores.` : 'Dirígete cordialmente al usuario sin inventar nombres ficticios.'}
 
 CONTEXTO DE PRODUCTOS DISPONIBLES:
 ${productsContext || 'No se encontraron productos coincidentes en el catálogo.'}
 ${comboContext}
 CÓDIGO DE DISTRIBUIDOR DEL USUARIO: ${distributorCode || 'DIRECTO'}
+${userName ? `NOMBRE DE PILA DEL USUARIO: ${userName}` : ''}
 
 CONSULTA DEL USUARIO:
 "${userQuery}"`;
@@ -196,14 +198,15 @@ CONSULTA DEL USUARIO:
  * @param {string} distributorCode
  * @returns {object}
  */
-function generateFallbackResponse(userQuery, relevantProducts, distributorCode = '') {
+function generateFallbackResponse(userQuery, relevantProducts, distributorCode = '', userName = '') {
   const queryLower = (userQuery || '').toLowerCase();
+  const userSalute = userName ? `, ${userName}` : '';
 
   // 1. Manejo específico para consulta de rango
   if (queryLower.includes('rango') || queryLower.includes('calificar') || queryLower.includes('puntos')) {
     return {
       reply: `💎 **Plan de Carrera y Rangos Sifrah**\n\n` +
-        `Para calificar y avanzar a tu próximo rango en Sifrah, ten en cuenta los siguientes pilares clave:\n\n` +
+        `Hola${userSalute}. Para calificar y avanzar a tu próximo rango en Sifrah, ten en cuenta los siguientes pilares clave:\n\n` +
         `1. **Reconsumo Personal:**\n` +
         `   • Rangos Activo y Bronce: Mínimo **120 puntos** personales.\n` +
         `   • Rangos Plata en adelante: Mínimo **160 puntos** personales.\n\n` +
@@ -224,7 +227,7 @@ function generateFallbackResponse(userQuery, relevantProducts, distributorCode =
   if (queryLower.includes('negocio') || queryLower.includes('impulsar') || queryLower.includes('ventas') || queryLower.includes('crecer')) {
     return {
       reply: `🚀 **Estrategias para Impulsar tu Negocio Sifrah**\n\n` +
-        `Aquí tienes 3 acciones inmediatas para acelerar tus resultados este mes:\n\n` +
+        `¡Excelente iniciativa${userSalute}! Aquí tienes 3 acciones inmediatas para acelerar tus resultados este mes:\n\n` +
         `🛍️ **1. Comparte tu Tienda Virtual Compartida:**\n` +
         `Usa tu enlace personalizado de tienda para clientes finales. Ellos compran online y tú recibes las ganancias y los puntos automáticamente a tu cuenta.\n\n` +
         `👥 **2. Duplica con tus Frontales:**\n` +
@@ -252,7 +255,7 @@ function generateFallbackResponse(userQuery, relevantProducts, distributorCode =
 
     return {
       reply: `🌿 **Línea de Bienestar y Nutrición Sifrah**\n\n` +
-        `Nuestros productos están formulados con ingredientes naturales de alta biodisponibilidad para optimizar tu salud y la de tu familia:\n\n` +
+        `Hola${userSalute}. Nuestros productos están formulados con ingredientes naturales de alta biodisponibilidad para optimizar tu salud y la de tu familia:\n\n` +
         `• **Nutrición Articular y Antienvejecimiento:** Fórmulas con colágeno hidrolizado, magnesio y antioxidantes.\n` +
         `• **Salud Digestiva e Inmunológica:** Suplementos para el equilibrio gástrico y desintoxicación celular.\n` +
         `• **Energía y Vitalidad:** Mezclas botánicas para el rendimiento físico y mental diario.\n\n` +
@@ -262,8 +265,9 @@ function generateFallbackResponse(userQuery, relevantProducts, distributorCode =
   }
 
   if (relevantProducts.length === 0) {
+    const saludoBase = userName ? `Hola, ${userName}. ` : `Hola. `;
     return {
-      reply: `Hola, gracias por consultar con el Asistente Sifrah.\n\nPara tu consulta sobre "${userQuery}", no cuento con un suplemento específico en nuestro catálogo actual que se adapte exactamente a esa necesidad. Te recomendamos consultar con un profesional de la salud o revisar nuestro catálogo general de nutrición y bienestar.\n\n_Nota: Los suplementos nutricionales Sifrah son coadyuvantes del bienestar y no sustituyen tratamientos médicos._`,
+      reply: `${saludoBase}Gracias por consultar con el Asistente Sifrah.\n\nPara tu consulta sobre "${userQuery}", no cuento con un suplemento específico en nuestro catálogo actual que se adapte exactamente a esa necesidad. Te recomendamos consultar con un profesional de la salud o revisar nuestro catálogo general de nutrición y bienestar.\n\n_Nota: Los suplementos nutricionales Sifrah son coadyuvantes del bienestar y no sustituyen tratamientos médicos._`,
       recommendedProducts: []
     };
   }
@@ -272,7 +276,7 @@ function generateFallbackResponse(userQuery, relevantProducts, distributorCode =
   const refParam = distributorCode ? `?ref=${encodeURIComponent(distributorCode)}` : '';
 
   let replyText = `🌿 **Orientación de Bienestar Sifrah**\n\n`;
-  replyText += `Entiendo perfectamente tu consulta respecto a tus molestias. Para apoyar el bienestar en este caso, en Sifrah contamos con una excelente alternativa:\n\n`;
+  replyText += `Entiendo perfectamente tu consulta${userSalute}. Para apoyar tu bienestar en este caso, en Sifrah contamos con excelentes alternativas:\n\n`;
 
   relevantProducts.forEach((p, idx) => {
     replyText += `**${idx + 1}. ${p.names[0]}** (S/ ${p.price} | ${p.points} Pts)\n`;

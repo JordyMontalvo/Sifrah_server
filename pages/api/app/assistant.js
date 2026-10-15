@@ -66,7 +66,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { query, distributorCode, history } = req.body || {};
+    const { query, distributorCode, history, userName } = req.body || {};
 
     if (!query || typeof query !== 'string' || query.trim().length === 0) {
       return res.status(400).json({
@@ -142,23 +142,32 @@ export default async function handler(req, res) {
             // Inyectar el turno actual enriquecido con RAG y Combos
             contents.push({
               role: 'user',
-              parts: [{ text: buildSystemPrompt(cleanQuery, relevantProducts, distributorCode, applicableCombo) }]
+              parts: [{ text: buildSystemPrompt(cleanQuery, relevantProducts, distributorCode, applicableCombo, userName) }]
             });
 
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 8000);
 
+            const geminiPayload = {
+              contents,
+              generationConfig: {
+                temperature: 0.4,
+                maxOutputTokens: 800
+              }
+            };
+            if (userName) {
+              geminiPayload.systemInstruction = {
+                parts: [{
+                  text: `Eres SIFRAH, el asistente virtual oficial de nutrición y bienestar de la empresa Sifrah. Estás hablando con ${userName}. Dirígete a él obligatoriamente por su nombre ("${userName}"). Nunca uses otro nombre ni nombres de usuarios anteriores.`
+                }]
+              };
+            }
+
             const geminiRes = await _fetch(geminiUrl, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               signal: controller.signal,
-              body: JSON.stringify({
-                contents,
-                generationConfig: {
-                  temperature: 0.4,
-                  maxOutputTokens: 800
-                }
-              })
+              body: JSON.stringify(geminiPayload)
             });
 
             clearTimeout(timeoutId);
@@ -217,7 +226,7 @@ export default async function handler(req, res) {
     }
 
     // 4. Si no hay Gemini API Key o falló la conexión externa, emitir la respuesta local de alta calidad
-    const fallbackResult = generateFallbackResponse(cleanQuery, allRecommended, distributorCode);
+    const fallbackResult = generateFallbackResponse(cleanQuery, allRecommended, distributorCode, userName);
     
     logConversation({
       query: cleanQuery,
