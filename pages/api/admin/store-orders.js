@@ -67,8 +67,17 @@ export default async function handler(req, res) {
       bank: order.bank || "",
       voucher: order.voucher || "",
       voucher_number: order.voucher_number || "",
+      shipping_method:
+        (order.delivery_info && order.delivery_info.method) || (order.office ? "pickup" : "delivery"),
+      office_name:
+        (order.delivery_info && order.delivery_info.office_name) || (order.office ? "Punto de entrega" : ""),
+      office_id:
+        order.office || (order.delivery_info && order.delivery_info.office_id) || "",
       address:
-        (order.delivery_info && order.delivery_info.delivery_address) || "",
+        ((order.delivery_info && order.delivery_info.method) === "pickup" || order.office)
+          ? ((order.delivery_info && (order.delivery_info.office_address || order.delivery_info.office_name)) || "Recojo en tienda")
+          : ((order.delivery_info && order.delivery_info.delivery_address) || ""),
+      delivery_info: order.delivery_info || null,
     };
   });
 

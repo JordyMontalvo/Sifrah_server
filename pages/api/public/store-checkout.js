@@ -6,7 +6,7 @@ import {
   isSavingsOnlyProduct,
 } from "../../../lib/productCatalog";
 
-const { User, Product, Activation, Affiliation, Period, PaymentMethod } = db;
+const { User, Product, Activation, Affiliation, Period, PaymentMethod, Office } = db;
 const { error, success, midd, rand } = lib;
 
 function clean(value, max) {
@@ -76,6 +76,16 @@ export default async (req, res) => {
 
   if (req.method === "GET") {
     const methods = await PaymentMethod.find({ active: true });
+    const rawOffices = await Office.find({ active: { $ne: false } });
+    const offices = (rawOffices || []).map((o) => ({
+      id: o.id,
+      name: o.name,
+      address: o.address || "",
+      phone: o.phone || "",
+      horario: o.horario || "",
+      googleMapsUrl: o.googleMapsUrl || "",
+    }));
+
     return res.json(
       success({
         paymentMethods: (methods || []).map((method) => ({
@@ -86,6 +96,7 @@ export default async (req, res) => {
           type: method.tipo,
           cci: method.cci || "",
         })),
+        offices,
       })
     );
   }
@@ -99,6 +110,8 @@ export default async (req, res) => {
   const proof = body.proof || {};
   const payMethod = clean(body.pay_method, 20);
   const items = Array.isArray(body.products) ? body.products : [];
+  const shippingMethod = clean(body.shipping_method, 20) === "pickup" ? "pickup" : "delivery";
+  const officeId = clean(body.office_id, 80);
 
   if (!userId) return res.json(error("Tienda no válida"));
   const owner = await User.findOne({ id: userId });
@@ -108,17 +121,26 @@ export default async (req, res) => {
   const document = clean(buyer.document, 12);
   const phone = clean(buyer.phone, 12);
   const email = clean(buyer.email, 120);
-  const address = clean(delivery.address, 160);
-  if (name.length < 3) return res.json(error("Escribe el nombre de quien recibe."));
+  if (name.length < 3) return res.json(error("Escribe el nombre de quien recibe o retira."));
   if (!/^\d{8}$/.test(document)) return res.json(error("El DNI debe tener 8 dígitos."));
   if (!/^\d{9}$/.test(phone)) return res.json(error("El celular debe tener 9 dígitos."));
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return res.json(error("El correo no es válido."));
   }
-  if (address.length < 5) return res.json(error("Escribe la dirección de entrega."));
-  if (!clean(delivery.department, 80) || !clean(delivery.province, 80) || !clean(delivery.district, 80)) {
-    return res.json(error("Completa departamento, provincia y distrito."));
+
+  let office = null;
+  const address = clean(delivery.address, 160);
+  if (shippingMethod === "pickup") {
+    if (!officeId) return res.json(error("Selecciona el punto de entrega."));
+    office = await Office.findOne({ id: officeId, active: { $ne: false } });
+    if (!office) return res.json(error("El punto de entrega no es válido."));
+  } else {
+    if (address.length < 5) return res.json(error("Escribe la dirección de entrega."));
+    if (!clean(delivery.department, 80) || !clean(delivery.province, 80) || !clean(delivery.district, 80)) {
+      return res.json(error("Completa departamento, provincia y distrito."));
+    }
   }
+
   if (payMethod !== "bank" && payMethod !== "credit-card") {
     return res.json(error("Selecciona un método de pago."));
   }
@@ -160,13 +182,15 @@ export default async (req, res) => {
     });
   }
 
-  let quote;
-  try {
-    quote = await deliveryQuote(delivery);
-  } catch (err) {
-    return res.json(error("No se pudo calcular el delivery."));
+  let quote = { price: 0, type: "pickup" };
+  if (shippingMethod === "delivery") {
+    try {
+      quote = await deliveryQuote(delivery);
+    } catch (err) {
+      return res.json(error("No se pudo calcular el delivery."));
+    }
+    if (quote.error) return res.json(error(quote.error));
   }
-  if (quote.error) return res.json(error(quote.error));
 
   const goods = products.reduce((sum, item) => sum + item.price * item.total, 0);
   const price = goods + quote.price;
@@ -251,7 +275,7 @@ export default async (req, res) => {
     voucher_number2: body._voucherNumber2 || null,
     transactions: [],
     amounts: [],
-    office: null,
+    office: shippingMethod === "pickup" ? officeId : null,
     status: "pending",
     delivered: false,
     pay_method: payMethod,
@@ -269,23 +293,35 @@ export default async (req, res) => {
       direccion_fiscal: proofType === "factura" ? clean(proof.direccionFiscal, 160) : "",
     },
     delivery_info: {
-      method: "delivery",
-      has_delivery: true,
-      recipient_name: name,
-      recipient_document: document,
-      recipient_phone: phone,
-      location: {
-        department: clean(delivery.department, 80),
-        province: clean(delivery.province, 80),
-        district: clean(delivery.district, 80),
-      },
-      delivery_price: quote.price,
-      delivery_type: quote.type,
-      delivery_address: address,
-      ...(quote.zone ? { zone_info: quote.zone } : {}),
-      ...(quote.agencyCode
-        ? { agency_info: { agency_name: quote.agencyName, agency_code: quote.agencyCode } }
-        : {}),
+      method: shippingMethod,
+      has_delivery: shippingMethod === "delivery",
+      ...(shippingMethod === "pickup"
+        ? {
+            office_id: officeId,
+            office_name: office ? office.name : "",
+            office_address: office ? office.address || "" : "",
+            office_phone: office ? office.phone || "" : "",
+            recipient_name: name,
+            recipient_document: document,
+            recipient_phone: phone,
+          }
+        : {
+            recipient_name: name,
+            recipient_document: document,
+            recipient_phone: phone,
+            location: {
+              department: clean(delivery.department, 80),
+              province: clean(delivery.province, 80),
+              district: clean(delivery.district, 80),
+            },
+            delivery_price: quote.price,
+            delivery_type: quote.type,
+            delivery_address: address,
+            ...(quote.zone ? { zone_info: quote.zone } : {}),
+            ...(quote.agencyCode
+              ? { agency_info: { agency_name: quote.agencyName, agency_code: quote.agencyCode } }
+              : {}),
+          }),
     },
   });
 
