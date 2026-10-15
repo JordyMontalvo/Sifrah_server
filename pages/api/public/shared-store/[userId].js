@@ -68,11 +68,19 @@ export default async (req, res) => {
       };
     }
 
+    const ownerFirstName = (user.name || "").trim();
+    const ownerLastName = (user.lastName || "").trim();
+    const ownerFullName = `${ownerFirstName} ${ownerLastName}`.trim() || "Distribuidor Sifrah";
+
     // Responder con los datos en el mismo formato que activation
     return res.json(
       success({
         products: _products,
-        ownerName: `${user.name} ${user.lastName}`,
+        ownerName: ownerFullName,
+        ownerFirstName,
+        ownerLastName,
+        ownerFullName,
+        ownerPhoto: user.photo || null,
         activationBanners,
       })
     );
