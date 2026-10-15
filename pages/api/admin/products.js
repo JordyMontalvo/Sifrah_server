@@ -218,6 +218,7 @@ export default async (req, res) => {
         savings_category_id = null,
         public_price = 0,
         _public_price = undefined,
+        visible_shared_store = undefined,
       } = req.body.data;
 
       const found = await Product.find({ id });
@@ -295,6 +296,9 @@ export default async (req, res) => {
       if (promotion_active !== undefined) updatePayload.promotion_active = promotion_active !== false;
       if (available_quantity !== undefined) updatePayload.available_quantity = Number(available_quantity) || 0;
       if (resolvedCatalogType) updatePayload.catalog_type = resolvedCatalogType;
+      if (visible_shared_store !== undefined) {
+        updatePayload.visible_shared_store = visible_shared_store === true || visible_shared_store === "true";
+      }
 
       await Product.update({ id }, updatePayload);
       return res.json(success({ product: updatePayload }));
@@ -323,6 +327,7 @@ export default async (req, res) => {
         catalog_type = "",
         savings_category_id = null,
         public_price = 0,
+        visible_shared_store = true,
       } = req.body.data;
 
       const allPlans = await Plan.find({});
@@ -378,6 +383,7 @@ export default async (req, res) => {
         available_quantity: Number(available_quantity) || 0,
         savings_category_id: categoryFields.savings_category_id,
         public_price: Number(public_price) || 0,
+        visible_shared_store: visible_shared_store !== false && visible_shared_store !== "false",
         sort_order: await getNextProductSortOrder(Product),
       };
 
@@ -441,6 +447,18 @@ export default async (req, res) => {
         { is_savings_bonus: isEnabled, savings_price }
       );
       return res.json(success({ is_savings_bonus: isEnabled, savings_price }));
+    }
+
+    if (action == "toggle_visible_shared_store") {
+      const { id, enabled } = req.body;
+      const found = await Product.find({ id });
+      const product = found && found[0];
+      if (!product) {
+        return res.status(404).json({ error: "Producto no encontrado" });
+      }
+      const isVisible = enabled === true || enabled === "true";
+      await Product.update({ id }, { visible_shared_store: isVisible });
+      return res.json(success({ visible_shared_store: isVisible }));
     }
 
     if (action == "delete") {

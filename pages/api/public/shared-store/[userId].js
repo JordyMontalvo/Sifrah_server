@@ -1,6 +1,6 @@
 import db from "../../../../components/db";
 import lib from "../../../../components/lib";
-import { mainCatalogMongoFilter, filterSifrahCatalogProducts } from "../../../../lib/productCatalog";
+import { mainCatalogMongoFilter, filterSharedStoreCatalogProducts } from "../../../../lib/productCatalog";
 import { sortProducts } from "../../../../lib/productSort";
 const { applyCORS } = require("../../../../middleware/middleware-cors");
 
@@ -43,9 +43,9 @@ export default async (req, res) => {
       return res.json(error("Usuario no encontrado"));
     }
 
-    // La tienda del socio muestra la línea SIFRAH. Las promociones no entran,
-    // aunque el socio esté activado.
-    let _products = filterSifrahCatalogProducts(
+    // La tienda del socio muestra solo los productos de la línea SIFRAH
+    // que estén explícitamente habilitados para tienda externa (visible_shared_store !== false).
+    let _products = filterSharedStoreCatalogProducts(
       await Product.find(mainCatalogMongoFilter())
     );
 
