@@ -197,9 +197,73 @@ CONSULTA DEL USUARIO:
  * @returns {object}
  */
 function generateFallbackResponse(userQuery, relevantProducts, distributorCode = '') {
+  const queryLower = (userQuery || '').toLowerCase();
+
+  // 1. Manejo específico para consulta de rango
+  if (queryLower.includes('rango') || queryLower.includes('calificar') || queryLower.includes('puntos')) {
+    return {
+      reply: `💎 **Plan de Carrera y Rangos Sifrah**\n\n` +
+        `Para calificar y avanzar a tu próximo rango en Sifrah, ten en cuenta los siguientes pilares clave:\n\n` +
+        `1. **Reconsumo Personal:**\n` +
+        `   • Rangos Activo y Bronce: Mínimo **120 puntos** personales.\n` +
+        `   • Rangos Plata en adelante: Mínimo **160 puntos** personales.\n\n` +
+        `2. **Estructura de Líneas Activas:**\n` +
+        `   • **Bronce:** 600 pts totales y 2 líneas activas.\n` +
+        `   • **Plata:** 1,500 pts totales y 3 líneas activas.\n` +
+        `   • **Oro:** 3,300 pts totales y 3 líneas activas.\n` +
+        `   • **Rubí:** 8,000 pts totales y 4 líneas activas.\n` +
+        `   • **Esmeralda:** 18,000 pts totales y 4 líneas activas.\n` +
+        `   • **Diamante:** 38,000 pts totales y 4 líneas activas.\n\n` +
+        `3. **Puntos Válidos (PML y PML-R):** Recuerda que el sistema balancea los puntos de tu línea más fuerte y tus líneas de apoyo para premiar el crecimiento equilibrado.\n\n` +
+        `🚀 _Consejo pro:_ Monitorea a tus directos en la sección **Red** y acompáñalos a realizar sus activaciones dentro del ciclo mensual.`,
+      recommendedProducts: []
+    };
+  }
+
+  // 2. Manejo específico para impulsar negocio
+  if (queryLower.includes('negocio') || queryLower.includes('impulsar') || queryLower.includes('ventas') || queryLower.includes('crecer')) {
+    return {
+      reply: `🚀 **Estrategias para Impulsar tu Negocio Sifrah**\n\n` +
+        `Aquí tienes 3 acciones inmediatas para acelerar tus resultados este mes:\n\n` +
+        `🛍️ **1. Comparte tu Tienda Virtual Compartida:**\n` +
+        `Usa tu enlace personalizado de tienda para clientes finales. Ellos compran online y tú recibes las ganancias y los puntos automáticamente a tu cuenta.\n\n` +
+        `👥 **2. Duplica con tus Frontales:**\n` +
+        `Enfócate en ayudar a tus primeros 2 a 3 socios directos a alcanzar su propio rango Bronce. La duplicación en 3 niveles de profundidad es la base del ingreso residual.\n\n` +
+        `📚 **3. Sistema Educativo Continuo:**\n` +
+        `Ingresa a **Universidad Sifrah**, escucha los audios de liderazgo y comparte los flyers oficiales generados desde la sección de Herramientas.\n\n` +
+        `💡 _"El éxito en redes de mercadeo no es hacer cosas extraordinarias, sino hacer cosas simples de forma constante."_`,
+      recommendedProducts: []
+    };
+  }
+
+  // 3. Manejo para catálogo y productos generales
+  if (queryLower.includes('producto') || queryLower.includes('catalogo') || queryLower.includes('conocer mas')) {
+    const defaultProducts = catalog.slice(0, 3);
+    const refParam = distributorCode ? `?ref=${encodeURIComponent(distributorCode)}` : '';
+    const formatted = defaultProducts.map(p => ({
+      name: p.names[0],
+      category: p.category,
+      price: p.price,
+      points: p.points,
+      buyUrl: `/app/checkout${refParam}`,
+      usage: p.usage,
+      mainBenefit: p.benefits[0]
+    }));
+
+    return {
+      reply: `🌿 **Línea de Bienestar y Nutrición Sifrah**\n\n` +
+        `Nuestros productos están formulados con ingredientes naturales de alta biodisponibilidad para optimizar tu salud y la de tu familia:\n\n` +
+        `• **Nutrición Articular y Antienvejecimiento:** Fórmulas con colágeno hidrolizado, magnesio y antioxidantes.\n` +
+        `• **Salud Digestiva e Inmunológica:** Suplementos para el equilibrio gástrico y desintoxicación celular.\n` +
+        `• **Energía y Vitalidad:** Mezclas botánicas para el rendimiento físico y mental diario.\n\n` +
+        `Cada producto consumido o comercializado suma puntos a tu calificación de rango. ¿Tienes alguna consulta sobre una necesidad o molestia específica?`,
+      recommendedProducts: formatted
+    };
+  }
+
   if (relevantProducts.length === 0) {
     return {
-      reply: `Hola, gracias por consultar con el Asistente de Bienestar Sifrah.\n\nPara tu consulta sobre "${userQuery}", no cuento con un suplemento específico en nuestro catálogo actual que se adapte exactamente a esa necesidad. Te recomendamos consultar con un profesional de la salud o revisar nuestro catálogo general de nutrición y cuidado personal.\n\n_Nota: Los suplementos nutricionales Sifrah son coadyuvantes del bienestar y no sustituyen tratamientos médicos._`,
+      reply: `Hola, gracias por consultar con el Asistente Sifrah.\n\nPara tu consulta sobre "${userQuery}", no cuento con un suplemento específico en nuestro catálogo actual que se adapte exactamente a esa necesidad. Te recomendamos consultar con un profesional de la salud o revisar nuestro catálogo general de nutrición y bienestar.\n\n_Nota: Los suplementos nutricionales Sifrah son coadyuvantes del bienestar y no sustituyen tratamientos médicos._`,
       recommendedProducts: []
     };
   }
