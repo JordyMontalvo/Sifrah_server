@@ -219,6 +219,8 @@ export default async (req, res) => {
         public_price = 0,
         _public_price = undefined,
         visible_shared_store = undefined,
+        images = undefined,
+        _images = undefined,
       } = req.body.data;
 
       const found = await Product.find({ id });
@@ -299,6 +301,10 @@ export default async (req, res) => {
       if (visible_shared_store !== undefined) {
         updatePayload.visible_shared_store = visible_shared_store === true || visible_shared_store === "true";
       }
+      if (_images !== undefined || images !== undefined) {
+        const rawImgs = _images !== undefined ? _images : images;
+        updatePayload.images = Array.isArray(rawImgs) ? rawImgs : [];
+      }
 
       await Product.update({ id }, updatePayload);
       return res.json(success({ product: updatePayload }));
@@ -328,6 +334,7 @@ export default async (req, res) => {
         savings_category_id = null,
         public_price = 0,
         visible_shared_store = true,
+        images = [],
       } = req.body.data;
 
       const allPlans = await Plan.find({});
@@ -377,6 +384,7 @@ export default async (req, res) => {
         savings_price: savings_price || price || 0,
         savings_description,
         savings_img: savings_img || img || "",
+        images: Array.isArray(images) && images.length > 0 ? images : (img ? [img] : []),
         catalog_type: resolvedCatalogType || (isPromo ? "promotion" : ""),
         is_promotion: isPromo,
         promotion_active: promotion_active !== false,
