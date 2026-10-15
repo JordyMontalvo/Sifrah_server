@@ -1,6 +1,10 @@
 import db from "../../../../components/db";
 import lib from "../../../../components/lib";
-import { mainCatalogMongoFilter, filterSharedStoreCatalogProducts } from "../../../../lib/productCatalog";
+import {
+  mainCatalogMongoFilter,
+  filterSifrahCatalogProducts,
+  filterSharedStoreCatalogProducts,
+} from "../../../../lib/productCatalog";
 import { sortProducts } from "../../../../lib/productSort";
 const { applyCORS } = require("../../../../middleware/middleware-cors");
 
@@ -44,10 +48,14 @@ export default async (req, res) => {
     }
 
     // La tienda del socio muestra solo los productos de la línea SIFRAH
-    // que estén explícitamente habilitados para tienda externa (visible_shared_store !== false).
-    let _products = filterSharedStoreCatalogProducts(
-      await Product.find(mainCatalogMongoFilter())
-    );
+    const filterFn =
+      typeof filterSharedStoreCatalogProducts === "function"
+        ? filterSharedStoreCatalogProducts
+        : (prods) =>
+            filterSifrahCatalogProducts(prods).filter(
+              (p) => p.visible_shared_store !== false
+            );
+    let _products = filterFn(await Product.find(mainCatalogMongoFilter()));
 
     _products = sortProducts(_products);
 
