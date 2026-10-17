@@ -107,8 +107,8 @@ const handler = async (req, res) => {
 
     // Mismo motivo que en las transferencias: el saldo leido al inicio puede
     // estar obsoleto, y dos retiros simultaneos lo aprobarian por separado.
-    const locked = await acquireWalletLock(user.id)
-    if (!locked) return res.json(error("operation in progress"))
+    const lockToken = await acquireWalletLock(user.id)
+    if (!lockToken) return res.json(error("operation in progress"))
 
     try {
       const currentTransactions = await Transaction.find({ user_id: user.id, virtual: { $in: [null, false] } })
@@ -154,7 +154,7 @@ const handler = async (req, res) => {
       // response
       return res.json(success())
     } finally {
-      await releaseWalletLock(user.id)
+      await releaseWalletLock(user.id, lockToken)
     }
   }
 }

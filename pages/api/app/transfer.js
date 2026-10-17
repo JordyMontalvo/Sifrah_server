@@ -133,8 +133,8 @@ const handler = async (req, res) => {
       // El saldo de arriba se calculo al empezar la peticion y puede haber
       // quedado obsoleto. Sin serializar, dos envios simultaneos validan ambos
       // contra ese mismo saldo y se gasta dos veces el mismo dinero.
-      const locked = await acquireWalletLock(user.id)
-      if (!locked) return res.json(error('operation in progress'))
+      const lockToken = await acquireWalletLock(user.id)
+      if (!lockToken) return res.json(error('operation in progress'))
 
       try {
         const currentTransactions = await Transaction.find({ user_id: user.id, virtual: { $in: [null, false] } })
@@ -174,7 +174,7 @@ const handler = async (req, res) => {
 
         return res.json(success())
       } finally {
-        await releaseWalletLock(user.id)
+        await releaseWalletLock(user.id, lockToken)
       }
     }
   }

@@ -1,4 +1,5 @@
-import db from "./db";
+import crypto from "crypto";
+import db from "./db.js";
 
 const { User } = db;
 
@@ -16,12 +17,18 @@ const LOCK_TTL_MS = 30000;
  * saldo y gastarlo dos veces. Serializando por usuario, la segunda espera su
  * turno y vuelve a calcular el saldo ya actualizado.
  *
- * @returns {Promise<boolean>} true si se obtuvo el cerrojo.
+ * Cada adquisicion graba un token unico junto al cerrojo. Asi, si una peticion
+ * tarda mas que el TTL y otra reclama el cerrojo vencido, la primera no puede
+ * borrar por error el cerrojo de la segunda al liberar: releaseWalletLock solo
+ * actua si el token coincide.
+ *
+ * @returns {Promise<string|null>} el token del cerrojo, o null si no se obtuvo.
  */
 export async function acquireWalletLock(userId) {
-  if (!userId) return false;
+  if (!userId) return null;
 
   const staleBefore = new Date(Date.now() - LOCK_TTL_MS);
+  const token = crypto.randomUUID();
 
   const previous = await User.findOneAndUpdate(
     {
@@ -29,16 +36,23 @@ export async function acquireWalletLock(userId) {
       $or: [
         { wallet_lock: { $exists: false } },
         { wallet_lock: null },
-        { wallet_lock: { $lt: staleBefore } },
+        { "wallet_lock.at": { $lt: staleBefore } },
       ],
     },
-    { $set: { wallet_lock: new Date() } }
+    { $set: { wallet_lock: { at: new Date(), token } } }
   );
 
-  return previous !== null;
+  return previous !== null ? token : null;
 }
 
-export async function releaseWalletLock(userId) {
-  if (!userId) return;
-  await User.findOneAndUpdate({ id: userId }, { $set: { wallet_lock: null } });
+/**
+ * Suelta el cerrojo solo si el token coincide con el de quien lo tomo. Si el
+ * cerrojo ya fue reclamado por otra peticion (token distinto), no hace nada.
+ */
+export async function releaseWalletLock(userId, token) {
+  if (!userId || !token) return;
+  await User.findOneAndUpdate(
+    { id: userId, "wallet_lock.token": token },
+    { $set: { wallet_lock: null } }
+  );
 }
