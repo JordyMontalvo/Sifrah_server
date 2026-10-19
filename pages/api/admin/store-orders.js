@@ -3,7 +3,7 @@ import lib from "../../../components/lib";
 import { requireAdmin } from "../../../components/adminAuth";
 
 const { Activation, User } = db;
-const { error, success } = lib;
+const { error, success, midd } = lib;
 
 function sellerName(user) {
   if (!user) return "";
@@ -11,6 +11,12 @@ function sellerName(user) {
 }
 
 export default async function handler(req, res) {
+  await midd(req, res);
+
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+
   if (req.method !== "GET") {
     res.statusCode = 405;
     return res.json(error("method not allowed"));
