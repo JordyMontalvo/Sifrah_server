@@ -2,9 +2,10 @@ import db from "../../../components/db";
 import lib from "../../../components/lib";
 import { requireAdmin } from "../../../components/adminAuth";
 
-const { Activation, Affiliation, User, Tree, Token, Office, Transaction, Closed, Period, AuditLog } = db;
+const { Activation, Affiliation, User, Tree, Token, Office, Transaction, Closed, Period, AuditLog, Product } = db;
 const { error, success, midd, ids, map, model, rand } = lib;
 const { syncOrderEgressPeriod } = require("../../../lib/transactionPeriod");
+const { sharedStoreMarginTotal } = require("../../../lib/sharedStoreMargin");
 
 /**
  * Determina el periodo correcto al momento de la aprobación.
@@ -484,6 +485,39 @@ export default async (req, res) => {
               transactions: activation.transactions,
             }
           );
+        }
+      }
+
+      // Ganancia del socio por venta en su tienda compartida:
+      // diferencia entre precio público y precio socio, acreditada a su saldo disponible
+      if (activation.channel === "shared_store") {
+        const storeProducts = Array.isArray(activation.products) ? activation.products : [];
+        const missingSocio = storeProducts.filter((p) => p.price_socio == null).map((p) => String(p.id));
+        const socioPriceById = new Map();
+        if (missingSocio.length) {
+          const catalog = await Product.find({ id: { $in: missingSocio } });
+          (catalog || []).forEach((p) => socioPriceById.set(String(p.id), Number(p.price_socio) || 0));
+        }
+        const margin = Math.round(sharedStoreMarginTotal(storeProducts, socioPriceById) * 100) / 100;
+
+        if (margin > 0) {
+          const marginTransactionId = rand();
+          await Transaction.insert({
+            id: marginTransactionId,
+            date: new Date(),
+            user_id: user.id,
+            type: "in",
+            value: margin,
+            name: "shared store margin",
+            activation_id: activation.id,
+            virtual: activated ? false : true,
+            period_key: approvedPeriodKey,
+            period_label: approvedPeriodLabel,
+          });
+
+          const linked = Array.isArray(activation.transactions) ? activation.transactions : [];
+          activation.transactions = [...linked, marginTransactionId];
+          await Activation.update({ id: activation.id }, { transactions: activation.transactions });
         }
       }
 

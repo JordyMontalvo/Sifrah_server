@@ -178,6 +178,8 @@ export default async (req, res) => {
       name: dbProduct.name,
       total: qty,
       price: unit,
+      // Snapshot del precio socio: la ganancia del socio se calcula al aprobar
+      price_socio: socio > 0 ? socio : 0,
       points: Number(dbProduct.points) || 0,
     });
   }
