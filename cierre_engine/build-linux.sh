@@ -2,7 +2,6 @@
 # Binario que usa producción (pages/api/admin/closeds.js → engine_linux).
 # Fuerza caché de módulos fuera del sandbox de Cursor si hiciera falta.
 set -euo pipefail
-echo "PRUEBA DE FALLO CONTROLADO: el deploy debe abortar aquí" >&2; exit 1
 cd "$(dirname "$0")"
 
 if [[ "${GOMODCACHE:-}" == *cursor-sandbox* ]]; then
