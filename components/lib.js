@@ -2,6 +2,7 @@ const Cors = require("cors");
 const crypto = require("crypto");
 const { auditOrigin } = require("./cors-audit");
 const { allowedOrigins } = require("../middleware/middleware-cors");
+const { reinsertIntoSponsorTree } = require("../lib/treeReinsert");
 
 class Lib {
   constructor() {
@@ -281,6 +282,12 @@ class Lib {
       previousParent: parentId,
       childrenReassigned: childIds.length,
     };
+  }
+
+  // Reincorpora un nodo al arbol como DIRECTO de su patrocinador (ver
+  // lib/treeReinsert.js). Se usa al restaurar una cuenta eliminada.
+  async reinsertIntoSponsorTree(Tree, User, user) {
+    return reinsertIntoSponsorTree(Tree, User, user);
   }
 
   // Actualiza total_points de un nodo y propaga hacia arriba

@@ -7,6 +7,40 @@ const DB_NAME = process.env.DB_NAME || "sifrah";
 // 6 months in milliseconds
 const SIX_MONTHS_MS = 6 * 30 * 24 * 60 * 60 * 1000;
 
+/**
+ * Decide si una cuenta debe darse de baja por inactividad en el cierre.
+ *
+ * Reglas de permanencia de codigos:
+ * - Una cuenta con compra de afiliacion aprobada (`affiliated === true`) es
+ *   PERMANENTE: nunca se elimina por inactividad (punto 2).
+ * - Las cuentas sin afiliar mantienen la regla actual (punto 1): se eliminan si
+ *   llevan > 6 meses inactivas (ultima sesion) o, si nunca iniciaron sesion, si
+ *   fueron creadas hace > 6 meses.
+ *
+ * Funcion pura (sin IO) para poder testearla.
+ *
+ * @param {object} user
+ * @param {{hasSession: boolean, lastSessionMs: ?number}} sessionInfo
+ * @param {number} now  epoch ms
+ * @param {number} [sixMonthsMs]
+ * @returns {boolean}
+ */
+function shouldEliminate(user, sessionInfo, now, sixMonthsMs = SIX_MONTHS_MS) {
+  if (user.affiliated === true) return false;
+
+  const { hasSession, lastSessionMs } = sessionInfo;
+  if (hasSession) {
+    return !!(lastSessionMs && now - lastSessionMs > sixMonthsMs);
+  }
+
+  const creationDate = user.affiliation_date
+    ? new Date(user.affiliation_date).getTime()
+    : user.date
+      ? new Date(user.date).getTime()
+      : null;
+  return !!(creationDate && now - creationDate > sixMonthsMs);
+}
+
 async function run() {
   console.log(`[${new Date().toISOString()}] Starting session elimination script...`);
   
@@ -52,28 +86,17 @@ async function run() {
       // Skip users without an ID
       if (!user.id) continue;
 
-      let shouldEliminate = false;
+      const sessionInfo = {
+        hasSession: hasSessionMap.get(user.id) || false,
+        lastSessionMs: sessionMap.get(user.id) || null,
+      };
 
-      if (hasSessionMap.get(user.id)) {
-        const lastSessionMs = sessionMap.get(user.id);
-        if (lastSessionMs && now - lastSessionMs > SIX_MONTHS_MS) {
-          shouldEliminate = true;
-          console.log(`User ${user.id} (${user.dni}) inactive for > 6 months. Last session: ${new Date(lastSessionMs).toISOString()}`);
-        }
-      } else {
-        const creationDate = user.affiliation_date
-          ? new Date(user.affiliation_date).getTime()
-          : user.date
-            ? new Date(user.date).getTime()
-            : null;
-
-        if (creationDate && now - creationDate > SIX_MONTHS_MS) {
-          shouldEliminate = true;
+      if (shouldEliminate(user, sessionInfo, now)) {
+        if (sessionInfo.hasSession) {
+          console.log(`User ${user.id} (${user.dni}) inactive for > 6 months. Last session: ${new Date(sessionInfo.lastSessionMs).toISOString()}`);
+        } else {
           console.log(`User ${user.id} (${user.dni}) never logged in and was created > 6 months ago.`);
         }
-      }
-
-      if (shouldEliminate) {
         // --- ELIMINATION LOGIC ---
         // 1. Comprimir árbol (hijos suben a la posición del eliminado, sin huecos)
         const node = await db.collection("tree").findOne({ id: user.id });
@@ -186,4 +209,9 @@ async function run() {
   }
 }
 
-run();
+// Solo ejecutar cuando se corre directamente (el cron), no al importarlo en tests.
+if (require.main === module) {
+  run();
+}
+
+module.exports = { shouldEliminate };

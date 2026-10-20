@@ -768,6 +768,13 @@ const handler = async (req, res, auth) => {
 
       await User.update({ id }, { status: "active", reactivated_at: new Date() });
 
+      // Re-insertar en el arbol como DIRECTO de su patrocinador. Al eliminar se
+      // comprimio la red (los hijos subieron al padre) y el nodo quedo fuera del
+      // arbol, por lo que la persona no aparece para su patrocinador. NO se
+      // restaura la downline antigua: solo se reincorpora este nodo bajo su
+      // patrocinador. Idempotente (si venia de 'blocked' y ya figura, no duplica).
+      const treeReinserted = await lib.reinsertIntoSponsorTree(Tree, User, user);
+
       await lib.createAuditLog(AuditLog, {
         collection: "users",
         action: "reactivate",
@@ -775,7 +782,7 @@ const handler = async (req, res, auth) => {
         user_id: id,
         admin_id: auth.user.id,
         state_before: { status: user.status },
-        state_after:  { status: "active" }
+        state_after:  { status: "active", tree_reinserted: treeReinserted, parentId: user.parentId || null }
       });
     }
 

@@ -9,7 +9,7 @@
     "dev": "next dev -H 0.0.0.0 -p 3000",
     "build": "next build",
     "build:legacy": "NODE_OPTIONS=--openssl-legacy-provider next build",
-    "test": "node --test --experimental-test-module-mocks scripts/test-wallet-lock.js",
+    "test": "node --test --experimental-test-module-mocks scripts/test-wallet-lock.js scripts/test-permanencia-codigos.js",
     "start": "node server.js",
     "build:engine-linux": "bash scripts/build-engine-linux.sh",
     "heroku-postbuild": "bash scripts/build-engine-linux.sh && npm run build",
