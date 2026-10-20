@@ -1,8 +1,13 @@
+const path = require("path");
 const { MongoClient } = require('mongodb');
-require('dotenv').config({ path: '../.env' }); // Ajustar si hace falta
+// Cargar .env de forma independiente del directorio actual (mismo patron que
+// los demas scripts del repo): resolver contra __dirname, no contra el CWD.
+const dotenv = require("dotenv");
+dotenv.config({ path: path.resolve(__dirname, "../.env.local") });
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
 const URL = process.env.DB_URL || process.env.MONGODB_URI || "mongodb://localhost:27017";
-const DB_NAME = process.env.DB_NAME || "sifrah";
+const DB_NAME = process.env.DB_NAME || process.env.DB_NAME_FALLBACK || "sifrah";
 
 // Correccion de datos (una sola vez): reincorpora al arbol las cuentas que ya
 // fueron restauradas (status active + reactivated_at) pero que siguen sin
