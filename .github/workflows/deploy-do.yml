@@ -1,5 +1,6 @@
-# BORRADOR: no subido a Sifrah_server todavía.
-# Requiere antes: usuario deploy + /usr/local/bin/sifrah-deploy en el servidor, y los secretos DO_*.
+# Pipeline de produccion: al hacer push a master se corren los tests y, solo si
+# pasan, se despliega a DigitalOcean (wrapper fijo /usr/local/bin/sifrah-deploy
+# en el servidor). Requiere los secretos DO_SSH_KEY, DO_KNOWN_HOSTS, DO_HOST, DO_USER.
 name: Deploy a DigitalOcean
 
 on:
@@ -12,7 +13,24 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Gate de calidad: el deploy depende de que estos tests pasen.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: 'npm'
+      - name: Instalar dependencias
+        run: npm ci
+      - name: Correr tests
+        run: npm test
+        env:
+          CI: true
+
   deploy:
+    needs: [test]
     runs-on: ubuntu-latest
     steps:
       - name: Preparar llave y host conocido
