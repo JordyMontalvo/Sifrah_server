@@ -42,6 +42,14 @@ async function run() {
 
     for (const user of restored) {
       if (!user.id) { skipped++; continue; }
+      // No reinsertar cuentas con credenciales de eliminacion (dni del_...):
+      // son cuentas que deben permanecer eliminadas aunque su status quedara en
+      // active. Se dejan fuera del arbol a proposito.
+      if (typeof user.dni === "string" && user.dni.startsWith("del_")) {
+        console.log(`  - ${user.id} (${user.dni}): credencial eliminada (del_), se omite.`);
+        skipped++;
+        continue;
+      }
       if (!user.parentId) {
         console.log(`  - ${user.id} (${user.dni}): sin parentId/patrocinador, se omite.`);
         skipped++;
