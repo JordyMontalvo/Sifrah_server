@@ -350,6 +350,7 @@ module.exports = new DB({
   Closed: new MongoWrapper('closeds'),
   RankBonusPayment: new MongoWrapper('rank_bonus_payments'),
   Audio: new MongoWrapper('audios'),
+  Broadcast: new MongoWrapper('broadcasts'),
   Book: new MongoWrapper('books'),
   SavingsCategory: new MongoWrapper('savings_categories'),
   AgendaEvent: new MongoWrapper('agenda_events'),
