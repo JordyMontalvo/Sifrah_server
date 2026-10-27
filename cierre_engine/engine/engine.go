@@ -117,6 +117,12 @@ func (e *CierreEngine) CalculateRank(id string) string {
 		}
 
 		// 1. Check Reconsumo
+		// Regla de negocio:
+		// - Si el usuario se afilió con cualquier paquete (ActivatedInternal/_activated=true),
+		//   el reconsumo se omite para TODOS los rangos → cierra rango automáticamente.
+		// - Si NO está afiliado, necesita reconsumo >= r.ReconsumoRequired:
+		//   · BRONCE y superiores: 160 pts
+		//   · ACTIVO: 120 pts
 		if !user.ActivatedInternal && reconsumo < r.ReconsumoRequired {
 			continue
 		}
@@ -164,6 +170,11 @@ func (e *CierreEngine) CalculateRank(id string) string {
 		}
 	}
 
+	// Si ningún rango calificó pero el usuario está afiliado (_activated) o activado (160 pts),
+	// devuelve al menos ACTIVO. Esto cubre el caso edge donde affiliation_points=0 y points=0.
+	if user.ActivatedInternal || user.Activated {
+		return "ACTIVO"
+	}
 	return "none"
 }
 
