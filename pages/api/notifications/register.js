@@ -1,10 +1,12 @@
 import { MongoClient, ObjectId } from 'mongodb';
+import { applyCORS } from '../../../middleware/middleware-cors';
+import { getSessionValue } from '../../../components/adminAuth';
+import db from '../../../components/db';
+
+const { Session } = db;
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Credentials', true);
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization');
+  applyCORS(req, res);
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -14,10 +16,44 @@ export default async function handler(req, res) {
     return res.status(405).json({ message: 'Method Not Allowed' });
   }
 
-  const { userId, fcmToken, dni } = req.body;
+  const { userId, fcmToken, dni } = req.body || {};
 
-  if ((!userId && !dni) || !fcmToken) {
-    return res.status(400).json({ message: 'Faltan datos requeridos (userId/dni, fcmToken)' });
+  if (!fcmToken || typeof fcmToken !== 'string') {
+    return res.status(400).json({ message: 'Faltan datos requeridos (fcmToken)' });
+  }
+
+  // Si llega sesión, el usuario sale de la sesión y se ignoran dni/userId del body.
+  let query = null;
+  const sessionValue = getSessionValue(req);
+
+  if (sessionValue) {
+    try {
+      const session = await Session.findOne({ value: sessionValue });
+      if (!session || session.closedAt || session.closed_at || session.revokedAt || session.revoked_at) {
+        return res.status(401).json({ success: false, message: 'invalid session' });
+      }
+      query = { id: session.id };
+    } catch (error) {
+      console.error('Error validando sesión en notifications/register:', error.message);
+      return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+    }
+  } else {
+    // TEMPORAL (fase 3 exigirá sesión): camino antiguo sin sesión.
+    if (!userId && !dni) {
+      return res.status(400).json({ message: 'Faltan datos requeridos (userId/dni, fcmToken)' });
+    }
+    console.warn('[notifications/register] legacy sin sesión');
+    if (dni) {
+      query = { dni: String(dni) };
+    } else if (String(userId).length === 24) {
+      try {
+        query = { _id: ObjectId(String(userId)) };
+      } catch (e) {
+        query = { dni: String(userId) };
+      }
+    } else {
+      query = { dni: String(userId) };
+    }
   }
 
   const URL = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/sifrah";
@@ -25,32 +61,17 @@ export default async function handler(req, res) {
 
   try {
     await client.connect();
-    const db = client.db(process.env.DB_NAME || 'sifrah');
-    
-    let query = {};
-    if (dni) {
-      query = { dni: String(dni) };
-    } else {
-      if (userId && userId.length === 24) {
-        try {
-           query = { _id: ObjectId(userId) };
-        } catch (e) {
-           query = { dni: String(userId) };
-        }
-      } else {
-        query = { dni: String(userId) };
-      }
-    }
+    const mongo = client.db(process.env.DB_NAME || 'sifrah');
 
-    const result = await db.collection('users').updateOne(
+    await mongo.collection('users').updateOne(
       query,
       { $set: { fcmToken: fcmToken } }
     );
 
-    res.status(200).json({ success: true, message: 'Token registrado correctamente', result });
+    res.status(200).json({ success: true, message: 'Token registrado correctamente' });
   } catch (error) {
-    console.error('Error registrando token FCM:', error);
-    res.status(500).json({ success: false, error: error.message });
+    console.error('Error registrando token FCM:', error.message);
+    res.status(500).json({ success: false, message: 'Error interno del servidor' });
   } finally {
     await client.close();
   }

@@ -1,5 +1,7 @@
 import { MongoClient, ObjectId } from 'mongodb';
 import admin from 'firebase-admin';
+import { applyCORS } from '../../../middleware/middleware-cors';
+import { requireAdmin } from '../../../components/adminAuth';
 
 // Inicializar Firebase Admin una sola vez
 if (!admin.apps.length) {
@@ -15,11 +17,8 @@ if (!admin.apps.length) {
 }
 
 export default async function handler(req, res) {
-  // CORS
-  res.setHeader('Access-Control-Allow-Credentials', true);
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization');
+  // CORS restringido a los orígenes permitidos
+  applyCORS(req, res);
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -28,6 +27,10 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method Not Allowed' });
   }
+
+  // Solo un admin con sesión válida puede enviar notificaciones
+  const adminCtx = await requireAdmin(req, res);
+  if (!adminCtx) return;
 
   if (!admin.apps.length) {
     return res.status(500).json({ success: false, message: 'Firebase Admin no está configurado en el servidor.' });
@@ -124,7 +127,7 @@ export default async function handler(req, res) {
 
   } catch (error) {
     console.error('[Notifications/send] Error general:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, message: 'Error interno del servidor' });
   } finally {
     await client.close();
   }

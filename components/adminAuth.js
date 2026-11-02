@@ -5,7 +5,7 @@ const { getClientIp } = require("./client-ip");
 const { Session, User } = db;
 const { error } = lib;
 
-function getSessionValue(req) {
+export function getSessionValue(req) {
   const auth = req.headers && (req.headers.authorization || req.headers.Authorization);
   if (auth && typeof auth === "string") {
     const m = auth.match(/^Bearer\s+(.+)$/i);
