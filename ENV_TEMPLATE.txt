@@ -70,3 +70,11 @@ ADMIN_LOGIN_PASSWORD=contraseña_admin_aqui
 
 
 
+
+# ===================================
+# MONITOREO (Trialogic) - OPCIONAL
+# ===================================
+# Enlace de reporte de errores (se crea en Trialogic > Monitoreo). Si no se define, no se envia nada.
+# TRIALOGIC_INGEST_URL=https://trialogic-ia.vercel.app/api/ingest/<token>
+# Segundos tras los que una peticion se considera lenta (por defecto 20000 ms):
+# TRIALOGIC_SLOW_MS=20000

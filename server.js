@@ -3,6 +3,10 @@ const { createServer } = require('http');
 const { parse } = require('url');
 const next = require('next');
 const config = require('./config/config-heroku');
+const trialogic = require('./components/trialogic-report'); // Monitoreo Trialogic: inerte sin TRIALOGIC_INGEST_URL
+
+// Observa (sin cambiar el comportamiento) los errores que tumban el proceso. Mejor esfuerzo: el proceso termina enseguida.
+process.on('uncaughtExceptionMonitor', (err) => trialogic.report(err, { level: 'fatal' }));
 
 const dev = config.nodeEnv !== 'production';
 const hostname = config.host;
@@ -14,6 +18,7 @@ const handle = app.getRequestHandler();
 
 app.prepare().then(() => {
   const server = createServer(async (req, res) => {
+    trialogic.monitorRequest(req, res); // reporta 5xx y peticiones lentas (no altera la respuesta)
     try {
       // Parsear la URL
       const parsedUrl = parse(req.url, true);
@@ -32,6 +37,8 @@ app.prepare().then(() => {
       await handle(req, res, parsedUrl);
     } catch (err) {
       console.error(`[req:${req.id || 'unknown'}] Error occurred handling`, req.url, err);
+      trialogic.report(err, { method: req.method, url: req.url, status: 500 });
+      res.trialogicReported = true; // evita reportar el mismo 500 dos veces
       res.statusCode = 500;
       res.end('internal server error');
     }
