@@ -385,39 +385,16 @@ func main() {
 		// Elimination logic
 		// Los usuarios de tipo "admin" quedan excluidos del proceso de eliminación
 		// automática para evitar que el panel de administración quede bloqueado.
-		isAdminUser := user.UserType == "admin" || user.ID == "admin"
-		if user.Status != "eliminated" && !isAdminUser {
-			if !user.Affiliated {
-				user.Status = "eliminated"
-				user.StatusReason = "Cierre automático: Usuario no afiliado"
-				ts := time.Now().Unix()
-				user.DNI = fmt.Sprintf("del_%d_%s", ts, user.DNI)
-				if user.Email != "" {
-					user.Email = fmt.Sprintf("del_%d_%s", ts, user.Email)
-				}
-				if user.Phone != "" {
-					user.Phone = fmt.Sprintf("del_%d_%s", ts, user.Phone)
-				}
-				user.Name = user.Name + " (Eliminado)"
+		// Solo se dan de baja los registrados sin compra de afiliación; un afiliado
+		// es permanente y ya NO se elimina por inactividad (ver elimination.go).
+		if reason := closeEliminationReason(user); reason != "" {
+			eliminateUser(user, reason, time.Now().Unix())
+		} else if user.Status != "eliminated" && user.Affiliated {
+			// Contador informativo de cierres consecutivos sin puntos (no provoca baja).
+			if calculatedTotalPoints == 0 {
+				user.NInactives++
 			} else {
-				if calculatedTotalPoints == 0 {
-					user.NInactives++
-					if user.NInactives >= 6 {
-						user.Status = "eliminated"
-						user.StatusReason = "Cierre automático: Inactividad de 6 meses"
-						ts := time.Now().Unix()
-						user.DNI = fmt.Sprintf("del_%d_%s", ts, user.DNI)
-						if user.Email != "" {
-							user.Email = fmt.Sprintf("del_%d_%s", ts, user.Email)
-						}
-						if user.Phone != "" {
-							user.Phone = fmt.Sprintf("del_%d_%s", ts, user.Phone)
-						}
-						user.Name = user.Name + " (Eliminado)"
-					}
-				} else {
-					user.NInactives = 0
-				}
+				user.NInactives = 0
 			}
 		}
 		if !wasEliminated && user.Status == "eliminated" {
