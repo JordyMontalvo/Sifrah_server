@@ -29,8 +29,25 @@ jobs:
         env:
           CI: true
 
+  # Gate del motor de cierre en Go: un fallo aqui tambien bloquea el deploy.
+  go-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cierre_engine
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: cierre_engine/go.mod
+          cache-dependency-path: cierre_engine/go.sum
+      - name: Vet
+        run: go vet ./...
+      - name: Correr tests Go
+        run: go test ./...
+
   deploy:
-    needs: [test]
+    needs: [test, go-test]
     runs-on: ubuntu-latest
     steps:
       - name: Preparar llave y host conocido
