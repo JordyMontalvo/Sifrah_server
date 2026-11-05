@@ -34,6 +34,28 @@ jobs:
       env:
         CI: true
 
+  # Motor de cierre en Go (bonos, rangos y bajas de cuentas).
+  go-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cierre_engine
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Use Go
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: cierre_engine/go.mod
+        cache-dependency-path: cierre_engine/go.sum
+
+    - name: Vet
+      run: go vet ./...
+
+    - name: Run Go tests
+      run: go test ./...
+
   security:
     runs-on: ubuntu-latest
 
