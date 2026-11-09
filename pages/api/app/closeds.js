@@ -1130,27 +1130,25 @@ export default async (req, res) => {
           : [],
     }
 
-    // Generacional VIP se agrupa como apoyo de residuales o se muestra? Design shows:
-    // Afiliaciones, Residuales, Bono Recalificación, Bono Logro, Bono Ahorro
-    // Include generational inside residual total+list as "Residuales +" for honesty
+    // Bono Generacional (VIP) se muestra separado de Residuales
     const genTotal = Number(entry.generational_bonus) || 0
-    if (genTotal > 0 || genLines.length) {
-      residual.total = Number(residual.total || 0) + genTotal
-      residual.rows = residual.rows.concat(
-        genLines.map((g) => ({
+    const generational = {
+      total: genTotal,
+      rows: genLines
+        .map((g) => ({
           ...g,
-          id: `gen-merged-${g.id}`,
+          id: `gen-${g.id}`,
           name: String(g.name || "").includes("Gen")
             ? g.name
             : (g.name || "—") + " (Gen. VIP)",
         }))
-      )
-      residual.rows.sort((a, b) => (a.level || 0) - (b.level || 0))
+        .sort((a, b) => (a.level || 0) - (b.level || 0)),
     }
 
     const total =
       Number(affiliation.total || 0) +
       Number(residual.total || 0) +
+      Number(generational.total || 0) +
       Number(rankLead.total || 0) +
       Number(rankStart.total || 0) +
       Number(savings.total || 0)
@@ -1171,6 +1169,13 @@ export default async (req, res) => {
         amount: residual.total,
         percent: pct(residual.total),
         color: "#22c55e",
+      },
+      {
+        key: "generational",
+        label: "Bono Generacional",
+        amount: generational.total,
+        percent: pct(generational.total),
+        color: "#f59e0b",
       },
       {
         key: "rank_lead",
@@ -1345,6 +1350,7 @@ export default async (req, res) => {
       details: {
         affiliations: affiliation,
         residual,
+        generational,
         rank_lead: rankLead,
         rank_start: rankStart,
         savings,
