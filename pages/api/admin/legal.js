@@ -67,7 +67,18 @@ export default async (req, res) => {
       }
 
       const existing = await DashboardConfig.findOne({ id: docId(key) });
-      const updatedAt = new Date();
+      // Fecha de actualización elegida manualmente (YYYY-MM-DD); si no viene, se usa hoy
+      const rawDate = String((req.body && req.body.updatedAt) || "").trim();
+      let updatedAt = new Date();
+      if (rawDate) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
+          return res.status(400).json(error("Fecha de actualización no válida"));
+        }
+        updatedAt = new Date(rawDate + "T12:00:00Z");
+        if (isNaN(updatedAt.getTime())) {
+          return res.status(400).json(error("Fecha de actualización no válida"));
+        }
+      }
       if (existing) {
         await DashboardConfig.update({ id: docId(key) }, { html, updatedAt });
       } else {
