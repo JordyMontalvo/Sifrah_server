@@ -201,6 +201,33 @@ class EmailService {
     }
   }
 
+  // Enviar copia del Libro de Reclamaciones al consumidor
+  // `complaint` es la vista pública del registro (lib/complaints.js → complaintView)
+  async sendComplaintCopyEmail(complaint) {
+    if (!this.apiKey) {
+      throw new Error('Resend no configurado');
+    }
+
+    const to = complaint && complaint.consumer && complaint.consumer.email;
+    if (!to) throw new Error('El reclamo no tiene correo');
+
+    const mailOptions = {
+      from: process.env.RESEND_FROM || 'onboarding@resend.dev',
+      to,
+      subject: `Libro de Reclamaciones SIFRAH – Registro N.º ${escSubject(complaint.code)}`,
+      html: this.getComplaintCopyTemplate(complaint)
+    };
+
+    try {
+      const result = await this.sendViaResend(mailOptions);
+      console.log('Email de reclamo enviado:', result.id);
+      return { success: true, messageId: result.id };
+    } catch (error) {
+      console.error('Error enviando email de reclamo:', error);
+      throw error;
+    }
+  }
+
   // Enviar email de notificación de comisión
   async sendCommissionNotification(userData, commissionData) {
     if (!this.apiKey) {
@@ -369,6 +396,64 @@ class EmailService {
   }
 
   // Plantilla de contacto
+  getComplaintCopyTemplate(complaint) {
+    const c = complaint.consumer || {};
+    const p = complaint.product || {};
+    const d = complaint.detail || {};
+    const company = complaint.company || {};
+    const when = new Date(complaint.created_at);
+    const date = when.toLocaleDateString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: '2-digit', year: 'numeric' });
+    const time = when.toLocaleTimeString('es-PE', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit', hour12: true });
+    const multiline = (value) => esc(value).replace(/\n/g, '<br>');
+    const row = (label, value) => `
+      <tr>
+        <td style="padding:6px 10px;color:#555;width:42%;vertical-align:top;">${esc(label)}</td>
+        <td style="padding:6px 10px;color:#111;font-weight:600;">${value}</td>
+      </tr>`;
+    const section = (title) => `
+      <tr><td colspan="2" style="padding:14px 10px 6px;color:#e91e63;font-weight:800;font-size:13px;text-transform:uppercase;letter-spacing:.4px;">${esc(title)}</td></tr>`;
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Libro de Reclamaciones</title>
+      </head>
+      <body style="margin:0;padding:24px;background:#f6f6f6;font-family:Arial,Helvetica,sans-serif;">
+        <div style="max-width:620px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border-top:6px solid #e91e63;">
+          <div style="padding:24px;">
+            <h1 style="margin:0 0 4px;font-size:22px;color:#111;">Libro de Reclamaciones</h1>
+            <p style="margin:0;color:#555;font-size:13px;">${esc(company.name)} · RUC ${esc(company.ruc)}<br>${esc(company.address)}</p>
+            <div style="margin:18px 0;padding:14px;border-radius:10px;background:#fce4ec;color:#111;">
+              <strong>${d.kind === 'queja' ? 'Tu queja fue registrada correctamente.' : 'Tu reclamo fue registrado correctamente.'}</strong><br>
+              N.º de registro: <strong>${esc(complaint.code)}</strong> · Fecha: ${esc(date)} · Hora: ${esc(time)}
+            </div>
+            <table style="width:100%;border-collapse:collapse;font-size:14px;">
+              ${section('Información del consumidor')}
+              ${row('Nombres y apellidos', esc(c.full_name))}
+              ${c.is_minor ? row('Padre, madre o representante', esc(c.guardian)) : ''}
+              ${row('Domicilio', esc(c.address))}
+              ${row('Documento', `${esc(c.doc_type_label)} ${esc(c.doc_number)}`)}
+              ${row('Correo / teléfono', esc(c.email || c.phone))}
+              ${section('Información del producto')}
+              ${row('Tipo de operación', esc(p.operation_type_label))}
+              ${row('Producto(s)', esc(p.products))}
+              ${row('Monto reclamado', p.amount == null ? '—' : `S/ ${esc(Number(p.amount).toFixed(2))}`)}
+              ${section('Detalle')}
+              ${row('Tipo', esc(d.kind_label))}
+              ${row('Descripción de los hechos', multiline(d.description))}
+              ${row('Solicitud de solución', multiline(d.request))}
+            </table>
+            <p style="margin:20px 0 0;color:#777;font-size:12px;">Guarda este correo como constancia de tu registro.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
   getContactTemplate(name, email, subject, message) {
     return `
       <!DOCTYPE html>

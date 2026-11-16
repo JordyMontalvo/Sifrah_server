@@ -356,4 +356,7 @@ module.exports = new DB({
   AgendaEvent: new MongoWrapper('agenda_events'),
   AuditLog: new MongoWrapper('audit_logs'),
   ReactivationRequest: new MongoWrapper('reactivation_requests'),
+  // Libro de Reclamaciones: registros y contador del n.º correlativo
+  Complaint: new MongoWrapper('complaints'),
+  Counter: new MongoWrapper('counters'),
 });
