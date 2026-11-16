@@ -228,6 +228,33 @@ class EmailService {
     }
   }
 
+  // Enviar al consumidor la respuesta del administrador a su reclamo o queja
+  async sendComplaintResponseEmail(complaint) {
+    if (!this.apiKey) {
+      throw new Error('Resend no configurado');
+    }
+
+    const to = complaint && complaint.consumer && complaint.consumer.email;
+    if (!to) throw new Error('El reclamo no tiene correo');
+    if (!complaint.response || !complaint.response.text) throw new Error('El reclamo no tiene respuesta');
+
+    const mailOptions = {
+      from: process.env.RESEND_FROM || 'onboarding@resend.dev',
+      to,
+      subject: `Respuesta a tu ${escSubject((complaint.detail && complaint.detail.kind_label || 'reclamo').toLowerCase())} N.º ${escSubject(complaint.code)} – SIFRAH`,
+      html: this.getComplaintResponseTemplate(complaint)
+    };
+
+    try {
+      const result = await this.sendViaResend(mailOptions);
+      console.log('Email de respuesta a reclamo enviado:', result.id);
+      return { success: true, messageId: result.id };
+    } catch (error) {
+      console.error('Error enviando respuesta de reclamo:', error);
+      throw error;
+    }
+  }
+
   // Enviar email de notificación de comisión
   async sendCommissionNotification(userData, commissionData) {
     if (!this.apiKey) {
@@ -447,6 +474,39 @@ class EmailService {
               ${row('Solicitud de solución', multiline(d.request))}
             </table>
             <p style="margin:20px 0 0;color:#777;font-size:12px;">Guarda este correo como constancia de tu registro.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
+  getComplaintResponseTemplate(complaint) {
+    const c = complaint.consumer || {};
+    const d = complaint.detail || {};
+    const company = complaint.company || {};
+    const multiline = (value) => esc(value).replace(/\n/g, '<br>');
+    const isQueja = d.kind === 'queja';
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Respuesta – Libro de Reclamaciones</title>
+      </head>
+      <body style="margin:0;padding:24px;background:#f6f6f6;font-family:Arial,Helvetica,sans-serif;">
+        <div style="max-width:620px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border-top:6px solid #e91e63;">
+          <div style="padding:24px;color:#111;">
+            <h1 style="margin:0 0 4px;font-size:22px;">Libro de Reclamaciones</h1>
+            <p style="margin:0 0 18px;color:#555;font-size:13px;">${esc(company.name)} · RUC ${esc(company.ruc)}</p>
+            <p style="margin:0 0 12px;">Hola ${esc(c.names)},</p>
+            <p style="margin:0 0 16px;">Respondemos a tu ${isQueja ? 'queja' : 'reclamo'} N.º <strong>${esc(complaint.code)}</strong>:</p>
+            <div style="padding:14px 16px;border-radius:10px;background:#fce4ec;line-height:1.5;">${multiline(complaint.response.text)}</div>
+            <p style="margin:18px 0 6px;color:#555;font-size:13px;"><strong>Tu solicitud:</strong></p>
+            <p style="margin:0;color:#555;font-size:13px;line-height:1.5;">${multiline(d.request)}</p>
+            <p style="margin:22px 0 0;color:#777;font-size:12px;">Si tienes dudas, responde a este correo o comunícate con SIFRAH.</p>
           </div>
         </div>
       </body>

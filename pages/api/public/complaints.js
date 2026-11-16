@@ -78,7 +78,7 @@ export default async (req, res) => {
     number,
     code: formatComplaintNumber(number),
     created_at: new Date(),
-    status: "nuevo",
+    status: "pendiente",
     company: COMPANY,
     consumer: data.consumer,
     product: data.product,
