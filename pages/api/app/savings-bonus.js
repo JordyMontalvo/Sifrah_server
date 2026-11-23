@@ -113,9 +113,9 @@ export default async (req, res) => {
             period && period.key
           );
           base = enrichPromotionForStore(
-            { ...base, available_quantity: p.available_quantity },
+            { ...base, available_quantity: p.available_quantity, promotion_required_points: p.promotion_required_points },
             purchased,
-            promotionEligibility.total_blocks
+            promotionEligibility
           );
         }
 

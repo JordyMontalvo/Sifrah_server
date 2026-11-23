@@ -1,5 +1,10 @@
 import assert from "assert";
-import { calculatePromotionBlocks } from "../lib/promotionEligibility.js";
+import {
+  calculatePromotionBlocks,
+  getPromotionRequiredPoints,
+  parsePromotionRequiredPoints,
+  promotionBlocksFor,
+} from "../lib/promotionEligibility.js";
 import {
   getPromotionRemaining,
   enrichPromotionForStore,
@@ -185,7 +190,76 @@ async function runOrderValidationTests() {
   console.log("✔ Validación de orden en backend (validatePromotionOrder): OK");
 }
 
-runOrderValidationTests().then(() => {
+// 4. Puntaje de reconsumo configurable por promoción (promotion_required_points)
+async function runConfigurableRequirementTests() {
+  // Valor por promoción, con 160 por defecto
+  assert.strictEqual(getPromotionRequiredPoints({}), 160);
+  assert.strictEqual(getPromotionRequiredPoints({ promotion_required_points: 200 }), 200);
+  assert.strictEqual(getPromotionRequiredPoints({ promotion_required_points: "abc" }), 160);
+  assert.strictEqual(getPromotionRequiredPoints({ promotion_required_points: 0 }), 160);
+
+  // Validación del valor que envía el admin
+  assert.strictEqual(parsePromotionRequiredPoints("").value, 160);
+  assert.strictEqual(parsePromotionRequiredPoints("200").value, 200);
+  assert.ok(parsePromotionRequiredPoints(0).error);
+  assert.ok(parsePromotionRequiredPoints(-5).error);
+  assert.ok(parsePromotionRequiredPoints(1.5).error);
+  console.log("✔ Puntaje configurable (valor por defecto y validación): OK");
+
+  const promo200 = { id: "promo-200", name: "Promo 200", available_quantity: 1, is_promotion: true, promotion_required_points: 200 };
+  const base = (accumulated, cart = 0, affiliated = false) => ({
+    affiliated_current_period: affiliated,
+    accumulated_points: accumulated,
+    cart_points: cart,
+  });
+
+  // Reconsumo con 200: 160 bloqueada, 200 habilita 1, 400 habilita 2
+  assert.strictEqual(promotionBlocksFor(base(160), promo200).total_blocks, 0);
+  assert.strictEqual(promotionBlocksFor(base(200), promo200).total_blocks, 1);
+  assert.strictEqual(promotionBlocksFor(base(400), promo200).total_blocks, 2);
+  // Los puntos del pedido en curso cuentan: 150 acumulados + 50 en el carrito = 1 bloque
+  assert.strictEqual(promotionBlocksFor(base(150, 50), promo200).total_blocks, 1);
+  console.log("✔ Reconsumo con puntaje de 200 (160 / 200 / 400 / carrito): OK");
+
+  // Afiliación del ciclo: 1 compra sin mínimo de reconsumo, aunque el requisito sea 200
+  assert.strictEqual(promotionBlocksFor(base(0, 0, true), promo200).total_blocks, 1);
+  assert.strictEqual(promotionBlocksFor(base(160, 0, true), promo200).total_blocks, 1);
+  assert.strictEqual(promotionBlocksFor(base(200, 0, true), promo200).total_blocks, 2);
+  console.log("✔ Afiliación habilita 1 promoción sin mínimo, adicionales con 200 pts: OK");
+
+  // Catálogo: la promoción con 160 pts acumulados sigue visible pero sin cupo
+  const locked = enrichPromotionForStore(promo200, 0, base(160));
+  assert.strictEqual(locked.promotion_required_points, 200);
+  assert.strictEqual(locked.promotion_remaining, 0);
+  assert.strictEqual(locked.promotion_points_to_next_block, 40);
+  const unlocked = enrichPromotionForStore(promo200, 0, base(400));
+  assert.strictEqual(unlocked.promotion_remaining, 2);
+  // Compatibilidad: pasar un número de bloques sigue funcionando
+  assert.strictEqual(enrichPromotionForStore(promo200, 0, 3).promotion_remaining, 3);
+  console.log("✔ Catálogo con puntaje por promoción: OK");
+
+  // Pedido: dos promociones con requisitos distintos en el mismo pedido
+  const promo160 = { id: "promo-160", name: "Promo 160", available_quantity: 1, is_promotion: true };
+  const catalog = new Map([["promo-200", promo200], ["promo-160", promo160]]);
+  const noPurchases = { find: async () => [] };
+
+  const errLocked = await validatePromotionOrder([{ id: "promo-200", total: 1 }], catalog, noPurchases, "u", "2026-11", base(160));
+  assert.ok(errLocked && errLocked.error.includes("200"));
+  const okWithCart = await validatePromotionOrder([{ id: "promo-200", total: 1 }], catalog, noPurchases, "u", "2026-11", base(160, 40));
+  assert.strictEqual(okWithCart, null);
+  const okTwo = await validatePromotionOrder([{ id: "promo-200", total: 2 }], catalog, noPurchases, "u", "2026-11", base(400));
+  assert.strictEqual(okTwo, null);
+  const errThree = await validatePromotionOrder([{ id: "promo-200", total: 3 }], catalog, noPurchases, "u", "2026-11", base(400));
+  assert.ok(errThree && errThree.error.includes("200"));
+
+  const okMixed160 = await validatePromotionOrder([{ id: "promo-160", total: 1 }], catalog, noPurchases, "u", "2026-11", base(180));
+  assert.strictEqual(okMixed160, null);
+  const errMixed200 = await validatePromotionOrder([{ id: "promo-160", total: 1 }, { id: "promo-200", total: 1 }], catalog, noPurchases, "u", "2026-11", base(180));
+  assert.ok(errMixed200 && errMixed200.error.includes("Promo 200"));
+  console.log("✔ Validación de pedido con requisitos distintos por promoción: OK");
+}
+
+runOrderValidationTests().then(runConfigurableRequirementTests).then(() => {
   console.log("\n🎉 ¡TODAS LAS PRUEBAS DE BACKEND PASARON EXITOSAMENTE!");
 }).catch((err) => {
   console.error("❌ Error en prueba:", err);

@@ -174,7 +174,7 @@ export default async (req, res) => {
         const enrichedP = enrichPromotionForStore(
           p,
           purchased,
-          promotionEligibility.total_blocks
+          promotionEligibility
         );
         enriched.push(enrichedP);
       } else {

@@ -6,6 +6,7 @@ import {
   getNextProductSortOrder,
   PRODUCT_SORT_MONGO,
 } from "../../../lib/productSort";
+import { parsePromotionRequiredPoints } from "../../../lib/promotionEligibility";
 
 const { Product, Plan, SavingsCategory } = db;
 const { midd, success, error, rand } = lib;
@@ -214,6 +215,7 @@ export default async (req, res) => {
         is_promotion = false,
         promotion_active = true,
         available_quantity = 0,
+        promotion_required_points = undefined,
         catalog_type = "",
         savings_category_id = null,
         public_price = 0,
@@ -297,6 +299,11 @@ export default async (req, res) => {
       if (is_promotion !== undefined) updatePayload.is_promotion = !!is_promotion;
       if (promotion_active !== undefined) updatePayload.promotion_active = promotion_active !== false;
       if (available_quantity !== undefined) updatePayload.available_quantity = Number(available_quantity) || 0;
+      if (promotion_required_points !== undefined) {
+        const parsedRequired = parsePromotionRequiredPoints(promotion_required_points);
+        if (parsedRequired.error) return res.json(error(parsedRequired.error));
+        updatePayload.promotion_required_points = parsedRequired.value;
+      }
       if (resolvedCatalogType) updatePayload.catalog_type = resolvedCatalogType;
       if (visible_shared_store !== undefined) {
         updatePayload.visible_shared_store = visible_shared_store === true || visible_shared_store === "true";
@@ -330,6 +337,7 @@ export default async (req, res) => {
         is_promotion = false,
         promotion_active = true,
         available_quantity = 0,
+        promotion_required_points = undefined,
         catalog_type = "",
         savings_category_id = null,
         public_price = 0,
@@ -344,6 +352,8 @@ export default async (req, res) => {
       });
 
       const isPromo = !!is_promotion || catalog_type === "promotion";
+      const parsedRequired = parsePromotionRequiredPoints(promotion_required_points);
+      if (isPromo && parsedRequired.error) return res.json(error(parsedRequired.error));
       let resolvedCatalogType = catalog_type || (isPromo ? "promotion" : "");
       let resolvedSavingsBonus = !!is_savings_bonus;
       let resolvedPoints = isPromo ? 0 : points || 0;
@@ -389,6 +399,8 @@ export default async (req, res) => {
         is_promotion: isPromo,
         promotion_active: promotion_active !== false,
         available_quantity: Number(available_quantity) || 0,
+        // Puntos de reconsumo que habilitan cada compra de la promoción (160 por defecto)
+        ...(isPromo ? { promotion_required_points: parsedRequired.value } : {}),
         savings_category_id: categoryFields.savings_category_id,
         public_price: Number(public_price) || 0,
         visible_shared_store: visible_shared_store !== false && visible_shared_store !== "false",
