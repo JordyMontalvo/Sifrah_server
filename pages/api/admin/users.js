@@ -56,6 +56,41 @@ function expandIdsForIn(ids) {
   return [...out];
 }
 
+/**
+ * Totales de saldos de un conjunto de usuarios (todos los del filtro, no solo la página):
+ * - totalBalance: saldo disponible (no virtual, sin Bono Ahorro)
+ * - totalVirtualBalance: saldo no disponible (transacciones virtuales)
+ * - totalSifrahBalance: saldo Sifrah / Bono Ahorro (no virtual)
+ * Una sola aggregation en MongoDB; mismos criterios que el saldo por usuario del listado.
+ */
+async function sumGlobalBalances(userIds) {
+  const ids = (userIds || []).map((id) => String(id));
+  if (!ids.length) return { totalBalance: 0, totalVirtualBalance: 0, totalSifrahBalance: 0 };
+
+  const signed = { $cond: [{ $eq: ["$type", "in"] }, { $toDouble: "$value" }, { $cond: [{ $eq: ["$type", "out"] }, { $multiply: [{ $toDouble: "$value" }, -1] }, 0] }] };
+  const isVirtual = { $eq: ["$virtual", true] };
+  const isSavings = { $eq: ["$wallet_tipo", "BONO_AHORRO"] };
+
+  const col = await Transaction._getCollection();
+  const [row] = await col.aggregate([
+    { $match: { user_id: { $in: ids } } },
+    {
+      $group: {
+        _id: null,
+        available: { $sum: { $cond: [{ $and: [{ $not: [isVirtual] }, { $not: [isSavings] }] }, signed, 0] } },
+        virtual: { $sum: { $cond: [isVirtual, signed, 0] } },
+        sifrah: { $sum: { $cond: [{ $and: [{ $not: [isVirtual] }, isSavings] }, signed, 0] } },
+      },
+    },
+  ]).toArray();
+
+  return {
+    totalBalance: (row && row.available) || 0,
+    totalVirtualBalance: (row && row.virtual) || 0,
+    totalSifrahBalance: (row && row.sifrah) || 0,
+  };
+}
+
 function periodFromDate(dateValue) {
   const d = new Date(dateValue || new Date());
   if (isNaN(d.getTime())) return null;
@@ -189,9 +224,12 @@ const handler = async (req, res, auth) => {
         return { ...u };
       });
 
-      // totalBalance / totalVirtualBalance: suma de la página
-      const totalBalance = [...balMap.values()].reduce((s, r) => s + (r.ins || 0) - (r.outs || 0), 0);
-      const totalVirtualBalance = [...virMap.values()].reduce((s, r) => s + (r.vIns || 0) - (r.vOuts || 0), 0);
+      // Totales de TODOS los usuarios del filtro (no solo la página): no cambian al paginar
+      const userCol = await User._getCollection();
+      const allIdsDocs = await userCol.find(finalQuery, { projection: { id: 1, _id: 0 } }).toArray();
+      const { totalBalance, totalVirtualBalance, totalSifrahBalance } = await sumGlobalBalances(
+        allIdsDocs.map((u) => u.id)
+      );
 
       return res.json(success({
         users,
@@ -200,6 +238,7 @@ const handler = async (req, res, auth) => {
         currentPage: pageNum,
         totalBalance,
         totalVirtualBalance,
+        totalSifrahBalance,
       }));
     }
 
@@ -374,24 +413,9 @@ const handler = async (req, res, auth) => {
     const virMap = new Map(virtualAgg.map((r) => [r._id, r]));
 
     // Totales globales de todos los usuarios filtrados (suma del set completo)
-    const allPageAllIds = allUsers.map((u) => String(u.id));
-    const [totalBalAgg, totalVirAgg] = await Promise.all([
-      Transaction._getCollection().then((col) =>
-        col.aggregate([
-          { $match: { user_id: { $in: allPageAllIds }, virtual: { $in: [null, false] }, wallet_tipo: { $ne: "BONO_AHORRO" } } },
-          { $group: { _id: null, total: { $sum: { $cond: [{ $eq: ["$type", "in"] }, { $toDouble: "$value" }, { $multiply: [{ $toDouble: "$value" }, -1] }] } } } },
-        ]).toArray()
-      ),
-      Transaction._getCollection().then((col) =>
-        col.aggregate([
-          { $match: { user_id: { $in: allPageAllIds }, virtual: true } },
-          { $group: { _id: null, total: { $sum: { $cond: [{ $eq: ["$type", "in"] }, { $toDouble: "$value" }, { $multiply: [{ $toDouble: "$value" }, -1] }] } } } },
-        ]).toArray()
-      ),
-    ]);
-
-    const totalBalance = totalBalAgg[0]?.total ?? 0;
-    const totalVirtualBalance = totalVirAgg[0]?.total ?? 0;
+    const { totalBalance, totalVirtualBalance, totalSifrahBalance } = await sumGlobalBalances(
+      allUsers.map((u) => u.id)
+    );
 
     // Aplicar saldos individuales a usuarios de la página
     users = users.map((user) => {
@@ -420,6 +444,7 @@ const handler = async (req, res, auth) => {
         currentPage: pageNum,
         totalBalance,
         totalVirtualBalance,
+        totalSifrahBalance,
       })
     );
   }
